@@ -1,0 +1,22 @@
+{
+  "name": "claude-skills",
+  "owner": {
+    "name": "Dmitry Krivaltsevich"
+  },
+  "metadata": {
+    "description": "A collection of skills for Claude Code",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "google-drive",
+      "description": "Search, list, download, upload, create, update, share, and manage Google Drive files and folders",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./skills/drive",
+        "./skills/drive-trash"
+      ]
+    }
+  ]
+}
