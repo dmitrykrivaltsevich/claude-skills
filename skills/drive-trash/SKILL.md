@@ -1,5 +1,5 @@
 ---
-name: /google-drive-trash
+name: google-drive-trash
 description: Moves Google Drive files to trash or restores them. Use when the user explicitly asks to delete or restore a Drive file. Does not permanently delete — files stay in trash for 30 days.
 allowed-tools:
   - Bash(uv run *)
