@@ -235,3 +235,65 @@ class TestTree:
         assert "file1.txt" in names
         assert "file2.txt" in names
         assert len(result) == 2
+
+    @patch("tree.get_drive_service")
+    def test_mime_filter_includes_only_matching_type(self, mock_svc_fn):
+        """--mime-type should only return items matching that MIME type (plus folders for structure)."""
+        from tree import list_tree
+
+        mock_svc = MagicMock()
+        mock_svc_fn.return_value = mock_svc
+        mock_svc.files().list().execute.return_value = {
+            "files": [
+                _make_file("x1", "report.pdf", "application/pdf"),
+                _make_file("x2", "notes.txt", "text/plain"),
+                _make_file("x3", "photo.jpg", "image/jpeg"),
+            ]
+        }
+
+        result = list_tree(depth=1, mime_filter="application/pdf")
+        names = [item["name"] for item in result]
+        assert "report.pdf" in names
+        assert "notes.txt" not in names
+        assert "photo.jpg" not in names
+
+    @patch("tree.get_drive_service")
+    def test_mime_filter_still_traverses_folders(self, mock_svc_fn):
+        """Folders should always be traversed even when mime_filter is set, to find matching files inside."""
+        from tree import list_tree
+
+        mock_svc = MagicMock()
+        mock_svc_fn.return_value = mock_svc
+        mock_svc.files().list().execute.side_effect = [
+            {"files": [_make_folder("f1", "Books")]},
+            {"files": [
+                _make_file("x1", "Kleppmann.pdf", "application/pdf"),
+                _make_file("x2", "notes.txt", "text/plain"),
+            ]},
+        ]
+
+        result = list_tree(depth=2, mime_filter="application/pdf")
+        names = [item["name"] for item in result]
+        assert "Kleppmann.pdf" in names
+        assert "notes.txt" not in names
+        # Folders themselves should NOT appear in mime-filtered results
+        assert "Books" not in names
+
+    @patch("tree.get_drive_service")
+    def test_mime_filter_combined_with_name_filter(self, mock_svc_fn):
+        """Both filters should apply: MIME type AND name substring."""
+        from tree import list_tree
+
+        mock_svc = MagicMock()
+        mock_svc_fn.return_value = mock_svc
+        mock_svc.files().list().execute.return_value = {
+            "files": [
+                _make_file("x1", "architecture.pdf", "application/pdf"),
+                _make_file("x2", "architecture.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
+                _make_file("x3", "random.pdf", "application/pdf"),
+            ]
+        }
+
+        result = list_tree(depth=1, name_filter="architecture", mime_filter="application/pdf")
+        names = [item["name"] for item in result]
+        assert names == ["architecture.pdf"]

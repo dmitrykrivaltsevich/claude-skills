@@ -10,7 +10,7 @@
 """Recursively list Google Drive folder tree.
 
 Usage:
-    uv run tree.py [--folder-id ID] [--depth N] [--name-filter TEXT]
+    uv run tree.py [--folder-id ID] [--depth N] [--name-filter TEXT] [--mime-type TYPE]
 """
 from __future__ import annotations
 
@@ -32,6 +32,7 @@ def list_tree(
     folder_id: str | None = None,
     depth: int = 3,
     name_filter: str | None = None,
+    mime_filter: str | None = None,
 ) -> list[dict]:
     """Recursively list folder contents up to a given depth.
 
@@ -42,10 +43,15 @@ def list_tree(
     filter text (case-insensitive) are included in results, but ALL
     folders are still traversed to find deep matches.
 
+    When mime_filter is provided, only non-folder items matching that
+    MIME type are included. Folders are always traversed but excluded
+    from results.
+
     Args:
         folder_id: Starting folder ID. Defaults to root.
         depth: Maximum depth to recurse (1 = root only, 2 = root + children, etc.)
         name_filter: Optional case-insensitive substring filter on item names.
+        mime_filter: Optional MIME type filter (e.g. 'application/pdf').
 
     Returns:
         Flat list of item dicts with added 'path' and 'depth' fields.
@@ -77,13 +83,21 @@ def list_tree(
             item_path = f"{path_prefix}/{item['name']}" if path_prefix else item["name"]
             is_folder = item.get("mimeType") == FOLDER_MIME
 
-            # Check name filter
-            matches_filter = (
+            # Check filters
+            matches_name = (
                 _filter_lower is None
                 or _filter_lower in item["name"].lower()
             )
+            matches_mime = (
+                mime_filter is None
+                or item.get("mimeType") == mime_filter
+            )
+            # When mime_filter is set, exclude folders from results
+            # (they're only traversed, not returned)
+            if mime_filter and is_folder:
+                matches_mime = False
 
-            if matches_filter:
+            if matches_name and matches_mime:
                 results.append({
                     **item,
                     "path": item_path,
@@ -104,12 +118,14 @@ def main() -> None:
     parser.add_argument("--folder-id", help="Starting folder ID (default: root)")
     parser.add_argument("--depth", type=int, default=3, help="Max traversal depth (default: 3)")
     parser.add_argument("--name-filter", help="Case-insensitive name substring filter")
+    parser.add_argument("--mime-type", help="Filter by MIME type (e.g. application/pdf)")
     args = parser.parse_args()
 
     items = list_tree(
         folder_id=args.folder_id,
         depth=args.depth,
         name_filter=args.name_filter,
+        mime_filter=args.mime_type,
     )
 
     for item in items:

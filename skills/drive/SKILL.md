@@ -37,6 +37,7 @@ uv run ${CLAUDE_SKILL_DIR}/scripts/setup_auth.py --client-id "CLIENT_ID" --clien
 | Find folder/file by name in hierarchy | `tree.py --name-filter "text"` |
 | Browse a known folder | `list_files.py --folder-id ID` |
 | Explore folder structure | `tree.py [--folder-id ID] --depth N` |
+| List only PDFs (or other type) in a folder tree | `tree.py --folder-id ID --mime-type application/pdf` |
 | Download/export a file | `download.py --file-id ID [--format FMT]` |
 | Upload a local file | `upload.py --file-path PATH [--folder-id ID]` |
 | Create Doc/Sheet/Slide/Folder | `create.py --name "X" --type doc\|sheet\|slide\|folder` |
@@ -58,6 +59,16 @@ uv run ${CLAUDE_SKILL_DIR}/scripts/setup_auth.py --client-id "CLIENT_ID" --clien
    - `list_drives.py` to discover Shared Drives, then `tree.py --folder-id DRIVE_ID --depth 2` on each
    - Present the folder structure to the user so they can point you in the right direction
 
+### Large collections (1000+ files)
+
+When a folder or Shared Drive is large (e.g. a book library, media archive):
+
+- Do NOT `tree.py` without filters — output will be huge and truncated
+- Use `search.py --query "keyword" --folder-id ID` to search within the specific folder
+- Use `tree.py --folder-id ID --mime-type application/pdf` to narrow by file type
+- Try multiple varied keywords: title fragments, author names, subtopics — not just broad topic words
+- PDF content search is unreliable on Drive (scanned/large PDFs may not be indexed) — always also try `--name-only` or `tree.py --name-filter`
+
 Do NOT rephrase the same keyword hoping for better results. Switch strategies instead.
 
 ## Script Reference
@@ -77,7 +88,7 @@ uv run ${CLAUDE_SKILL_DIR}/scripts/search.py --q "modifiedTime > '2025-01-01' an
 ### tree.py
 
 ```bash
-uv run ${CLAUDE_SKILL_DIR}/scripts/tree.py [--folder-id ID] [--depth N] [--name-filter TEXT]
+uv run ${CLAUDE_SKILL_DIR}/scripts/tree.py [--folder-id ID] [--depth N] [--name-filter TEXT] [--mime-type TYPE]
 ```
 
 ### list_files.py
