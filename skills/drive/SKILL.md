@@ -41,6 +41,35 @@ uv run ${CLAUDE_SKILL_DIR}/scripts/setup_auth.py --client-id "CLIENT_ID_HERE" --
 
 This opens a browser window for Google sign-in. After authorization, credentials are stored in the macOS Keychain under the service `claude-skill-google-drive`.
 
+## How to Choose the Right Script
+
+Pick the script based on what the user wants. Do NOT blindly default to `search.py` for every request.
+
+| User intent | Script | Why |
+|---|---|---|
+| **Find files by keyword** (content or name) | `search.py --query "term"` | Searches inside file content AND file/folder names |
+| **Complex search** (date range, MIME type, starred, shared, boolean logic) | `search.py --q "raw API query"` | Passes query directly to Drive API — you construct the query syntax |
+| **Find a folder or file by its name/path** | `tree.py --name-filter "text"` | Scans folder+file names in the hierarchy; finds things search misses (unindexed PDFs, folder names) |
+| **Browse a known folder** | `list_files.py --folder-id ID` | Lists one folder level; use when you already have the folder ID |
+| **Explore folder structure** (don't know where something is) | `tree.py --depth N` | Recursive traversal; shows the folder tree so you can locate the right folder |
+| **Read/download a file** | `download.py --file-id ID` | Requires file ID (get it from search/list/tree first) |
+| **Upload a local file** | `upload.py --file-path PATH` | Uploads from the local filesystem to Drive |
+| **Create a new Doc/Sheet/Slide/Folder** | `create.py --name "X" --type Y` | Creates empty Google Workspace items |
+| **Rename, move, star, describe** | `update.py --file-id ID` | Metadata changes only (not file content) |
+| **Share or manage permissions** | `share.py share/list/remove` | Add/remove/list user permissions on a file |
+| **Get detailed file info** | `info.py --file-id ID` | Full metadata: size, owners, permissions, dates, etc. |
+| **Read or add comments** | `comments.py list/add/reply` | Google Drive comment threads on a file |
+
+### Finding files — decision logic
+
+1. **User gives a keyword** → start with `search.py --query "keyword"`.
+2. **Results insufficient or empty** → try `tree.py --name-filter "keyword"` to check folder/file names.
+3. **User mentions a folder name or path** → use `tree.py --name-filter "folder name"` to find the folder ID, then `list_files.py --folder-id ID` to see its contents.
+4. **User needs date/type/boolean filtering** → use `search.py --q "modifiedTime > '2025-01-01' and ..."` with raw Drive API query.
+5. **User gives a Drive URL** → extract the file/folder ID from the URL and use `list_files.py`, `info.py`, or `download.py` directly.
+
+Do NOT make multiple search calls with different rephrased keywords hoping for better results. Instead, switch strategies: search → tree → list.
+
 ## Operations
 
 ### Search Files
@@ -155,18 +184,6 @@ uv run ${CLAUDE_SKILL_DIR}/scripts/comments.py add --file-id ID --content "Your 
 # Reply to a comment
 uv run ${CLAUDE_SKILL_DIR}/scripts/comments.py reply --file-id ID --comment-id CID --content "Reply text"
 ```
-
-## Search Strategy
-
-When looking for files on a user's Drive, do NOT rely on `search.py` alone. Google Drive full-text search only indexes file *content* — it misses folder names and files whose content isn't indexed (some PDFs, images, etc.).
-
-**Recommended approach:**
-1. Start with `search.py --query "term"` — this searches both names and content.
-2. If results are insufficient, use `tree.py --name-filter "term"` to scan folder names and file titles in the hierarchy.
-3. If the user mentions a folder or path, use `tree.py --folder-id ID` or `list_files.py --folder-id ID` to browse directly.
-4. Combine strategies: search for content, then browse folder structure to find organizational context.
-
-Never give up after a single search — users organize files in folders, and the folder names often contain the key context.
 
 ## Important Notes
 
