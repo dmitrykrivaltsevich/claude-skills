@@ -1,16 +1,30 @@
 # Agent Rules
 
 - Every Python script executed via `uv run` MUST declare the full set of runtime dependencies in its own PEP 723 inline metadata block — including all packages required by locally-imported modules, traced recursively.
-- Every change to skill code (scripts, SKILL.md, tests, or references) MUST be accompanied by a version bump in `.claude-plugin/marketplace.json` (`metadata.version`). Patch for fixes, minor for new features, major for breaking changes.
 - When adding or modifying a script, MUST trace every local `import`/`from X import Y` to the imported `.py` file and collect all third-party packages it imports at module top level.
 - MUST repeat the import trace recursively — if `a.py` imports `b.py` which imports `c.py`, then `a.py`'s PEP 723 block MUST include deps from both `b.py` and `c.py`.
 - `uv run` does NOT resolve dependencies from imported `.py` files — only from the entry script. MUST NOT rely on transitive resolution.
 - All scripts MUST use PEP 723 inline metadata (`# /// script` blocks), NOT requirements.txt or pyproject.toml.
 - All scripts MUST be independently runnable via `uv run script.py` in a clean environment with no pre-installed packages.
-- Destructive or irreversible operations MUST set `disable-model-invocation: true` in SKILL.md frontmatter.
+- MUST NOT create global virtual environments or require `pip install` — `uv run` handles isolation.
+- Every change to skill code (scripts, SKILL.md, tests, or references) MUST be accompanied by a version bump in `.claude-plugin/marketplace.json` (`metadata.version`). Patch for fixes, minor for new features, major for breaking changes.
 - Secrets (tokens, client IDs, client secrets) MUST be stored in macOS Keychain via `keyring`, NEVER on disk.
+- Destructive or irreversible operations MUST set `disable-model-invocation: true` in SKILL.md frontmatter.
 - Tests MUST follow TDD cycle: write failing tests first (red), then implement to pass (green), then refactor, then verify green again.
 - Functions with input constraints MUST enforce them with `@precondition` decorators from `contracts.py`, NOT with ad-hoc `if` checks.
-- MUST NOT create global virtual environments or require `pip install` — `uv run` handles isolation.
-- SKILL.md `description` MUST use third-person verb form and include when-to-use triggers (e.g. "Use when the user asks about…"). MUST NOT explain implementation details the model already knows (e.g. "scripts run via uv", "credentials stored in Keychain"). SKILL.md `name` SHOULD use gerund form (e.g. "Managing Google Drive").
+- Scripts MUST handle errors explicitly with actionable messages. MUST NOT leave error recovery to the model (no bare exceptions, no silent failures).
+- Configuration constants MUST include a comment justifying the chosen value. No magic numbers.
+- SKILL.md MUST only include information the model cannot already infer. Each section MUST justify its token cost — the context window is a shared resource.
+- SKILL.md body MUST stay under 500 lines. When approaching this limit, MUST split content into separate reference files using progressive disclosure.
+- SKILL.md `name` SHOULD use gerund form (e.g. "Managing Google Drive").
+- SKILL.md `description` MUST use third-person verb form, include what the skill does AND when-to-use triggers (e.g. "Use when the user asks about…"). MUST NOT explain implementation details the model already knows (e.g. "scripts run via uv", "credentials stored in Keychain").
+- SKILL.md `name` MUST be at most 64 characters. `description` MUST be at most 1024 characters.
+- Reference files MUST be linked one level deep from SKILL.md. MUST NOT chain references (SKILL.md → A.md → B.md) — the model may only partially read deeply nested files.
+- Reference files over 100 lines SHOULD include a table of contents at the top so the model can see the full scope even when previewing with partial reads.
+- When multiple approaches exist, SKILL.md SHOULD provide a single recommended default with an escape hatch, NOT list all options as equal alternatives.
+- SKILL.md MUST use consistent terminology — pick one term per concept and use it throughout. MUST NOT mix synonyms (e.g. "endpoint" vs "URL" vs "route" for the same thing).
+- SKILL.md MUST NOT contain time-sensitive instructions (e.g. "before August 2025, use the old API"). Deprecated patterns SHOULD go in collapsible `<details>` sections.
+- File paths in SKILL.md MUST use forward slashes, NEVER backslashes.
+- Complex multi-step operations SHOULD provide a checklist pattern so the model can track progress through the workflow.
+- Quality-critical operations SHOULD include a feedback loop: execute → validate → fix → repeat.
 - After fixing a bug or mistake that reflects a reusable lesson (not task-specific), MUST add a corresponding rule to this file following the same MUST/SHOULD/CAN/NOT style.
