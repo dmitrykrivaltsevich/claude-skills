@@ -85,3 +85,33 @@ class TestSearch:
         results = search_files(query="f")
         assert "id" in results[0]
         assert "name" in results[0]
+
+    @patch("search.get_drive_service")
+    def test_default_search_includes_name_and_fulltext(self, mock_svc_fn):
+        """Default search should match both file content and file/folder names."""
+        from search import search_files
+
+        mock_svc = MagicMock()
+        mock_svc_fn.return_value = mock_svc
+        mock_svc.files().list().execute.return_value = {"files": []}
+
+        search_files(query="Weinbergsweg")
+        call_kwargs = mock_svc.files().list.call_args[1]
+        q = call_kwargs["q"]
+        assert "fullText contains" in q
+        assert "name contains" in q
+
+    @patch("search.get_drive_service")
+    def test_name_only_flag_excludes_fulltext(self, mock_svc_fn):
+        """With name_only=True, should only search by name, not fullText."""
+        from search import search_files
+
+        mock_svc = MagicMock()
+        mock_svc_fn.return_value = mock_svc
+        mock_svc.files().list().execute.return_value = {"files": []}
+
+        search_files(query="rent", name_only=True)
+        call_kwargs = mock_svc.files().list.call_args[1]
+        q = call_kwargs["q"]
+        assert "name contains" in q
+        assert "fullText contains" not in q

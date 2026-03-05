@@ -10,7 +10,7 @@
 """Search Google Drive files and folders.
 
 Usage:
-    uv run search.py --query TEXT [--mime-type TYPE] [--folder-id ID] [--shared-drives-only]
+    uv run search.py --query TEXT [--name-only] [--mime-type TYPE] [--folder-id ID] [--shared-drives-only]
 """
 from __future__ import annotations
 
@@ -33,15 +33,21 @@ def search_files(
     mime_type: str | None = None,
     folder_id: str | None = None,
     shared_drives_only: bool = False,
+    name_only: bool = False,
     page_size: int = 100,
 ) -> list[dict]:
     """Search for files in Google Drive.
 
+    By default, searches both file/folder names AND full-text content.
+    Use name_only=True to restrict to name matching only (useful for
+    finding folders or files by title without content indexing noise).
+
     Args:
-        query: Full-text search query.
+        query: Search query text.
         mime_type: Filter by MIME type.
         folder_id: Restrict search to a specific folder.
         shared_drives_only: Only search shared drives.
+        name_only: If True, search only by name (not full-text content).
         page_size: Max results per page.
 
     Returns:
@@ -49,7 +55,11 @@ def search_files(
     """
     service = get_drive_service()
 
-    q_parts = [f"fullText contains '{query}'"]
+    if name_only:
+        q_parts = [f"name contains '{query}'"]
+    else:
+        q_parts = [f"(fullText contains '{query}' or name contains '{query}')"]
+
     if mime_type:
         q_parts.append(f"mimeType = '{mime_type}'")
     if folder_id:
@@ -76,6 +86,7 @@ def search_files(
 def main() -> None:
     parser = argparse.ArgumentParser(description="Search Google Drive")
     parser.add_argument("--query", required=True, help="Search query text")
+    parser.add_argument("--name-only", action="store_true", help="Search by name only (skip full-text content)")
     parser.add_argument("--mime-type", help="Filter by MIME type")
     parser.add_argument("--folder-id", help="Restrict to folder ID")
     parser.add_argument("--shared-drives-only", action="store_true")
@@ -87,6 +98,7 @@ def main() -> None:
         mime_type=args.mime_type,
         folder_id=args.folder_id,
         shared_drives_only=args.shared_drives_only,
+        name_only=args.name_only,
         page_size=args.page_size,
     )
 

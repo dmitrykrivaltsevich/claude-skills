@@ -45,11 +45,24 @@ This opens a browser window for Google sign-in. After authorization, credentials
 
 ### Search Files
 
-Search for files across My Drive and Shared Drives by text content.
+Search for files across My Drive and Shared Drives. By default searches both file/folder **names** and full-text content.
 
 ```bash
-uv run ${CLAUDE_SKILL_DIR}/scripts/search.py --query "quarterly report" [--mime-type TYPE] [--folder-id ID] [--shared-drives-only]
+uv run ${CLAUDE_SKILL_DIR}/scripts/search.py --query "quarterly report" [--name-only] [--mime-type TYPE] [--folder-id ID] [--shared-drives-only]
 ```
+
+- `--name-only` — match file/folder name only, skip content search (faster, less noise)
+
+### Browse Folder Tree
+
+Recursively list the folder hierarchy. Essential for discovering files organized by folder structure.
+
+```bash
+uv run ${CLAUDE_SKILL_DIR}/scripts/tree.py [--folder-id ID] [--depth N] [--name-filter TEXT]
+```
+
+- `--depth` — how many levels deep to traverse (default: 3)
+- `--name-filter` — case-insensitive substring filter on names (still traverses all folders to find deep matches)
 
 ### List Folder Contents
 
@@ -134,6 +147,18 @@ uv run ${CLAUDE_SKILL_DIR}/scripts/comments.py add --file-id ID --content "Your 
 # Reply to a comment
 uv run ${CLAUDE_SKILL_DIR}/scripts/comments.py reply --file-id ID --comment-id CID --content "Reply text"
 ```
+
+## Search Strategy
+
+When looking for files on a user's Drive, do NOT rely on `search.py` alone. Google Drive full-text search only indexes file *content* — it misses folder names and files whose content isn't indexed (some PDFs, images, etc.).
+
+**Recommended approach:**
+1. Start with `search.py --query "term"` — this searches both names and content.
+2. If results are insufficient, use `tree.py --name-filter "term"` to scan folder names and file titles in the hierarchy.
+3. If the user mentions a folder or path, use `tree.py --folder-id ID` or `list_files.py --folder-id ID` to browse directly.
+4. Combine strategies: search for content, then browse folder structure to find organizational context.
+
+Never give up after a single search — users organize files in folders, and the folder names often contain the key context.
 
 ## Important Notes
 

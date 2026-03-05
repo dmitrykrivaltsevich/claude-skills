@@ -17,8 +17,9 @@ Credentials are stored securely in macOS Keychain (service: `claude-skill-google
 ## Operations
 
 | Script | Purpose |
-|--------|---------|
-| `search.py` | Full-text search across My Drive and Shared Drives |
+|--------|---------|                
+| `search.py` | Search by name and content across My Drive and Shared Drives |
+| `tree.py` | Recursively browse folder hierarchy with optional name filtering |
 | `list_files.py` | List folder contents with pagination and ordering |
 | `download.py` | Download/export files with inline comments |
 | `upload.py` | Upload local files |
@@ -43,7 +44,8 @@ scripts/
   auth.py                   # Keychain credential management
   auth_status.py            # Dynamic context: auth check
   setup_auth.py             # Browser-based OAuth flow
-  search.py                 # Search Drive files
+  search.py                 # Search Drive files (name + content)
+  tree.py                   # Recursive folder tree traversal
   list_files.py             # List folder contents
   download.py               # Download/export with inline comments
   upload.py                 # Upload local files
@@ -52,7 +54,7 @@ scripts/
   share.py                  # Manage sharing permissions
   info.py                   # Get file metadata
   comments.py               # List/add comments & replies
-tests/                      # 80 unit tests
+tests/                      # 92 unit tests
 ```
 
 ## Technical Details
@@ -63,7 +65,7 @@ tests/                      # 80 unit tests
 - **Storage** — macOS Keychain via `keyring` library
 - **API** — Google Drive API v3, `supportsAllDrives=True` on all calls
 - **Scope** — `https://www.googleapis.com/auth/drive` (full read/write, no delete)
-- **Testing** — Design by Contract (DbC) + TDD — 80 unit tests
+- **Testing** — Design by Contract (DbC) + TDD — 92 unit tests
 
 ## Running Tests
 
