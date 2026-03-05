@@ -12,4 +12,5 @@
 - Tests MUST follow TDD cycle: write failing tests first (red), then implement to pass (green), then refactor, then verify green again.
 - Functions with input constraints MUST enforce them with `@precondition` decorators from `contracts.py`, NOT with ad-hoc `if` checks.
 - MUST NOT create global virtual environments or require `pip install` — `uv run` handles isolation.
+- SKILL.md `description` MUST use third-person verb form and include when-to-use triggers (e.g. "Use when the user asks about…"). MUST NOT explain implementation details the model already knows (e.g. "scripts run via uv", "credentials stored in Keychain"). SKILL.md `name` SHOULD use gerund form (e.g. "Managing Google Drive").
 - After fixing a bug or mistake that reflects a reusable lesson (not task-specific), MUST add a corresponding rule to this file following the same MUST/SHOULD/CAN/NOT style.
