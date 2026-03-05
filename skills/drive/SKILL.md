@@ -45,13 +45,21 @@ This opens a browser window for Google sign-in. After authorization, credentials
 
 ### Search Files
 
-Search for files across My Drive and Shared Drives. By default searches both file/folder **names** and full-text content.
+Search for files across My Drive and Shared Drives. Two modes:
+
+**Simple search** — convenience wrapper, searches both names and content:
 
 ```bash
 uv run ${CLAUDE_SKILL_DIR}/scripts/search.py --query "quarterly report" [--name-only] [--mime-type TYPE] [--folder-id ID] [--shared-drives-only]
 ```
 
-- `--name-only` — match file/folder name only, skip content search (faster, less noise)
+**Raw query** — pass any Drive API query string directly (no wrapping, no escaping):
+
+```bash
+uv run ${CLAUDE_SKILL_DIR}/scripts/search.py --q "modifiedTime > '2025-01-01' and name contains 'rent' and mimeType = 'application/pdf'"
+```
+
+Use `--q` when you need date ranges, boolean logic, `sharedWithMe`, `starred`, or any combination the Drive API supports. Query syntax reference: https://developers.google.com/drive/api/guides/search-files
 
 ### Browse Folder Tree
 

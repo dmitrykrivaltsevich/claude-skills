@@ -11,6 +11,7 @@
 
 Usage:
     uv run search.py --query TEXT [--name-only] [--mime-type TYPE] [--folder-id ID] [--shared-drives-only]
+    uv run search.py --q "raw Drive API query string"
 """
 from __future__ import annotations
 
@@ -93,24 +94,77 @@ def search_files(
     return all_files
 
 
+@precondition(lambda q, **kw: q and q.strip(), "q must be non-empty")
+def query_drive(
+    q: str,
+    page_size: int = 100,
+) -> list[dict]:
+    """Execute a raw Google Drive API query.
+
+    The query string is passed directly to the Drive API files.list()
+    endpoint without any wrapping or escaping. The caller (LLM) is
+    responsible for constructing a valid query using the Drive API
+    query syntax.
+
+    Reference: https://developers.google.com/drive/api/guides/search-files
+
+    Args:
+        q: Raw Drive API query string.
+        page_size: Max results per page.
+
+    Returns:
+        List of file metadata dicts.
+    """
+    service = get_drive_service()
+
+    kwargs = {
+        "q": q,
+        "pageSize": page_size,
+        "fields": f"nextPageToken, {FIELDS}",
+        "supportsAllDrives": True,
+        "includeItemsFromAllDrives": True,
+    }
+
+    all_files: list[dict] = []
+    while True:
+        response = service.files().list(**kwargs).execute()
+        all_files.extend(response.get("files", []))
+        token = response.get("nextPageToken")
+        if not token:
+            break
+        kwargs["pageToken"] = token
+
+    return all_files
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Search Google Drive")
-    parser.add_argument("--query", required=True, help="Search query text")
-    parser.add_argument("--name-only", action="store_true", help="Search by name only (skip full-text content)")
-    parser.add_argument("--mime-type", help="Filter by MIME type")
-    parser.add_argument("--folder-id", help="Restrict to folder ID")
+
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("--query", help="Search query text (convenience: searches name + content)")
+    group.add_argument("--q", dest="raw_q", help="Raw Drive API query string (passed directly, no wrapping)")
+
+    parser.add_argument("--name-only", action="store_true", help="Search by name only (only with --query)")
+    parser.add_argument("--mime-type", help="Filter by MIME type (only with --query)")
+    parser.add_argument("--folder-id", help="Restrict to folder ID (only with --query)")
     parser.add_argument("--shared-drives-only", action="store_true")
     parser.add_argument("--page-size", type=int, default=100)
     args = parser.parse_args()
 
-    results = search_files(
-        query=args.query,
-        mime_type=args.mime_type,
-        folder_id=args.folder_id,
-        shared_drives_only=args.shared_drives_only,
-        name_only=args.name_only,
-        page_size=args.page_size,
-    )
+    if args.raw_q:
+        results = query_drive(
+            q=args.raw_q,
+            page_size=args.page_size,
+        )
+    else:
+        results = search_files(
+            query=args.query,
+            mime_type=args.mime_type,
+            folder_id=args.folder_id,
+            shared_drives_only=args.shared_drives_only,
+            name_only=args.name_only,
+            page_size=args.page_size,
+        )
 
     for f in results:
         print(f"  {f['name']}  (id: {f['id']}, type: {f.get('mimeType', 'unknown')})")

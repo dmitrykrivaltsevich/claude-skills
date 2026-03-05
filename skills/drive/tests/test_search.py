@@ -148,3 +148,67 @@ class TestSearch:
         # The apostrophe must be escaped so the query string is valid
         assert "O\\'Brien" in q
         assert "O'Brien" not in q
+
+
+class TestQueryDrive:
+    """Tests for query_drive() — raw Drive API query passthrough."""
+
+    @patch("search.get_drive_service")
+    def test_passes_raw_query_directly(self, mock_svc_fn):
+        from search import query_drive
+
+        mock_svc = MagicMock()
+        mock_svc_fn.return_value = mock_svc
+        mock_svc.files().list().execute.return_value = {"files": []}
+
+        raw = "modifiedTime > '2025-01-01' and name contains 'rent' and mimeType = 'application/pdf'"
+        query_drive(q=raw)
+        call_kwargs = mock_svc.files().list.call_args[1]
+        assert call_kwargs["q"] == raw
+
+    @patch("search.get_drive_service")
+    def test_no_wrapping_or_escaping(self, mock_svc_fn):
+        """Raw query must not be modified — LLM constructs it."""
+        from search import query_drive
+
+        mock_svc = MagicMock()
+        mock_svc_fn.return_value = mock_svc
+        mock_svc.files().list().execute.return_value = {"files": []}
+
+        raw = "sharedWithMe = true and fullText contains 'budget'"
+        query_drive(q=raw)
+        call_kwargs = mock_svc.files().list.call_args[1]
+        assert call_kwargs["q"] == raw
+
+    @patch("search.get_drive_service")
+    def test_paginates(self, mock_svc_fn):
+        from search import query_drive
+
+        mock_svc = MagicMock()
+        mock_svc_fn.return_value = mock_svc
+
+        page1 = {"files": [{"id": "1"}], "nextPageToken": "tok"}
+        page2 = {"files": [{"id": "2"}]}
+        mock_svc.files().list().execute.side_effect = [page1, page2]
+
+        results = query_drive(q="trashed = false")
+        assert len(results) == 2
+
+    @patch("search.get_drive_service")
+    def test_includes_shared_drives(self, mock_svc_fn):
+        from search import query_drive
+
+        mock_svc = MagicMock()
+        mock_svc_fn.return_value = mock_svc
+        mock_svc.files().list().execute.return_value = {"files": []}
+
+        query_drive(q="trashed = false")
+        call_kwargs = mock_svc.files().list.call_args[1]
+        assert call_kwargs["supportsAllDrives"] is True
+        assert call_kwargs["includeItemsFromAllDrives"] is True
+
+    def test_empty_q_raises(self):
+        from search import query_drive
+
+        with pytest.raises(ContractViolationError):
+            query_drive(q="")
