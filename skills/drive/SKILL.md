@@ -42,6 +42,7 @@ uv run ${CLAUDE_SKILL_DIR}/scripts/setup_auth.py --client-id "CLIENT_ID" --clien
 | Create Doc/Sheet/Slide/Folder | `create.py --name "X" --type doc\|sheet\|slide\|folder` |
 | Rename, move, star, describe | `update.py --file-id ID [...]` |
 | Share or manage permissions | `share.py share\|list\|remove --file-id ID` |
+| List available Shared Drives | `list_drives.py` |
 | Get detailed file metadata | `info.py --file-id ID` |
 | Read or add comments | `comments.py list\|add\|reply --file-id ID` |
 
@@ -52,6 +53,10 @@ uv run ${CLAUDE_SKILL_DIR}/scripts/setup_auth.py --client-id "CLIENT_ID" --clien
 3. **User mentions a folder/path** → `tree.py --name-filter "name"` to find folder ID, then `list_files.py --folder-id ID`
 4. **Date/type/boolean filter needed** → `search.py --q "modifiedTime > '2025-01-01' and ..."`
 5. **User gives a Drive URL** → extract ID from URL, use `list_files.py`, `info.py`, or `download.py` directly
+6. **Nothing found / no keywords** → broad exploration:
+   - `tree.py --depth 2` on My Drive to see top-level structure
+   - `list_drives.py` to discover Shared Drives, then `tree.py --folder-id DRIVE_ID --depth 2` on each
+   - Present the folder structure to the user so they can point you in the right direction
 
 Do NOT rephrase the same keyword hoping for better results. Switch strategies instead.
 
@@ -80,6 +85,14 @@ uv run ${CLAUDE_SKILL_DIR}/scripts/tree.py [--folder-id ID] [--depth N] [--name-
 ```bash
 uv run ${CLAUDE_SKILL_DIR}/scripts/list_files.py [--folder-id ID] [--page-size N] [--order-by FIELD]
 ```
+
+### list_drives.py
+
+```bash
+uv run ${CLAUDE_SKILL_DIR}/scripts/list_drives.py [--page-size N]
+```
+
+Returns all Shared Drives accessible to the user (id, name, createdTime).
 
 ### download.py
 
