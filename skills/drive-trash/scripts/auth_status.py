@@ -2,6 +2,7 @@
 # requires-python = ">=3.11"
 # dependencies = [
 #     "google-auth",
+#     "google-auth-httplib2",
 #     "google-api-python-client",
 #     "keyring",
 # ]
