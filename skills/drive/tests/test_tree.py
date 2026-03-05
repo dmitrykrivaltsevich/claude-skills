@@ -217,3 +217,21 @@ class TestTree:
 
         result = list_tree(depth=3)
         assert result == []
+
+    @patch("tree.get_drive_service")
+    def test_paginates_within_single_folder(self, mock_svc_fn):
+        """Should follow nextPageToken within a single folder listing."""
+        from tree import list_tree
+
+        mock_svc = MagicMock()
+        mock_svc_fn.return_value = mock_svc
+
+        page1 = {"files": [_make_file("x1", "file1.txt")], "nextPageToken": "tok"}
+        page2 = {"files": [_make_file("x2", "file2.txt")]}
+        mock_svc.files().list().execute.side_effect = [page1, page2]
+
+        result = list_tree(depth=1)
+        names = [item["name"] for item in result]
+        assert "file1.txt" in names
+        assert "file2.txt" in names
+        assert len(result) == 2

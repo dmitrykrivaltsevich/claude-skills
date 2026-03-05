@@ -74,3 +74,20 @@ class TestListFiles:
         list_folder(order_by="modifiedTime desc")
         call_kwargs = mock_svc.files().list.call_args[1]
         assert call_kwargs["orderBy"] == "modifiedTime desc"
+
+    @patch("list_files.get_drive_service")
+    def test_paginates_through_all_results(self, mock_svc_fn):
+        """Should follow nextPageToken to collect all pages of results."""
+        from list_files import list_folder
+
+        mock_svc = MagicMock()
+        mock_svc_fn.return_value = mock_svc
+
+        page1 = {"files": [{"id": "1", "name": "file1"}], "nextPageToken": "tok"}
+        page2 = {"files": [{"id": "2", "name": "file2"}]}
+        mock_svc.files().list().execute.side_effect = [page1, page2]
+
+        results = list_folder()
+        assert len(results) == 2
+        assert results[0]["id"] == "1"
+        assert results[1]["id"] == "2"

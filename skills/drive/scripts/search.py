@@ -55,10 +55,12 @@ def search_files(
     """
     service = get_drive_service()
 
+    escaped = query.replace("'", "\\'")
+
     if name_only:
-        q_parts = [f"name contains '{query}'"]
+        q_parts = [f"name contains '{escaped}'"]
     else:
-        q_parts = [f"(fullText contains '{query}' or name contains '{query}')"]
+        q_parts = [f"(fullText contains '{escaped}' or name contains '{escaped}')"]
 
     if mime_type:
         q_parts.append(f"mimeType = '{mime_type}'")
@@ -71,7 +73,7 @@ def search_files(
     kwargs = {
         "q": q_string,
         "pageSize": page_size,
-        "fields": FIELDS,
+        "fields": f"nextPageToken, {FIELDS}",
         "supportsAllDrives": True,
         "includeItemsFromAllDrives": True,
     }
@@ -79,8 +81,16 @@ def search_files(
     if shared_drives_only:
         kwargs["corpora"] = "allDrives"
 
-    results = service.files().list(**kwargs).execute()
-    return results.get("files", [])
+    all_files: list[dict] = []
+    while True:
+        response = service.files().list(**kwargs).execute()
+        all_files.extend(response.get("files", []))
+        token = response.get("nextPageToken")
+        if not token:
+            break
+        kwargs["pageToken"] = token
+
+    return all_files
 
 
 def main() -> None:

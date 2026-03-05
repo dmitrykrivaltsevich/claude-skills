@@ -45,16 +45,25 @@ def list_folder(
     parent = folder_id or "root"
     q = f"'{parent}' in parents and trashed = false"
 
-    results = service.files().list(
-        q=q,
-        pageSize=page_size,
-        fields=FIELDS,
-        orderBy=order_by,
-        supportsAllDrives=True,
-        includeItemsFromAllDrives=True,
-    ).execute()
+    kwargs = {
+        "q": q,
+        "pageSize": page_size,
+        "fields": f"nextPageToken, {FIELDS}",
+        "orderBy": order_by,
+        "supportsAllDrives": True,
+        "includeItemsFromAllDrives": True,
+    }
 
-    return results.get("files", [])
+    all_files: list[dict] = []
+    while True:
+        response = service.files().list(**kwargs).execute()
+        all_files.extend(response.get("files", []))
+        token = response.get("nextPageToken")
+        if not token:
+            break
+        kwargs["pageToken"] = token
+
+    return all_files
 
 
 def main() -> None:

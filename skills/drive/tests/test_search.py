@@ -115,3 +115,36 @@ class TestSearch:
         q = call_kwargs["q"]
         assert "name contains" in q
         assert "fullText contains" not in q
+
+    @patch("search.get_drive_service")
+    def test_paginates_through_all_results(self, mock_svc_fn):
+        """Should follow nextPageToken to collect all pages of results."""
+        from search import search_files
+
+        mock_svc = MagicMock()
+        mock_svc_fn.return_value = mock_svc
+
+        page1 = {"files": [{"id": "1", "name": "file1"}], "nextPageToken": "token2"}
+        page2 = {"files": [{"id": "2", "name": "file2"}]}
+        mock_svc.files().list().execute.side_effect = [page1, page2]
+
+        results = search_files(query="test")
+        assert len(results) == 2
+        assert results[0]["id"] == "1"
+        assert results[1]["id"] == "2"
+
+    @patch("search.get_drive_service")
+    def test_query_with_single_quote_is_escaped(self, mock_svc_fn):
+        """A query containing apostrophe should not break the API query string."""
+        from search import search_files
+
+        mock_svc = MagicMock()
+        mock_svc_fn.return_value = mock_svc
+        mock_svc.files().list().execute.return_value = {"files": []}
+
+        search_files(query="O'Brien")
+        call_kwargs = mock_svc.files().list.call_args[1]
+        q = call_kwargs["q"]
+        # The apostrophe must be escaped so the query string is valid
+        assert "O\\'Brien" in q
+        assert "O'Brien" not in q

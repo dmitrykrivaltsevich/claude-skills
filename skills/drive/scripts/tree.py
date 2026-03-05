@@ -56,13 +56,22 @@ def list_tree(
 
     def _recurse(parent_id: str, current_depth: int, path_prefix: str) -> None:
         q = f"'{parent_id}' in parents and trashed = false"
-        items = service.files().list(
-            q=q,
-            pageSize=1000,
-            fields=FIELDS,
-            supportsAllDrives=True,
-            includeItemsFromAllDrives=True,
-        ).execute().get("files", [])
+        kwargs = {
+            "q": q,
+            "pageSize": 1000,
+            "fields": f"nextPageToken, {FIELDS}",
+            "supportsAllDrives": True,
+            "includeItemsFromAllDrives": True,
+        }
+
+        items: list[dict] = []
+        while True:
+            response = service.files().list(**kwargs).execute()
+            items.extend(response.get("files", []))
+            token = response.get("nextPageToken")
+            if not token:
+                break
+            kwargs["pageToken"] = token
 
         for item in items:
             item_path = f"{path_prefix}/{item['name']}" if path_prefix else item["name"]
