@@ -1,5 +1,5 @@
 ---
-name: Managing Google Drive
+name: /google-drive
 description: Searches, lists, downloads, uploads, creates, updates, shares, and comments on Google Drive files and folders across My Drive and Shared Drives. Use when the user asks about files in Google Drive, needs documents, spreadsheets, presentations, or any Drive-stored content.
 allowed-tools:
   - Bash(uv run *)

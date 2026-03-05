@@ -16,7 +16,7 @@
 - Configuration constants MUST include a comment justifying the chosen value. No magic numbers.
 - SKILL.md MUST only include information the model cannot already infer. Each section MUST justify its token cost — the context window is a shared resource.
 - SKILL.md body MUST stay under 500 lines. When approaching this limit, MUST split content into separate reference files using progressive disclosure.
-- SKILL.md `name` SHOULD use gerund form (e.g. "Managing Google Drive").
+- SKILL.md `name` MUST use slash-prefixed kebab-case matching the skill directory name (e.g. `/google-drive`).
 - SKILL.md `description` MUST use third-person verb form, include what the skill does AND when-to-use triggers (e.g. "Use when the user asks about…"). MUST NOT explain implementation details the model already knows (e.g. "scripts run via uv", "credentials stored in Keychain").
 - SKILL.md `name` MUST be at most 64 characters. `description` MUST be at most 1024 characters.
 - Reference files MUST be linked one level deep from SKILL.md. MUST NOT chain references (SKILL.md → A.md → B.md) — the model may only partially read deeply nested files.
