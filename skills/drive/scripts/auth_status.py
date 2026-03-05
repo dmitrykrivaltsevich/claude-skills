@@ -34,16 +34,15 @@ def main() -> None:
         return
 
     try:
-        from auth import get_credentials
-        from googleapiclient.discovery import build
+        from auth import get_drive_service
 
-        creds = get_credentials()
+        service = get_drive_service()
 
-        # Try to get user email
+        # Use Drive about endpoint — always works with Drive scope
         try:
-            service = build("oauth2", "v2", credentials=creds)
-            user_info = service.userinfo().get().execute()
-            email = user_info.get("email", "unknown")
+            about = service.about().get(fields="user(emailAddress, displayName)").execute()
+            user = about.get("user", {})
+            email = user.get("emailAddress", "unknown")
         except Exception:
             email = "unknown"
 

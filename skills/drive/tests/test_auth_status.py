@@ -32,15 +32,12 @@ class TestAuthStatus:
             "refresh_token": "rt",
         }.get(key)
 
-        mock_cred = MagicMock()
-        mock_cred.valid = True
-        mock_cred.token = "at"
-
-        with patch("auth.get_credentials", return_value=mock_cred), \
-             patch("googleapiclient.discovery.build") as mock_build:
+        with patch("auth.get_drive_service") as mock_get_svc:
             mock_service = MagicMock()
-            mock_build.return_value = mock_service
-            mock_service.userinfo().get().execute.return_value = {"email": "user@example.com"}
+            mock_get_svc.return_value = mock_service
+            mock_service.about().get().execute.return_value = {
+                "user": {"emailAddress": "user@example.com"}
+            }
 
             main()
 
@@ -55,7 +52,7 @@ class TestAuthStatus:
             "refresh_token": "rt",
         }.get(key)
 
-        with patch("auth.get_credentials", side_effect=Exception("refresh failed")):
+        with patch("auth.get_drive_service", side_effect=Exception("refresh failed")):
             main()
 
         captured = capsys.readouterr()
