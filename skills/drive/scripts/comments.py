@@ -41,7 +41,7 @@ def list_comments(file_id: str) -> list[dict]:
 
     result = service.comments().list(
         fileId=file_id,
-        fields="comments(commentId,author(displayName,emailAddress),content,createdTime,resolved,quotedFileContent,replies(author(displayName,emailAddress),content,createdTime,replyId))",
+        fields="comments(id,author(displayName,emailAddress),content,createdTime,resolved,quotedFileContent,replies(id,author(displayName,emailAddress),content,createdTime))",
         includeDeleted=False,
         pageSize=100,
     ).execute()
@@ -75,10 +75,10 @@ def add_comment(file_id: str, content: str) -> dict:
     result = service.comments().create(
         fileId=file_id,
         body={"content": content},
-        fields="commentId, content, author(displayName), createdTime",
+        fields="id, content, author(displayName), createdTime",
     ).execute()
 
-    print(f"Comment added: {result.get('commentId')}")
+    print(f"Comment added: {result.get('id')}")
     return result
 
 
@@ -102,10 +102,10 @@ def add_reply(file_id: str, comment_id: str, content: str) -> dict:
         fileId=file_id,
         commentId=comment_id,
         body={"content": content},
-        fields="replyId, content, author(displayName), createdTime",
+        fields="id, content, author(displayName), createdTime",
     ).execute()
 
-    print(f"Reply added: {result.get('replyId')}")
+    print(f"Reply added: {result.get('id')}")
     return result
 
 

@@ -28,7 +28,7 @@ class TestListComments:
         mock_svc.comments().list().execute.return_value = {
             "comments": [
                 {
-                    "commentId": "c1",
+                    "id": "c1",
                     "author": {"displayName": "Alice"},
                     "content": "Good point",
                     "createdTime": "2026-01-15T10:00:00Z",
@@ -70,11 +70,11 @@ class TestAddComment:
         mock_svc = MagicMock()
         mock_svc_fn.return_value = mock_svc
         mock_svc.comments().create().execute.return_value = {
-            "commentId": "c_new", "content": "New comment"
+            "id": "c_new", "content": "New comment"
         }
 
         result = add_comment(file_id="doc1", content="New comment")
-        assert result["commentId"] == "c_new"
+        assert result["id"] == "c_new"
 
 
 class TestAddReply:
@@ -91,8 +91,8 @@ class TestAddReply:
         mock_svc = MagicMock()
         mock_svc_fn.return_value = mock_svc
         mock_svc.replies().create().execute.return_value = {
-            "replyId": "r_new", "content": "My reply"
+            "id": "r_new", "content": "My reply"
         }
 
         result = add_reply(file_id="doc1", comment_id="c1", content="My reply")
-        assert result["replyId"] == "r_new"
+        assert result["id"] == "r_new"

@@ -95,7 +95,7 @@ class TestInlineComments:
         mock_svc.comments().list().execute.return_value = {
             "comments": [
                 {
-                    "commentId": "c1",
+                    "id": "c1",
                     "author": {"displayName": "Alice"},
                     "content": "Great point!",
                     "createdTime": "2026-01-15T10:00:00Z",
@@ -129,7 +129,7 @@ class TestInlineComments:
         mock_svc.comments().list().execute.return_value = {
             "comments": [
                 {
-                    "commentId": "c1",
+                    "id": "c1",
                     "author": {"displayName": "Alice"},
                     "content": "Fix typo",
                     "createdTime": "2026-01-15T10:00:00Z",

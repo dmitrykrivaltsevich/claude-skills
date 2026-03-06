@@ -64,7 +64,7 @@ def _fetch_comments(service, file_id: str) -> list[dict]:
     try:
         result = service.comments().list(
             fileId=file_id,
-            fields="comments(commentId,author(displayName,emailAddress),content,createdTime,resolved,quotedFileContent,replies(author(displayName,emailAddress),content,createdTime))",
+            fields="comments(id,author(displayName,emailAddress),content,createdTime,resolved,quotedFileContent,replies(id,author(displayName,emailAddress),content,createdTime))",
             includeDeleted=False,
             pageSize=100,
         ).execute()
