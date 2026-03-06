@@ -1,6 +1,13 @@
 # /// script
 # requires-python = ">=3.11"
-# dependencies = ["pytest", "pytest-mock"]
+# dependencies = [
+#     "pytest",
+#     "pytest-mock",
+#     "keyring",
+#     "google-api-python-client",
+#     "google-auth",
+#     "google-auth-httplib2",
+# ]
 # ///
 """Tests for search.py — Google Drive search."""
 import pytest

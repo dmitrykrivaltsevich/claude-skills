@@ -12,7 +12,7 @@ user-invocable: true
 
 ## Authentication Status
 
-!"uv run ${CLAUDE_SKILL_DIR}/scripts/auth_status.py"
+!"uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/auth_status.py"
 
 ## First-Time Setup
 
@@ -25,7 +25,7 @@ If NOT_AUTHENTICATED, guide the user:
 Then run:
 
 ```bash
-uv run ${CLAUDE_SKILL_DIR}/scripts/setup_auth.py --client-id "CLIENT_ID" --client-secret "CLIENT_SECRET"
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/setup_auth.py --client-id "CLIENT_ID" --client-secret "CLIENT_SECRET"
 ```
 
 ## Choosing the Right Script
@@ -77,10 +77,10 @@ Do NOT rephrase the same keyword hoping for better results. Switch strategies in
 
 ```bash
 # Simple keyword search (searches name + content):
-uv run ${CLAUDE_SKILL_DIR}/scripts/search.py --query "text" [--name-only] [--mime-type TYPE] [--folder-id ID]
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/search.py --query "text" [--name-only] [--mime-type TYPE] [--folder-id ID]
 
 # Raw Drive API query (you construct the full query):
-uv run ${CLAUDE_SKILL_DIR}/scripts/search.py --q "modifiedTime > '2025-01-01' and name contains 'rent'"
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/search.py --q "modifiedTime > '2025-01-01' and name contains 'rent'"
 ```
 
 `--query` and `--q` are mutually exclusive. Use `--q` for anything beyond simple keyword search. Query syntax: https://developers.google.com/drive/api/guides/search-files
@@ -88,19 +88,19 @@ uv run ${CLAUDE_SKILL_DIR}/scripts/search.py --q "modifiedTime > '2025-01-01' an
 ### tree.py
 
 ```bash
-uv run ${CLAUDE_SKILL_DIR}/scripts/tree.py [--folder-id ID] [--depth N] [--name-filter TEXT] [--mime-type TYPE]
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/tree.py [--folder-id ID] [--depth N] [--name-filter TEXT] [--mime-type TYPE]
 ```
 
 ### list_files.py
 
 ```bash
-uv run ${CLAUDE_SKILL_DIR}/scripts/list_files.py [--folder-id ID] [--page-size N] [--order-by FIELD]
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/list_files.py [--folder-id ID] [--page-size N] [--order-by FIELD]
 ```
 
 ### list_drives.py
 
 ```bash
-uv run ${CLAUDE_SKILL_DIR}/scripts/list_drives.py [--page-size N]
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/list_drives.py [--page-size N]
 ```
 
 Returns all Shared Drives accessible to the user (id, name, createdTime).
@@ -108,7 +108,7 @@ Returns all Shared Drives accessible to the user (id, name, createdTime).
 ### download.py
 
 ```bash
-uv run ${CLAUDE_SKILL_DIR}/scripts/download.py --file-id ID [--format FMT] [--output-dir DIR]
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/download.py --file-id ID [--format FMT] [--output-dir DIR]
 ```
 
 For Google Docs export as Markdown (`--format md`), comments are appended inline. For binary formats, comments print to stdout. See [export-formats.md](references/export-formats.md) for supported format mappings.
@@ -116,39 +116,39 @@ For Google Docs export as Markdown (`--format md`), comments are appended inline
 ### upload.py
 
 ```bash
-uv run ${CLAUDE_SKILL_DIR}/scripts/upload.py --file-path PATH [--folder-id ID]
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/upload.py --file-path PATH [--folder-id ID]
 ```
 
 ### create.py
 
 ```bash
-uv run ${CLAUDE_SKILL_DIR}/scripts/create.py --name "Name" --type doc|sheet|slide|folder [--folder-id ID]
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/create.py --name "Name" --type doc|sheet|slide|folder [--folder-id ID]
 ```
 
 ### update.py
 
 ```bash
-uv run ${CLAUDE_SKILL_DIR}/scripts/update.py --file-id ID [--name "New Name"] [--move-to FOLDER_ID] [--star] [--description "text"]
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/update.py --file-id ID [--name "New Name"] [--move-to FOLDER_ID] [--star] [--description "text"]
 ```
 
 ### share.py
 
 ```bash
-uv run ${CLAUDE_SKILL_DIR}/scripts/share.py share --file-id ID --email EMAIL --role reader|commenter|writer|organizer
-uv run ${CLAUDE_SKILL_DIR}/scripts/share.py list --file-id ID
-uv run ${CLAUDE_SKILL_DIR}/scripts/share.py remove --file-id ID --email EMAIL
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/share.py share --file-id ID --email EMAIL --role reader|commenter|writer|organizer
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/share.py list --file-id ID
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/share.py remove --file-id ID --email EMAIL
 ```
 
 ### info.py
 
 ```bash
-uv run ${CLAUDE_SKILL_DIR}/scripts/info.py --file-id ID
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/info.py --file-id ID
 ```
 
 ### comments.py
 
 ```bash
-uv run ${CLAUDE_SKILL_DIR}/scripts/comments.py list --file-id ID
-uv run ${CLAUDE_SKILL_DIR}/scripts/comments.py add --file-id ID --content "text"
-uv run ${CLAUDE_SKILL_DIR}/scripts/comments.py reply --file-id ID --comment-id CID --content "text"
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/comments.py list --file-id ID
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/comments.py add --file-id ID --content "text"
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/comments.py reply --file-id ID --comment-id CID --content "text"
 ```

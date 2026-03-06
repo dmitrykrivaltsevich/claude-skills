@@ -12,7 +12,7 @@ user-invocable: true
 
 ## Authentication Status
 
-!"uv run ${CLAUDE_SKILL_DIR}/scripts/auth_status.py"
+!"uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/auth_status.py"
 
 If NOT_AUTHENTICATED: set up authentication through the main `drive` skill first (shared credentials).
 
@@ -20,8 +20,8 @@ If NOT_AUTHENTICATED: set up authentication through the main `drive` skill first
 
 ```bash
 # Move to trash
-uv run ${CLAUDE_SKILL_DIR}/scripts/trash.py trash --file-id ID
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/trash.py trash --file-id ID
 
 # Restore from trash
-uv run ${CLAUDE_SKILL_DIR}/scripts/trash.py restore --file-id ID
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/trash.py restore --file-id ID
 ```

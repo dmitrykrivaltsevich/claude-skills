@@ -1,6 +1,13 @@
 # /// script
 # requires-python = ">=3.11"
-# dependencies = ["pytest", "pytest-mock"]
+# dependencies = [
+#     "pytest",
+#     "pytest-mock",
+#     "keyring",
+#     "google-api-python-client",
+#     "google-auth",
+#     "google-auth-httplib2",
+# ]
 # ///
 """Tests for list_files.py — list folder contents."""
 import pytest

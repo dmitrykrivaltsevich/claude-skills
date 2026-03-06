@@ -6,6 +6,7 @@
 - `uv run` does NOT resolve dependencies from imported `.py` files — only from the entry script. MUST NOT rely on transitive resolution.
 - All scripts MUST use PEP 723 inline metadata (`# /// script` blocks), NOT requirements.txt or pyproject.toml.
 - All scripts MUST be independently runnable via `uv run script.py` in a clean environment with no pre-installed packages.
+- All `uv run` invocations in SKILL.md MUST use `--no-config` to prevent the user's workspace `uv.toml` or `pyproject.toml` from overriding index URLs or other settings that break dependency resolution.
 - MUST NOT create global virtual environments or require `pip install` — `uv run` handles isolation.
 - Every change to skill code (scripts, SKILL.md, tests, or references) MUST be accompanied by a version bump in `.claude-plugin/marketplace.json` (`metadata.version`). Patch for fixes, minor for new features, major for breaking changes.
 - Secrets (tokens, client IDs, client secrets) MUST be stored in macOS Keychain via `keyring`, NEVER on disk.

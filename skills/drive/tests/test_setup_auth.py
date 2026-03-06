@@ -1,6 +1,14 @@
 # /// script
 # requires-python = ">=3.11"
-# dependencies = ["pytest", "pytest-mock"]
+# dependencies = [
+#     "pytest",
+#     "pytest-mock",
+#     "keyring",
+#     "google-api-python-client",
+#     "google-auth",
+#     "google-auth-httplib2",
+#     "google-auth-oauthlib",
+# ]
 # ///
 """Tests for setup_auth module."""
 import pytest
