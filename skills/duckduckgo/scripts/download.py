@@ -22,9 +22,11 @@ when --format is not given.
 from __future__ import annotations
 
 import argparse
+import io
 import os
 import re
 import sys
+import tarfile
 import textwrap
 from pathlib import Path
 from urllib.parse import urlparse
@@ -46,13 +48,191 @@ MAX_BYTES = 10 * 1024 * 1024  # 10 MB — avoids hanging on giant resources
 # Request timeout in seconds.
 TIMEOUT = 20  # generous enough for slow servers but not indefinite
 
-# PDF page width and margins (mm).
-PDF_LEFT_MARGIN = 15
-PDF_RIGHT_MARGIN = 15
-PDF_TOP_MARGIN = 15
-PDF_LINE_HEIGHT = 5  # mm per text line
-PDF_FONT_SIZE = 10  # pt
-PDF_MAX_CHARS_PER_LINE = 95  # chars that fit in a portrait A4 with above settings
+# ---------------------------------------------------------------------------
+#  PDF typesetting — Computer Modern / Knuth-inspired layout
+# ---------------------------------------------------------------------------
+
+# CM Unicode font archive (SIL Open Font License).
+_CMU_URL = (
+    "https://downloads.sourceforge.net/project/"
+    "cm-unicode/cm-unicode/0.7.0/cm-unicode-0.7.0-ttf.tar.xz"
+)
+_FONT_CACHE = Path.home() / ".cache" / "duckduckgo-skill" / "fonts" / "cmu"
+
+# The four TTF variants we embed.  Keys match fpdf2 style strings.
+_CMU_FILES = {
+    "":   "cmunrm.ttf",   # CMU Serif — Roman (regular)
+    "B":  "cmunbx.ttf",   # CMU Serif — Bold Extended
+    "I":  "cmunti.ttf",   # CMU Serif — Italic
+    "BI": "cmunbi.ttf",   # CMU Serif — Bold Italic
+}
+
+# Page geometry (mm) — generous margins in the Knuth / TeX tradition.
+# Knuth uses a ~4.5 in text block on a 6×9 page.  For A4 (210×297) we
+# replicate the same *proportion*: ~60 % text width, centred.
+_PAGE_W = 210                      # A4 width
+_MARGIN_LR = 32                    # left = right = 32 mm → text block ≈ 146 mm
+_MARGIN_TOP = 36                   # generous head space
+_MARGIN_BOT = 32                   # bottom margin (auto-page-break threshold)
+
+# Type sizes (pt) — Knuth uses 10/12 for body text.
+_BODY_SIZE = 10.5                  # slightly above 10 for screen readability
+_BODY_LEAD = _BODY_SIZE * 1.42    # ~14.9 pt leading — golden ratio-ish line height
+_H1_SIZE = 20                      # title
+_H1_LEAD = _H1_SIZE * 1.3
+_META_SIZE = 8                     # URL, date, footer
+_META_LEAD = _META_SIZE * 1.5
+
+# First-line paragraph indent (mm).  Classic TeX uses 1.5 em ≈ 5.25 mm at 10pt.
+_PAR_INDENT = 5.5
+# Inter-paragraph skip when a blank line separates paragraphs (mm).
+_PAR_SKIP = _BODY_LEAD * 0.35     # ~0.35 × leading — subtle but visible
+
+# fpdf2 text-block width after margins
+_TEXT_W = _PAGE_W - 2 * _MARGIN_LR
+
+
+def _ensure_cmu_fonts() -> Path:
+    """Download and cache CM Unicode TTFs.  Returns the directory containing them."""
+    if _FONT_CACHE.exists() and all(
+        (_FONT_CACHE / f).exists() for f in _CMU_FILES.values()
+    ):
+        return _FONT_CACHE
+
+    print("Downloading Computer Modern Unicode fonts (one-time) …", file=sys.stderr)
+    _FONT_CACHE.mkdir(parents=True, exist_ok=True)
+
+    with httpx.Client(follow_redirects=True, timeout=30, verify=_SSL_CTX) as client:
+        resp = client.get(_CMU_URL)
+        resp.raise_for_status()
+
+    import lzma
+    decompressed = lzma.decompress(resp.content)
+    needed = set(_CMU_FILES.values())
+    with tarfile.open(fileobj=io.BytesIO(decompressed), mode="r:") as tar:
+        for member in tar.getmembers():
+            basename = Path(member.name).name
+            if basename in needed:
+                data = tar.extractfile(member)
+                if data:
+                    (_FONT_CACHE / basename).write_bytes(data.read())
+                    needed.discard(basename)
+            if not needed:
+                break
+
+    if needed:
+        sys.exit(f"ERROR: Could not find fonts in archive: {needed}")
+
+    return _FONT_CACHE
+
+
+def _register_cmu(pdf: "FPDF", font_dir: Path) -> str:
+    """Register all four CMU Serif variants with *pdf*.  Returns the family name."""
+    family = "CMUSerif"
+    for style, filename in _CMU_FILES.items():
+        pdf.add_font(family, style=style, fname=str(font_dir / filename))
+    return family
+
+
+def save_pdf(html: str, dest: Path, source_url: str) -> None:
+    """Save *html* as an elegantly typeset PDF in the tradition of Knuth's books."""
+    import logging
+    import warnings
+
+    from fpdf import FPDF
+
+    # Suppress fontTools subsetting debug messages.  The CMU TTFs include
+    # TeX-specific SFNT tables that fontTools cannot subset — but the fonts
+    # embed correctly regardless.
+    logging.getLogger("fontTools.subset").setLevel(logging.ERROR)
+    warnings.filterwarnings("ignore", message=".*NOT subset.*")
+
+    title, text = _extract_readable(html)
+    font_dir = _ensure_cmu_fonts()
+
+    pdf = FPDF(unit="mm", format="A4")
+    pdf.set_auto_page_break(auto=True, margin=_MARGIN_BOT)
+    pdf.set_margins(_MARGIN_LR, _MARGIN_TOP, _MARGIN_LR)
+
+    family = _register_cmu(pdf, font_dir)
+
+    # ── Title page ─────────────────────────────────────────────────────
+    pdf.add_page()
+
+    if title:
+        # Push title down ~40 % from the top for a centred feel.
+        pdf.ln(65)
+
+        # Thin decorative rule above title.
+        x = _MARGIN_LR
+        pdf.set_draw_color(120, 120, 120)
+        pdf.set_line_width(0.3)
+        pdf.line(x, pdf.get_y(), x + _TEXT_W, pdf.get_y())
+        pdf.ln(6)
+
+        # Title — bold, large, centred.
+        pdf.set_font(family, style="B", size=_H1_SIZE)
+        pdf.set_text_color(0, 0, 0)
+        pdf.multi_cell(_TEXT_W, _H1_LEAD * 0.353, text=title, align="C")
+        pdf.ln(6)
+
+        # Thin rule below title.
+        pdf.line(x, pdf.get_y(), x + _TEXT_W, pdf.get_y())
+        pdf.ln(10)
+
+        # Source URL in italic grey — quiet but present.
+        pdf.set_font(family, style="I", size=_META_SIZE)
+        pdf.set_text_color(110, 110, 110)
+        pdf.multi_cell(_TEXT_W, _META_LEAD * 0.353, text=source_url, align="C")
+        pdf.set_text_color(0, 0, 0)
+
+    # ── Body pages ─────────────────────────────────────────────────────
+    pdf.add_page()
+
+    # Footer: centred page number in the Knuth style (italic, small).
+    class _Styled(pdf.__class__):
+        """Mixin that adds elegant page footers."""
+        _font_family = family
+        _meta_size = _META_SIZE
+
+        def footer(self):
+            self.set_y(-_MARGIN_BOT + 5)
+            self.set_font(self._font_family, style="I", size=self._meta_size)
+            self.set_text_color(130, 130, 130)
+            # Page numbering starts from the body page (page 2 is "1").
+            self.cell(0, 10, text=f"— {self.page_no() - 1} —", align="C")
+            self.set_text_color(0, 0, 0)
+
+    pdf.__class__ = _Styled
+
+    pdf.set_font(family, size=_BODY_SIZE)
+    line_h = _BODY_LEAD * 0.353  # pt → mm conversion factor
+
+    paragraphs = text.split("\n")
+    prev_blank = True  # treat start as "after blank" so first para is not indented
+
+    for para in paragraphs:
+        stripped = para.strip()
+
+        # Blank line → paragraph break.
+        if not stripped:
+            pdf.ln(_PAR_SKIP)
+            prev_blank = True
+            continue
+
+        # First-line indent (Knuth style: indent continuation paragraphs,
+        # not the first paragraph after a heading / blank line).
+        if not prev_blank:
+            pdf.set_x(_MARGIN_LR + _PAR_INDENT)
+            pdf.multi_cell(
+                _TEXT_W - _PAR_INDENT, line_h, text=stripped, align="J",
+            )
+        else:
+            pdf.multi_cell(_TEXT_W, line_h, text=stripped, align="J")
+
+        prev_blank = False
+
+    pdf.output(str(dest))
 
 
 def _slug_from_url(url: str) -> str:
@@ -165,43 +345,6 @@ def save_md(html: str, dest: Path) -> None:
     title, md = _html_to_markdown(html)
     header = f"# {title}\n\n" if title else ""
     dest.write_text(header + md, encoding="utf-8")
-
-
-def save_pdf(html: str, dest: Path, source_url: str) -> None:
-    """Save *html* as a text-based PDF to *dest*."""
-    from fpdf import FPDF  # type: ignore[import]
-
-    title, text = _extract_readable(html)
-
-    pdf = FPDF()
-    pdf.set_auto_page_break(auto=True, margin=PDF_TOP_MARGIN)
-    pdf.add_page()
-    pdf.set_margins(PDF_LEFT_MARGIN, PDF_TOP_MARGIN, PDF_RIGHT_MARGIN)
-
-    # Title
-    if title:
-        pdf.set_font("Helvetica", style="B", size=14)
-        pdf.multi_cell(0, 8, text=title)
-        pdf.ln(2)
-
-    # Source URL
-    pdf.set_font("Helvetica", style="I", size=8)
-    pdf.set_text_color(100, 100, 100)
-    pdf.multi_cell(0, 5, text=source_url)
-    pdf.ln(4)
-    pdf.set_text_color(0, 0, 0)
-
-    # Body — wrap long lines manually for readability
-    pdf.set_font("Helvetica", size=PDF_FONT_SIZE)
-    for para in text.split("\n"):
-        if not para.strip():
-            pdf.ln(PDF_LINE_HEIGHT)
-            continue
-        wrapped = textwrap.wrap(para, width=PDF_MAX_CHARS_PER_LINE) or [""]
-        for line in wrapped:
-            pdf.cell(0, PDF_LINE_HEIGHT, text=line, new_x="LMARGIN", new_y="NEXT")
-
-    pdf.output(str(dest))
 
 
 def infer_format(output: Path | None, fmt: str | None) -> str:
