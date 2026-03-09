@@ -2,7 +2,7 @@
 # /// script
 # requires-python = ">=3.11"
 # dependencies = [
-#   "duckduckgo-search >= 6.0",
+#   "ddgs >= 6.0",
 # ]
 # ///
 """DuckDuckGo text, image, and news search."""
@@ -13,34 +13,33 @@ import argparse
 import os
 import sys
 
-from duckduckgo_search import DDGS
+from ddgs import DDGS
 
 sys.path.insert(0, os.path.dirname(__file__))
 from contracts import precondition
 
-# Maximum text results per query — DDG rarely returns more via Instant Answer API.
-MAX_TEXT_RESULTS = 9
-# Maximum image results per query — keeps response size manageable for LLM context.
-MAX_IMAGE_RESULTS = 30
-# Maximum news results per query — matches typical DDG news page count.
-MAX_NEWS_RESULTS = 9
+# Default result counts — overridable at runtime via --max-results.
+DEFAULT_TEXT_RESULTS = 9
+DEFAULT_IMAGE_RESULTS = 30
+DEFAULT_NEWS_RESULTS = 9
 
 
 @precondition(
     lambda query, **_: len(query.strip()) >= 2,
     "Query must be at least 2 characters",
 )
-def search_text(query: str) -> list[dict]:
+def search_text(query: str, max_results: int = DEFAULT_TEXT_RESULTS) -> list[dict]:
     """Search DuckDuckGo for text results.
 
     Args:
         query: Search term (at least 2 characters).
+        max_results: Maximum number of results to return.
 
     Returns:
         List of result dicts with title, url, and description.
     """
     ddgs = DDGS()
-    raw = ddgs.text(query, max_results=MAX_TEXT_RESULTS)
+    raw = ddgs.text(query, max_results=max_results)
     return [
         {
             "title": r.get("title", ""),
@@ -60,6 +59,7 @@ def search_image(
     size: str | None = None,
     type_: str | None = None,
     color: str | None = None,
+    max_results: int = DEFAULT_IMAGE_RESULTS,
 ) -> list[dict]:
     """Search DuckDuckGo for images.
 
@@ -68,12 +68,13 @@ def search_image(
         size: Image size filter — Small, Medium, Large, Wallpaper.
         type_: Image type — photo, clipart, gif, transparent, line.
         color: Color filter — color, Monochrome, Red, Orange, etc.
+        max_results: Maximum number of results to return.
 
     Returns:
         List of result dicts with title, image url, thumbnail, and source.
     """
     ddgs = DDGS()
-    kwargs: dict = {"max_results": MAX_IMAGE_RESULTS}
+    kwargs: dict = {"max_results": max_results}
     if size:
         kwargs["size"] = size
     if type_:
@@ -97,17 +98,18 @@ def search_image(
     lambda query, **_: len(query.strip()) >= 2,
     "Query must be at least 2 characters",
 )
-def search_news(query: str) -> list[dict]:
+def search_news(query: str, max_results: int = DEFAULT_NEWS_RESULTS) -> list[dict]:
     """Search DuckDuckGo for news results.
 
     Args:
         query: Search term (at least 2 characters).
+        max_results: Maximum number of results to return.
 
     Returns:
         List of result dicts with title, url, description, date, and source.
     """
     ddgs = DDGS()
-    raw = ddgs.news(query, max_results=MAX_NEWS_RESULTS)
+    raw = ddgs.news(query, max_results=max_results)
     return [
         {
             "title": r.get("title", ""),
@@ -124,6 +126,7 @@ def main():
     parser = argparse.ArgumentParser(description="DuckDuckGo search")
     parser.add_argument("type", choices=["text", "image", "news"], help="Search type")
     parser.add_argument("--query", "-q", required=True, help="Search query (min 2 chars)")
+    parser.add_argument("--max-results", "-n", type=int, default=None, help="Maximum number of results to return")
     parser.add_argument("--size", help="Image size: Small, Medium, Large, Wallpaper")
     parser.add_argument(
         "--type", dest="image_type",
@@ -134,7 +137,8 @@ def main():
     args = parser.parse_args()
 
     if args.type == "text":
-        results = search_text(args.query)
+        kwargs = {"max_results": args.max_results} if args.max_results is not None else {}
+        results = search_text(args.query, **kwargs)
         print(f"Found {len(results)} results:")
         for i, r in enumerate(results, 1):
             print(f"\n{i}. {r['title']}")
@@ -144,7 +148,10 @@ def main():
                 print(f"   {r['url']}")
 
     elif args.type == "image":
-        results = search_image(args.query, args.size, args.image_type, args.color)
+        img_kwargs: dict = {}
+        if args.max_results is not None:
+            img_kwargs["max_results"] = args.max_results
+        results = search_image(args.query, args.size, args.image_type, args.color, **img_kwargs)
         print(f"Found {len(results)} images:")
         for i, r in enumerate(results, 1):
             print(f"\n{i}. {r['title']}")
@@ -154,7 +161,8 @@ def main():
                 print(f"   Source: {r['source']}")
 
     elif args.type == "news":
-        results = search_news(args.query)
+        news_kwargs = {"max_results": args.max_results} if args.max_results is not None else {}
+        results = search_news(args.query, **news_kwargs)
         print(f"Found {len(results)} news results:")
         for i, r in enumerate(results, 1):
             print(f"\n{i}. {r['title']}")

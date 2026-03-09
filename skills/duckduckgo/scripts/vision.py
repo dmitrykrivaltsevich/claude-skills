@@ -3,7 +3,7 @@
 # requires-python = ">=3.11"
 # dependencies = [
 #   "Pillow >= 10.1",
-#   "duckduckgo-search >= 6.0",
+#   "ddgs >= 6.0",
 # ]
 # ///
 """DuckDuckGo visual search — analyze images and find similar ones."""

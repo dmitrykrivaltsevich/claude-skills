@@ -12,13 +12,13 @@ user-invocable: true
 
 ```bash
 # Text search (web):
-uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/search.py text --query "your query"
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/search.py text --query "your query" [--max-results N]
 
 # Image search:
-uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/search.py image --query "your query" [--size size] [--type type] [--color color]
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/search.py image --query "your query" [--size size] [--type type] [--color color] [--max-results N]
 
 # News search:
-uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/search.py news --query "your query"
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/search.py news --query "your query" [--max-results N]
 
 # Visual search (analyze an image):
 uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/vision.py analyze --image-path PATH
@@ -29,22 +29,22 @@ uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/vision.py find_similar --image-pa
 
 | User intent | Command |
 |---|---|
-| General web search | `search.py text --query "query"` |
-| Image search | `search.py image --query "query" [--size size] [--type type] [--color color]` |
-| News search | `search.py news --query "query"` |
+| General web search | `search.py text --query "query" [--max-results N]` |
+| Image search | `search.py image --query "query" [--size size] [--type type] [--color color] [--max-results N]` |
+| News search | `search.py news --query "query" [--max-results N]` |
 | Visual search (find similar images) | `vision.py find_similar --image-path PATH` |
 | Analyze image content | `vision.py analyze --image-path PATH` |
 
 ## Limitations
 
 - **Rate limit**: ~35 queries/minute — pause between batch requests
-- **Results capped**: 9 text results, 30 images per query
+- **Results**: defaults to 9 text/news, 30 images — override with `--max-results N`
 - **No login required** — public API only
 - **Visual search**: Returns image URLs for similar matches
 
 ## Technical Details
 
-- **Library** — `duckduckgo-search` Python package (handles DDG API endpoints internally)
+- **Library** — `ddgs` Python package (handles DDG API endpoints internally)
 - **Python** ≥3.11 with PEP 723 inline metadata
 - **Runtime** — `uv run` for isolated execution
 - **No authentication required**
