@@ -35,6 +35,7 @@ See the [Claude Code plugin docs](https://code.claude.com/docs/en/discover-plugi
 
 | Skill | Description |
 |-------|-------------|
+| [duckduckgo](skills/duckduckgo/) | Internet search via DuckDuckGo - text, image, and news search. No auth required. |
 | [google-drive](skills/drive/) | Search, list, download/export, upload, create, update, share, and comment on Google Drive files. Supports My Drive and Shared Drives. |
 | [google-drive-trash](skills/drive-trash/) | Move files to trash or restore them. Requires explicit user confirmation (`disable-model-invocation: true`). |
 
