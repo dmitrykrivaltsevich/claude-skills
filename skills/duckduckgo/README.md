@@ -15,16 +15,7 @@ Search the internet via DuckDuckGo's public APIs for text results, images, and n
 # Simple keyword search:
 uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/search.py text --query "machine learning applications"
 
-# Advanced query with filters:
-uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/search.py text --q "q=python&max_q=10&date=Y-m-d"
 ```
-
-Query parameters:
-- `q` - search term (required)
-- `no_html` - boolean, exclude HTML snippets
-- `safe_strict` - safe search mode
-- `date` - date range filter (Y-m-d format)
-- `region` - locale (us, uk, ca, etc.)
 
 ### Image Search
 
@@ -35,9 +26,9 @@ uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/search.py image --query "circuit 
   --color white
 ```
 
-Size options: `tiny`, `small`, `medium`, `large`, `huge`
-Color options: `any`, `red`, `orange`, `yellow`, `green`, `teal`, `blue`, `purple`, `pink`, `gray`, `black`, `white`, `transparent`
-Type options: `gif`, `jpg`, `jpeg`, `png`, `svg`, `webp`, `bmp`
+Size options: `Small`, `Medium`, `Large`, `Wallpaper`
+Type options: `photo`, `clipart`, `gif`, `transparent`, `line`
+Color options: `color`, `Monochrome`, `Red`, `Orange`, `Yellow`, `Green`, `Blue`, `Purple`, `Pink`, `Brown`, `Black`, `Gray`, `Teal`, `White`
 
 ### News Search
 
@@ -71,16 +62,18 @@ duckduckgo/
 
 - **Python** ≥3.11 — all scripts use PEP 723 inline metadata
 - **Runtime** — `uv run` for isolated, sandboxed execution (no global installs)
-- **API** - DuckDuckGo Instant Answer API & Vision API (public endpoints)
+- **Library** — `duckduckgo-search` Python package (handles DDG API endpoints internally)
 - **No authentication required**
 
 ## Testing
 
 ```bash
 # Run all tests:
-uv run --with pytest pytest tests/ -v
+uv run --with pytest --with duckduckgo-search --with Pillow pytest tests/ -v
 
-# Test search functionality:
-uv run --with requests python tests/test_search.py::test_text_search
-uv run --with requests python tests/test_vision.py::test_find_similar
+# Test search only:
+uv run --with pytest --with duckduckgo-search pytest tests/test_search.py -v
+
+# Test vision only:
+uv run --with pytest --with duckduckgo-search --with Pillow pytest tests/test_vision.py -v
 ```

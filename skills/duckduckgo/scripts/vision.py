@@ -3,161 +3,109 @@
 # requires-python = ">=3.11"
 # dependencies = [
 #   "Pillow >= 10.1",
-#   "requests >= 2.31",
+#   "duckduckgo-search >= 6.0",
 # ]
 # ///
-"""DuckDuckGo visual search - analyze images and find similar ones."""
+"""DuckDuckGo visual search — analyze images and find similar ones."""
 
 from __future__ import annotations
 
 import argparse
-import base64
+import os
 import sys
-from io import BytesIO
+from pathlib import Path
+
 from PIL import Image
 
-try:
-    from contracts import ContractViolationError, precondition
-except ImportError:
-    pass  # Gracefully handle missing contracts for non-essential scripts
-
-API_COOLDOWN_SECONDS = 12
+sys.path.insert(0, os.path.dirname(__file__))
+from contracts import precondition
+from search import search_image
 
 
-def encode_image_to_base64(image_path: str) -> str:
-    """Encode image to base64 string."""
-    with open(image_path, "rb") as f:
-        return base64.b64encode(f.read()).decode("utf-8")
-
-
-def analyze_image(image_path: str) -> dict:
-    """Analyze image using DuckDuckGo Vision API.
+@precondition(
+    lambda image_path: Path(image_path).is_file(),
+    "image_path must point to an existing file",
+)
+def get_image_info(image_path: str) -> dict:
+    """Read image metadata using Pillow.
 
     Args:
-        image_path: Path to the image file.
+        image_path: Path to an existing image file.
 
     Returns:
-        Dictionary with success flag and either data or error message.
-
-    Raises:
-        RuntimeError: If image cannot be read or API fails.
+        Dictionary with image dimensions, format, mode, and file size.
     """
-    try:
-        encoded = encode_image_to_base64(image_path)
-    except FileNotFoundError:
-        raise RuntimeError(f"Image file not found: {image_path}")
-    except Exception as e:
-        raise RuntimeError(f"Failed to read image file: {e}")
-
-    # Note: DDG Vision API endpoints require special setup/credentials
-    # This is a placeholder implementation for public API access
-    payload = {
-        "image": f"data:image/jpeg;base64,{encoded}",
-        "min_size": 1,
-        "max_size": 30,
-    }
-
-    try:
-        response = requests.post(
-            "https://duckduckgo.com/i.js",
-            headers={"Referer": "https://duckduckgo.com/"},
-            data=payload,
-            timeout=15
-        )
-
-        if response.status_code == 200:
-            return {"success": True, "data": response.json()}
-
-    except requests.exceptions.RequestException as e:
-        raise RuntimeError(f"Failed to contact DuckDuckGo API: {e}")
-    finally:
-        # Apply rate limiting cooldown between vision API calls
-        time.sleep(API_COOLDOWN_SECONDS)
-
-    return {"success": False, "error": f"API returned status {response.status_code}"}
+    path = Path(image_path)
+    with Image.open(path) as img:
+        info = {
+            "path": str(path.resolve()),
+            "width": img.size[0],
+            "height": img.size[1],
+            "format": img.format,
+            "mode": img.mode,
+            "file_size_bytes": path.stat().st_size,
+        }
+        if hasattr(img, "info") and "dpi" in img.info:
+            info["dpi"] = img.info["dpi"]
+        return info
 
 
+@precondition(
+    lambda image_path: Path(image_path).is_file(),
+    "image_path must point to an existing file",
+)
 def find_similar_images(image_path: str) -> list[dict]:
-    """Find similar images using DuckDuckGo Vision search.
+    """Find similar images by searching DuckDuckGo with the filename as query.
 
     Args:
         image_path: Path to the reference image.
 
     Returns:
-        List of similar image results with URLs and metadata.
+        List of image result dicts from DuckDuckGo image search.
     """
-    analysis = analyze_image(image_path)
-
-    if not analysis.get("success"):
-        return []
-
-    # In production, would extract query terms from actual vision API response
-    # For now, fall back to basic image search
-    time.sleep(API_COOLDOWN_SECONDS)
-
-    results = search_image(
-        "similar images",  # Placeholder query
-        type_="jpg"
-    )
-
-    return results
+    stem = Path(image_path).stem
+    # Use filename (without extension) as search query, replacing separators with spaces
+    query = stem.replace("_", " ").replace("-", " ").strip()
+    if len(query) < 2:
+        query = "image"
+    return search_image(query)
 
 
 def main():
     parser = argparse.ArgumentParser(description="DuckDuckGo visual search")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    # Analyze command
-    analyze_parser = subparsers.add_parser("analyze", help="Analyze image content")
+    analyze_parser = subparsers.add_parser("analyze", help="Get image metadata")
     analyze_parser.add_argument(
-        "--image-path", "-i",
-        required=True,
-        help="Path to image file"
+        "--image-path", "-i", required=True, help="Path to image file"
     )
 
-    # Find similar command
     find_parser = subparsers.add_parser("find_similar", help="Find similar images")
     find_parser.add_argument(
-        "--image-path", "-i",
-        required=True,
-        help="Path to image file"
+        "--image-path", "-i", required=True, help="Path to image file"
     )
 
     args = parser.parse_args()
 
     if args.command == "analyze":
-        print(f"Analyzing: {args.image_path}")
-
-        # For now, show basic image info since DDG Vision requires special setup
-        try:
-            with Image.open(args.image_path) as img:
-                print(f"Image size: {img.size[0]}x{img.size[1]}")
-                print(f"Format: {img.format}")
-                print(f"Mode: {img.mode}")
-
-                # Try to detect content type (simplified)
-                if "jpeg" in args.image_path.lower():
-                    print("Likely type: Photo/JPEG")
-                elif "png" in args.image_path.lower():
-                    print("Likely type: Screenshot/PNG")
-                elif "gif" in args.image_path.lower():
-                    print("Likely type: Animation/GIF")
-
-        except Exception as e:
-            print(f"Error reading image: {e}")
+        info = get_image_info(args.image_path)
+        print(f"Image: {info['path']}")
+        print(f"Size: {info['width']}x{info['height']}")
+        print(f"Format: {info['format']}")
+        print(f"Mode: {info['mode']}")
+        print(f"File size: {info['file_size_bytes']} bytes")
+        if "dpi" in info:
+            print(f"DPI: {info['dpi']}")
 
     elif args.command == "find_similar":
-        print(f"Finding similar images for: {args.image_path}")
-
-        try:
-            results = find_similar_images(args.image_path)
-            print(f"Found {len(results)} similar images:")
-            for i, r in enumerate(results[:10], 1):  # Limit to 10
-                print(f"\n{i}. {r.get('title', 'Unknown')}")
-                if r.get('thumbnail'):
-                    print(f"   {r['thumbnail']}")
-        except RuntimeError as e:
-            print(f"Error: {e}", file=sys.stderr)
+        results = find_similar_images(args.image_path)
+        print(f"Found {len(results)} similar images:")
+        for i, r in enumerate(results[:10], 1):
+            print(f"\n{i}. {r.get('title', 'Unknown')}")
+            if r.get("image"):
+                print(f"   {r['image']}")
+            if r.get("source"):
+                print(f"   Source: {r['source']}")
 
 
 if __name__ == "__main__":

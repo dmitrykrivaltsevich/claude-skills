@@ -30,8 +30,7 @@ uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/vision.py find_similar --image-pa
 | User intent | Command |
 |---|---|
 | General web search | `search.py text --query "query"` |
-| Advanced web search (date, region) | `search.py text --q "q=term&date=Y-m-d"` |
-| Image search | `search.py image --query "query" [--size size]` |
+| Image search | `search.py image --query "query" [--size size] [--type type] [--color color]` |
 | News search | `search.py news --query "query"` |
 | Visual search (find similar images) | `vision.py find_similar --image-path PATH` |
 | Analyze image content | `vision.py analyze --image-path PATH` |
@@ -45,7 +44,7 @@ uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/vision.py find_similar --image-pa
 
 ## Technical Details
 
-- **API** - DuckDuckGo Instant Answer / Vision API (public endpoints)
+- **Library** — `duckduckgo-search` Python package (handles DDG API endpoints internally)
 - **Python** ≥3.11 with PEP 723 inline metadata
-- **Runtime** - `uv run` for isolated execution
+- **Runtime** — `uv run` for isolated execution
 - **No authentication required**

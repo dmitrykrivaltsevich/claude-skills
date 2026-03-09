@@ -2,7 +2,7 @@
 # /// script
 # requires-python = ">=3.11"
 # dependencies = [
-#   "requests >= 2.31",
+#   "duckduckgo-search >= 6.0",
 # ]
 # ///
 """DuckDuckGo text, image, and news search."""
@@ -10,146 +10,93 @@
 from __future__ import annotations
 
 import argparse
-import json
 import os
 import sys
-import time
-import requests
-from urllib.parse import urlencode
+
+from duckduckgo_search import DDGS
 
 sys.path.insert(0, os.path.dirname(__file__))
+from contracts import precondition
 
-try:
-    from contracts import ContractViolationError, precondition
-except ImportError:
-    pass  # Gracefully handle missing contracts for non-essential scripts
-
-# API rate limit: ~35 queries/minute per DuckDuckGo public API docs.
-# 12 second cooldown ensures batch operations stay within limits without throttling users.
-API_COOLDOWN_SECONDS = 12
+# Maximum text results per query — DDG rarely returns more via Instant Answer API.
+MAX_TEXT_RESULTS = 9
+# Maximum image results per query — keeps response size manageable for LLM context.
+MAX_IMAGE_RESULTS = 30
+# Maximum news results per query — matches typical DDG news page count.
+MAX_NEWS_RESULTS = 9
 
 
-if False:  # precondition not available in this script
-    pass
-
-def search_text(query: str, raw_query: str | None = None) -> list[dict]:
+@precondition(
+    lambda query, **_: len(query.strip()) >= 2,
+    "Query must be at least 2 characters",
+)
+def search_text(query: str) -> list[dict]:
     """Search DuckDuckGo for text results.
 
     Args:
         query: Search term (at least 2 characters).
-        raw_query: Raw query string without DDG formatting (optional).
 
     Returns:
         List of result dicts with title, url, and description.
     """
-    # Apply rate limiting cooldown between search requests
-    time.sleep(API_COOLDOWN_SECONDS)
-
-    if raw_query:
-        params = {"q": raw_query}
-    else:
-        params = {
-            "q": query,
-            "no_html": "1",
-            "skip_bad_urls": "1",
+    ddgs = DDGS()
+    raw = ddgs.text(query, max_results=MAX_TEXT_RESULTS)
+    return [
+        {
+            "title": r.get("title", ""),
+            "url": r.get("href", ""),
+            "description": r.get("body", "")[:500],
         }
-
-    try:
-        result = _make_ddg_request("/html", params)
-    except RuntimeError as e:
-        # Log rate limit error and raise with actionable message
-        if "429" in str(e):
-            print("Rate limited. Please wait 30 seconds before retrying.", file=sys.stderr)
-        raise
-
-    result = _make_ddg_request("/html", params)
-
-    results = []
-    for item in result.get("RelatedTopics", []):
-        results.append({
-            "title": item.get("FirstResult", {}).get("Text", item.get("Text", "")),
-            "url": item.get("FirstResult", {}).get("Url", ""),
-            "description": item.get("Text", "")[:500],
-        })
-
-    # Add general results
-    for item in result.get("Results", []):
-        if not results or results[-1].get("source") != "general":
-            results.append({
-                "title": item.get("Title", ""),
-                "url": item.get("Url", ""),
-                "description": item.get("Abstract", "")[:500],
-                "source": "general",
-            })
-
-    return results
+        for r in raw
+    ]
 
 
-def _make_ddg_request(endpoint: str, params: dict) -> dict:
-    """Make request to DuckDuckGo Instant Answer API with rate limiting."""
-    # Apply cooldown between requests to respect rate limits (~35 queries/minute)
-    time.sleep(API_COOLDOWN_SECONDS)
-
-    url = f"https://api.duckduckgo.com{endpoint}"
-    try:
-        response = requests.get(url, params=params, timeout=15)
-        response.raise_for_status()
-        return response.json()
-    except requests.exceptions.RequestException as e:
-        # Provide actionable error message when API fails
-        raise RuntimeError(f"Failed to fetch results from DuckDuckGo: {e}") from e
-
-
+@precondition(
+    lambda query, **_: len(query.strip()) >= 2,
+    "Query must be at least 2 characters",
+)
 def search_image(
     query: str,
-    size: str = "medium",
+    size: str | None = None,
     type_: str | None = None,
-    color: str = "any"
+    color: str | None = None,
 ) -> list[dict]:
     """Search DuckDuckGo for images.
 
     Args:
         query: Search term (at least 2 characters).
-        size: Image size filter - tiny, small, medium, large, huge.
-        type_: Image format - gif, jpg, png, svg, webp.
-        color: Color filter - any or named colors.
+        size: Image size filter — Small, Medium, Large, Wallpaper.
+        type_: Image type — photo, clipart, gif, transparent, line.
+        color: Color filter — color, Monochrome, Red, Orange, etc.
 
     Returns:
-        List of result dicts with title, url, thumbnail, and size.
+        List of result dicts with title, image url, thumbnail, and source.
     """
-    # Apply rate limiting cooldown between search requests
-    time.sleep(API_COOLDOWN_SECONDS)
-    params = {
-        "q": query,
-        "no_redirect": "1",
-        "format": "json",
-    }
-
+    ddgs = DDGS()
+    kwargs: dict = {"max_results": MAX_IMAGE_RESULTS}
     if size:
-        params["size"] = size
+        kwargs["size"] = size
     if type_:
-        params["type"] = type_
+        kwargs["type_image"] = type_
     if color:
-        params["color"] = color
-
-    result = _make_ddg_request("/image", params)
-
-    results = []
-    for item in result.get("Related", []) or []:
-        image_info = item.get("ImageUrl", "")
-        if not image_info.startswith("http"):
-            image_info = f"https://duckduckgo.com{image_info}"
-
-        results.append({
-            "title": item.get("ImgTitle", query),
-            "url": item.get("SourceUrl", ""),
-            "thumbnail": image_info,
-            "size": item.get("ImageWidth", "") + "x" + str(item.get("ImageHeight", "")),
-        })
-
-    return results
+        kwargs["color"] = color
+    raw = ddgs.images(query, **kwargs)
+    return [
+        {
+            "title": r.get("title", query),
+            "url": r.get("url", ""),
+            "image": r.get("image", ""),
+            "thumbnail": r.get("thumbnail", ""),
+            "source": r.get("source", ""),
+        }
+        for r in raw
+    ]
 
 
+@precondition(
+    lambda query, **_: len(query.strip()) >= 2,
+    "Query must be at least 2 characters",
+)
 def search_news(query: str) -> list[dict]:
     """Search DuckDuckGo for news results.
 
@@ -157,47 +104,32 @@ def search_news(query: str) -> list[dict]:
         query: Search term (at least 2 characters).
 
     Returns:
-        List of result dicts with title, url, description, and date.
+        List of result dicts with title, url, description, date, and source.
     """
-    # Apply rate limiting cooldown between search requests
-    time.sleep(API_COOLDOWN_SECONDS)
-    params = {
-        "q": query,
-        "no_html": "1",
-        "skip_bad_urls": "1",
-        "i": "nws",  # News index filter
-    }
-
-    result = _make_ddg_request("/html", params)
-
+    ddgs = DDGS()
+    raw = ddgs.news(query, max_results=MAX_NEWS_RESULTS)
     return [
         {
-            "title": item.get("Title", ""),
-            "url": item.get("Url", ""),
-            "description": item.get("AbstractText", "")[:500],
-            "datePublished": item.get("DatePublished", ""),
+            "title": r.get("title", ""),
+            "url": r.get("url", ""),
+            "description": r.get("body", "")[:500],
+            "date": r.get("date", ""),
+            "source": r.get("source", ""),
         }
-        for item in result.get("Results", [])
+        for r in raw
     ]
 
 
 def main():
     parser = argparse.ArgumentParser(description="DuckDuckGo search")
     parser.add_argument("type", choices=["text", "image", "news"], help="Search type")
-    parser.add_argument("--query", "-q", required=True, help="Search query")
+    parser.add_argument("--query", "-q", required=True, help="Search query (min 2 chars)")
+    parser.add_argument("--size", help="Image size: Small, Medium, Large, Wallpaper")
     parser.add_argument(
-        "--size",
-        choices=["tiny", "small", "medium", "large", "huge"],
-        help="Image size",
-        default="medium"
+        "--type", dest="image_type",
+        help="Image type: photo, clipart, gif, transparent, line",
     )
-    parser.add_argument("--type", choices=["gif", "jpg", "png", "svg", "webp"], help="Image type")
-    parser.add_argument(
-        "--color",
-        choices=["any", "red", "orange", "yellow", "green", "teal", "blue", "purple", "pink", "gray", "black", "white", "transparent"],
-        default="any"
-    )
-    parser.add_argument("--no-html", action="store_true", help="No HTML snippets")
+    parser.add_argument("--color", help="Color filter: color, Monochrome, Red, Orange, etc.")
 
     args = parser.parse_args()
 
@@ -206,35 +138,31 @@ def main():
         print(f"Found {len(results)} results:")
         for i, r in enumerate(results, 1):
             print(f"\n{i}. {r['title']}")
-            if r.get('description'):
-                desc = r['description'].replace(r['title'], '', 1).strip()
-                if desc:
-                    print(f"   {desc[:200]}...")
-            if r.get('url'):
+            if r.get("description"):
+                print(f"   {r['description'][:200]}")
+            if r.get("url"):
                 print(f"   {r['url']}")
 
     elif args.type == "image":
-        results = search_image(args.query, args.size, args.type, args.color)
-        print(f"Found {len(results)} results:")
+        results = search_image(args.query, args.size, args.image_type, args.color)
+        print(f"Found {len(results)} images:")
         for i, r in enumerate(results, 1):
             print(f"\n{i}. {r['title']}")
-            if r.get('thumbnail'):
-                print(f"   {r['thumbnail']}")
-            if r.get('url'):
-                print(f"   Source: {r['url']}")
-            if r.get('size'):
-                print(f"   Size: {r['size']}")
+            if r.get("image"):
+                print(f"   {r['image']}")
+            if r.get("source"):
+                print(f"   Source: {r['source']}")
 
     elif args.type == "news":
         results = search_news(args.query)
         print(f"Found {len(results)} news results:")
         for i, r in enumerate(results, 1):
             print(f"\n{i}. {r['title']}")
-            if r.get('datePublished'):
-                print(f"   Date: {r['datePublished']}")
-            if r.get('description'):
-                print(f"   {r['description'][:300]}...")
-            if r.get('url'):
+            if r.get("date"):
+                print(f"   Date: {r['date']}")
+            if r.get("description"):
+                print(f"   {r['description'][:300]}")
+            if r.get("url"):
                 print(f"   {r['url']}")
 
 

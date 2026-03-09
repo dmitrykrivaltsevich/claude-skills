@@ -1,155 +1,167 @@
-"""Tests for DuckDuckGo search functionality.
+"""Tests for DuckDuckGo search functionality."""
 
-Note: Tests verify logic and structure without making actual API calls.
-"""
+import os
+import sys
+from unittest.mock import MagicMock, patch
 
 import pytest
 
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
 
-class TestArgumentValidationLogic:
-    """Test query validation logic."""
-
-    def test_valid_query_passes(self):
-        """Test that valid queries pass the precondition check."""
-        # Simulate the precondition: len(q.strip()) >= 2
-        assert "hello".strip() and len("hello".strip()) >= 2
-        assert "a b".strip() and len("a b".strip()) >= 2
-
-    def test_empty_query_rejected(self):
-        """Test that empty queries are rejected."""
-        query = ""
-        assert not (query.strip() if query else False) or len(query.strip()) < 2
-
-    def test_single_char_rejected(self):
-        """Test that single character queries are rejected."""
-        query = "a"
-        assert not (query.strip() if query else False) or len(query.strip()) < 2
-
-    def test_whitespace_only_rejected(self):
-        """Test that whitespace-only queries are rejected."""
-        query = "   "
-        assert len(query.strip()) < 2
+from contracts import ContractViolationError
+from search import search_image, search_news, search_text
 
 
-class TestAPIConfiguration:
-    """Test API configuration constants."""
+class TestSearchTextPreconditions:
+    """Test query validation via @precondition."""
 
-    @pytest.mark.skip(reason="Cannot import from script without PEP 723 dependencies")
-    def test_api_cooldown_set(self):
-        """Test that API_COOLDOWN_SECONDS is defined correctly."""
-        # This would require requests to be installed for the script to import
-        pass
+    def test_empty_query_raises(self):
+        with pytest.raises(ContractViolationError, match="at least 2 characters"):
+            search_text("")
+
+    def test_single_char_raises(self):
+        with pytest.raises(ContractViolationError, match="at least 2 characters"):
+            search_text("a")
+
+    def test_whitespace_only_raises(self):
+        with pytest.raises(ContractViolationError, match="at least 2 characters"):
+            search_text("   ")
 
 
-class TestAPIResponseHandling:
-    """Test API response parsing logic."""
+class TestSearchText:
+    """Test text search result processing."""
 
-    @pytest.mark.skip(reason="Requires actual HTTP library")
-    def test_related_topics_extraction(self):
-        """Test that RelatedTopics are extracted correctly from DDG API response."""
-        # Mock data simulating DuckDuckGo API response
-        sample_result = {
-            "RelatedTopics": [
-                {
-                    "FirstResult": {
-                        "Text": "Machine learning basics",
-                        "Url": "https://example.com"
-                    },
-                    "Text": "Intro to ML concepts and applications"
-                }
-            ],
-            "Results": []
-        }
+    @patch("search.DDGS")
+    def test_returns_formatted_results(self, mock_ddgs_cls):
+        mock_ddgs = MagicMock()
+        mock_ddgs_cls.return_value = mock_ddgs
+        mock_ddgs.text.return_value = [
+            {"title": "Python Docs", "href": "https://docs.python.org", "body": "Official documentation"},
+            {"title": "Real Python", "href": "https://realpython.com", "body": "Tutorials and guides"},
+        ]
 
-        # Test the extraction logic from search_text
-        results = []
-        for item in sample_result.get("RelatedTopics", []):
-            results.append({
-                "title": item.get("FirstResult", {}).get("Text", item.get("Text", "")),
-                "url": item.get("FirstResult", {}).get("Url", ""),
-                "description": item.get("Text", "")[:500],
-            })
+        results = search_text("python tutorial")
 
-        assert len(results) == 1
-        assert "Machine learning basics" in results[0]["title"]
-        assert results[0]["url"] == "https://example.com"
+        assert len(results) == 2
+        assert results[0]["title"] == "Python Docs"
+        assert results[0]["url"] == "https://docs.python.org"
+        assert results[0]["description"] == "Official documentation"
 
-    @pytest.mark.skip(reason="Requires actual HTTP library")
-    def test_general_results_extraction(self):
-        """Test that general Results are extracted correctly."""
-        sample_result = {
-            "RelatedTopics": [],
-            "Results": [
-                {
-                    "Title": "Python Tutorial",
-                    "Url": "https://python.org",
-                    "Abstract": "Learn Python programming"
-                }
-            ]
-        }
+    @patch("search.DDGS")
+    def test_truncates_long_descriptions(self, mock_ddgs_cls):
+        mock_ddgs = MagicMock()
+        mock_ddgs_cls.return_value = mock_ddgs
+        mock_ddgs.text.return_value = [
+            {"title": "Long", "href": "https://example.com", "body": "x" * 1000},
+        ]
 
-        # Test extraction logic from search_text
-        results = []
-        for item in sample_result.get("Results", []):
-            if not results or results[-1].get("source") != "general":
-                results.append({
-                    "title": item.get("Title", ""),
-                    "url": item.get("Url", ""),
-                    "description": item.get("Abstract", "")[:500],
-                    "source": "general",
-                })
+        results = search_text("test query")
+
+        assert len(results[0]["description"]) <= 500
+
+    @patch("search.DDGS")
+    def test_handles_empty_results(self, mock_ddgs_cls):
+        mock_ddgs = MagicMock()
+        mock_ddgs_cls.return_value = mock_ddgs
+        mock_ddgs.text.return_value = []
+
+        results = search_text("obscure query xyz")
+
+        assert results == []
+
+
+class TestSearchImage:
+    """Test image search result processing."""
+
+    def test_short_query_raises(self):
+        with pytest.raises(ContractViolationError):
+            search_image("x")
+
+    @patch("search.DDGS")
+    def test_returns_image_results(self, mock_ddgs_cls):
+        mock_ddgs = MagicMock()
+        mock_ddgs_cls.return_value = mock_ddgs
+        mock_ddgs.images.return_value = [
+            {
+                "title": "Cat photo",
+                "image": "https://example.com/cat.jpg",
+                "thumbnail": "https://example.com/cat_thumb.jpg",
+                "url": "https://example.com/cats",
+                "source": "Example",
+            },
+        ]
+
+        results = search_image("cats")
 
         assert len(results) == 1
-        assert "Python Tutorial" in results[0]["title"]
+        assert results[0]["title"] == "Cat photo"
+        assert results[0]["image"] == "https://example.com/cat.jpg"
+
+    @patch("search.DDGS")
+    def test_passes_filter_params(self, mock_ddgs_cls):
+        mock_ddgs = MagicMock()
+        mock_ddgs_cls.return_value = mock_ddgs
+        mock_ddgs.images.return_value = []
+
+        search_image("dogs", size="Large", type_="photo", color="Brown")
+
+        mock_ddgs.images.assert_called_once_with(
+            "dogs", max_results=30, size="Large", type_image="photo", color="Brown"
+        )
+
+    @patch("search.DDGS")
+    def test_omits_none_filters(self, mock_ddgs_cls):
+        mock_ddgs = MagicMock()
+        mock_ddgs_cls.return_value = mock_ddgs
+        mock_ddgs.images.return_value = []
+
+        search_image("cats")
+
+        mock_ddgs.images.assert_called_once_with("cats", max_results=30)
 
 
-class TestImageSearchParams:
-    """Test image search parameter combinations."""
+class TestSearchNews:
+    """Test news search result processing."""
 
-    def test_valid_size_options(self):
-        """Test valid image size filter values."""
-        sizes = ["tiny", "small", "medium", "large", "huge"]
-        assert all(s is not None for s in sizes)
+    def test_empty_query_raises(self):
+        with pytest.raises(ContractViolationError):
+            search_news("")
 
-    def test_valid_type_options(self):
-        """Test valid image type filter values."""
-        types = ["gif", "jpg", "jpeg", "png", "svg", "webp", "bmp"]
-        assert all(t is not None for t in types)
+    @patch("search.DDGS")
+    def test_returns_news_results(self, mock_ddgs_cls):
+        mock_ddgs = MagicMock()
+        mock_ddgs_cls.return_value = mock_ddgs
+        mock_ddgs.news.return_value = [
+            {
+                "title": "Tech News",
+                "url": "https://example.com/news",
+                "body": "Latest tech developments",
+                "date": "2026-03-09",
+                "source": "TechCrunch",
+            },
+        ]
 
-    def test_valid_color_options(self):
-        """Test valid color filter values."""
-        colors = ["any", "red", "orange", "yellow", "green", "teal", "blue", "purple", "pink", "gray", "black", "white", "transparent"]
-        assert all(c is not None for c in colors)
+        results = search_news("technology")
 
+        assert len(results) == 1
+        assert results[0]["title"] == "Tech News"
+        assert results[0]["date"] == "2026-03-09"
+        assert results[0]["source"] == "TechCrunch"
 
-class TestNewsResultStructure:
-    """Test expected news result structure."""
+    @patch("search.DDGS")
+    def test_truncates_long_news_descriptions(self, mock_ddgs_cls):
+        mock_ddgs = MagicMock()
+        mock_ddgs_cls.return_value = mock_ddgs
+        mock_ddgs.news.return_value = [
+            {
+                "title": "Long News",
+                "url": "https://example.com",
+                "body": "y" * 1000,
+                "date": "2026-03-09",
+                "source": "Source",
+            },
+        ]
 
-    def test_news_result_has_required_fields(self):
-        """Test that news results contain expected fields."""
-        sample_result = {
-            "title": "Breaking News",
-            "url": "https://example.com/news",
-            "description": "Some news content here.",
-            "datePublished": "2026-03-09"
-        }
+        results = search_news("long news")
 
-        assert "title" in sample_result
-        assert "url" in sample_result
-        assert isinstance(sample_result["title"], str)
-        assert len(sample_result["url"]) > 0
-
-
-class TestSearchModuleStructure:
-    """Test that the search module has expected components."""
-
-    def test_search_function_signatures(self):
-        """Verify search functions exist with expected signatures (logic only)."""
-        # Text search function signature: search_text(query, raw_query=None) -> list[dict]
-        # Image search function signature: search_image(query, size=medium, type_, color) -> list[dict]
-        # News search function signature: search_news(query) -> list[dict]
-
-        # Verify the expected function names exist as strings in the module spec
-        assert "search_text"
-        assert "search_image"
-        assert "search_news"
+        assert len(results[0]["description"]) <= 500
