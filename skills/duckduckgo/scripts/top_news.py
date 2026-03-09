@@ -4,6 +4,8 @@
 # dependencies = [
 #   "ddgs >= 6.0",
 #   "python-dateutil >= 2.8",
+#   "httpx >= 0.27",
+#   "beautifulsoup4 >= 4.12",
 # ]
 # ///
 """Fetch comprehensive global news via DuckDuckGo and rank by impact.
@@ -22,13 +24,133 @@ from __future__ import annotations
 
 import argparse
 import concurrent.futures
+import json
 import re
 import textwrap
 from datetime import datetime, timezone
 from typing import List
 
+import httpx
+from bs4 import BeautifulSoup
 from ddgs import DDGS
 from dateutil import parser as dateparser
+
+# ---------------------------------------------------------------------------
+# Page-metadata author extraction (JSON-LD → OpenGraph → <meta name=author>)
+# ---------------------------------------------------------------------------
+_META_FETCH_TIMEOUT = 5.0   # seconds per article; short to keep total time bounded
+_META_USER_AGENT = "Mozilla/5.0 (compatible; NewsRanker/1.0 +https://github.com)"
+_META_WORKERS = 12
+
+
+def _author_from_jsonld(soup: BeautifulSoup) -> str:
+    """Try every JSON-LD block and return the first author name found."""
+    for script in soup.find_all("script", type="application/ld+json"):
+        try:
+            data = json.loads(script.string or "")
+        except Exception:
+            continue
+        # normalise to a flat list of candidate objects
+        candidates: list[dict] = []
+        if isinstance(data, list):
+            candidates = data
+        elif isinstance(data, dict):
+            candidates = data.get("@graph", [data])
+        for obj in candidates:
+            if not isinstance(obj, dict):
+                continue
+            if obj.get("@type") not in (
+                "NewsArticle", "Article", "BlogPosting",
+                "ReportageNewsArticle", "TechArticle",
+            ):
+                continue
+            author = obj.get("author", {})
+            if isinstance(author, str) and author:
+                return author
+            if isinstance(author, dict):
+                name = author.get("name", "").strip()
+                if name:
+                    return name
+            if isinstance(author, list):
+                names = [a.get("name", "").strip() for a in author
+                         if isinstance(a, dict) and a.get("name")]
+                if names:
+                    return " and ".join(names[:2])
+    return ""
+
+
+def _author_from_og_meta(soup: BeautifulSoup) -> str:
+    """Try Open Graph article:author and <meta name=author>."""
+    for attrs in (
+        {"property": "article:author"},
+        {"property": "og:author"},
+        {"name": "author"},
+        {"name": "Author"},
+        {"itemprop": "author"},
+    ):
+        tag = soup.find("meta", attrs=attrs)
+        if tag:
+            val = (tag.get("content") or "").strip()
+            # Skip bare URLs — some sites put profile links here
+            if val and not val.startswith("http"):
+                return val
+    # rel=author link text as last resort
+    link = soup.find("a", rel="author")
+    if link:
+        val = link.get_text(strip=True)
+        if val and len(val.split()) <= 6:
+            return val
+    return ""
+
+
+def fetch_author_from_metadata(url: str) -> str:
+    """GET the article page, parse structured metadata, return author or ''."""
+    if not url:
+        return ""
+    try:
+        resp = httpx.get(
+            url,
+            timeout=_META_FETCH_TIMEOUT,
+            follow_redirects=True,
+            headers={
+                "User-Agent": _META_USER_AGENT,
+                "Accept": "text/html,application/xhtml+xml",
+                "Accept-Language": "en",
+            },
+        )
+        if resp.status_code != 200:
+            return ""
+        # Parse only the <head> portion — author metadata is always there
+        # and we avoid downloading/parsing megabyte bodies.
+        raw_head = resp.text[:60_000]
+        soup = BeautifulSoup(raw_head, "html.parser")
+        return _author_from_jsonld(soup) or _author_from_og_meta(soup)
+    except Exception:
+        return ""
+
+
+def enrich_authors(stories: list[dict], max_fetch: int = 40) -> None:
+    """Parallel metadata fetch for top stories that have no author yet.
+
+    Fetches are limited to `max_fetch` stories and use a short per-request
+    timeout so a handful of slow/blocked URLs don't delay the whole output.
+    """
+    targets = [s for s in stories[:max_fetch] if not s.get("author") and s.get("url")]
+    if not targets:
+        return
+    print(f"Fetching author metadata for {len(targets)} articles…")
+    with concurrent.futures.ThreadPoolExecutor(max_workers=_META_WORKERS) as ex:
+        future_to_story = {
+            ex.submit(fetch_author_from_metadata, s["url"]): s for s in targets
+        }
+        for fut in concurrent.futures.as_completed(future_to_story, timeout=30):
+            story = future_to_story[fut]
+            try:
+                author = fut.result(timeout=6)
+                if author:
+                    story["author"] = author
+            except Exception:
+                pass
 
 # ---------------------------------------------------------------------------
 # Comprehensive query catalogue — each group targets a different slice of the
@@ -518,11 +640,14 @@ def main() -> None:
         print("No results found.")
         return
 
-    print(f"Collected {len(raw)} raw items — scoring & deduplicating…\n")
+    print(f"Collected {len(raw)} raw items — scoring & deduplicating…")
     scored = compute_scores(raw)
+
+    # Enrich with structured page metadata (JSON-LD, OG, meta) before display
+    enrich_authors(scored, max_fetch=args.top * 2)
     top = scored[: args.top]
 
-    print(f"{SEP}\n  TOP {args.top} GLOBAL STORIES BY IMPACT  —  {datetime.now(timezone.utc).strftime('%b %d, %Y %H:%M UTC')}\n{SEP}")
+    print(f"\n{SEP}\n  TOP {args.top} GLOBAL STORIES BY IMPACT  —  {datetime.now(timezone.utc).strftime('%b %d, %Y %H:%M UTC')}\n{SEP}")
     for i, s in enumerate(top, 1):
         print_story(i, s)
     print(SEP)
