@@ -131,6 +131,8 @@ Queries 11 source groups (62+ queries) in parallel via DDG News API:
 
 Fetches any public web page, strips noise (nav/scripts/ads), saves as txt, md, or pdf.
 
+Uses `curl_cffi` with Chrome TLS fingerprint impersonation — bypasses Cloudflare and similar bot-detection. On 403/401/451, automatically falls back to Wayback Machine, then Google Cache.
+
 ```bash
 uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/download.py <url> --format md
 uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/download.py <url> --format pdf --output ~/Desktop/article.pdf
@@ -151,7 +153,7 @@ VS Code Copilot does NOT render `![](url)` or `<img>`. Present image results as 
 
 ## Technical Details
 
-- **Libraries** — `ddgs` (DDG API), `httpx` + `beautifulsoup4` (metadata + download), `truststore` (macOS SSL), `html2text` + `fpdf2` (format conversion), `python-dateutil`
+- **Libraries** — `curl_cffi` (Chrome TLS impersonation for Cloudflare bypass), `ddgs` (DDG API), `httpx` + `beautifulsoup4` (metadata + archive fallbacks), `truststore` (macOS SSL), `html2text` + `fpdf2` (format conversion), `python-dateutil`
 - **Python** ≥3.11, PEP 723 inline metadata in every script
 - **Runtime** — `uv run --no-config` for isolated execution
 - **Output** — `search.py` and `top_news.py` emit JSON to stdout; progress/errors go to stderr

@@ -2,6 +2,7 @@
 # /// script
 # requires-python = ">=3.11"
 # dependencies = [
+#   "curl_cffi >= 0.7",
 #   "httpx >= 0.27",
 #   "beautifulsoup4 >= 4.12",
 #   "html2text >= 2024.2.26",
@@ -247,35 +248,92 @@ def _slug_from_url(url: str) -> str:
 def fetch(url: str) -> tuple[str, str]:
     """Fetch *url* and return (html_text, final_url).
 
+    Uses curl_cffi with Chrome TLS fingerprint impersonation to bypass
+    Cloudflare and similar bot-detection systems.  Falls back to Wayback
+    Machine and Google Cache when the primary fetch fails.
+
     Raises SystemExit with an actionable message on network errors.
     """
-    headers = {
-        "User-Agent": (
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/122.0.0.0 Safari/537.36"
-        ),
-        "Accept": "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.9",
-    }
-    try:
+    from curl_cffi import requests as cffi_requests
+    from curl_cffi import CurlError
+
+    # Minimum bytes for a page to count as real content (not an error page).
+    _MIN_USEFUL_BYTES = 1024  # 1 KB — any real article is larger
+
+    def _cffi_get(target_url: str) -> cffi_requests.Response:
+        """GET with Chrome TLS impersonation — bypasses Cloudflare."""
+        return cffi_requests.get(
+            target_url,
+            impersonate="chrome",
+            timeout=TIMEOUT,
+            allow_redirects=True,
+        )
+
+    def _httpx_get(target_url: str) -> httpx.Response:
+        """Plain httpx GET — for archive services that don't need TLS tricks."""
         with httpx.Client(
             follow_redirects=True,
             timeout=TIMEOUT,
             verify=_SSL_CTX,
         ) as client:
-            resp = client.get(url, headers=headers)
+            resp = client.get(target_url)
             resp.raise_for_status()
+            return resp
+
+    # --- Attempt 1: curl_cffi with Chrome impersonation ---
+    try:
+        resp = _cffi_get(url)
+        status = resp.status_code
+        if status < 400:
             content = resp.content[:MAX_BYTES]
             encoding = resp.encoding or "utf-8"
             return content.decode(encoding, errors="replace"), str(resp.url)
-    except httpx.HTTPStatusError as exc:
-        sys.exit(
-            f"ERROR: HTTP {exc.response.status_code} from {url}\n"
-            "Check the URL or try again later."
-        )
-    except httpx.RequestError as exc:
+        # Only fall through to caches for bot-block status codes.
+        if status in (401, 403, 451):
+            print(
+                f"Direct fetch returned {status}. Trying fallbacks …",
+                file=sys.stderr,
+            )
+        else:
+            sys.exit(
+                f"ERROR: HTTP {status} from {url}\n"
+                "Check the URL or try again later."
+            )
+    except CurlError as exc:
         sys.exit(f"ERROR: Could not reach {url} — {exc}\nCheck your network connection.")
+
+    # --- Attempt 2: Wayback Machine (most reliable archive) ---
+    wayback_url = f"https://web.archive.org/web/{url}"
+    try:
+        resp = _httpx_get(wayback_url)
+        content = resp.content[:MAX_BYTES]
+        if len(content) > _MIN_USEFUL_BYTES:
+            encoding = resp.encoding or "utf-8"
+            print("Fetched from Wayback Machine.", file=sys.stderr)
+            return content.decode(encoding, errors="replace"), str(resp.url)
+        print("Wayback Machine returned too little content.", file=sys.stderr)
+    except (httpx.HTTPStatusError, httpx.RequestError):
+        print("Wayback Machine unavailable. Trying Google Cache …", file=sys.stderr)
+
+    # --- Attempt 3: Google Cache (often blocked, last resort) ---
+    cache_url = f"https://webcache.googleusercontent.com/search?q=cache:{url}"
+    try:
+        resp = _cffi_get(cache_url)
+        if resp.status_code < 400:
+            content = resp.content[:MAX_BYTES]
+            encoding = resp.encoding or "utf-8"
+            html_text = content.decode(encoding, errors="replace")
+            if len(content) > _MIN_USEFUL_BYTES and "trouble accessing Google" not in html_text:
+                print("Fetched from Google Cache.", file=sys.stderr)
+                return html_text, str(resp.url)
+        print("Google Cache unavailable.", file=sys.stderr)
+    except CurlError:
+        pass
+
+    sys.exit(
+        f"ERROR: Could not fetch {url} — blocked by the site "
+        "and no cached version found in Wayback Machine or Google Cache."
+    )
 
 
 def _extract_readable(html: str) -> tuple[str, str]:
