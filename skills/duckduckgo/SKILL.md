@@ -93,6 +93,28 @@ For periods the API doesn't directly support ("past 3 months", "2019–2021"), o
 4. Run further `search.py` queries based on what was learned
 5. Synthesise findings across all sources
 
+### Technical / vendor / niche topic research — CRITICAL
+
+Generic queries return noise (e.g. "database news" → DNA databases, law enforcement). For ANY specialized domain the LLM MUST decompose the topic into precise queries BEFORE calling scripts.
+
+**Decomposition pattern** — the LLM already knows every domain's landscape. Before running anything, enumerate from its own knowledge:
+1. **Major vendors & players** in the space (10–20+)
+2. **Key product/project names** distinct from vendor names
+3. **Niche trade publications** that cover this domain (use as `site:` queries)
+4. **Sub-categories & adjacent terms** (the domain's taxonomy)
+5. **Action qualifiers**: "release", "announcement", "update", "launch", "acquisition", "benchmark", "migration", "open source"
+
+**Execution pattern:**
+1. Run `top_news.py --groups tech science finance --queries "VendorA" "VendorB" "ProductX announcement" "site:tradepub.com topic" ... --timelimit m` — pack as many targeted queries as needed via `--queries` (each becomes a separate DDG query)
+2. Assess coverage — if key vendors/products are missing from results, run follow-up `search.py news` and `search.py text` queries for those specific gaps
+3. Use `search.py text` (not just `news`) to catch blog posts, release notes, changelogs, and engineering docs
+
+**Rules:**
+- NEVER search for a bare domain word alone — always qualify with specific entity names, product names, or "technology"/"engineering"
+- Use `site:` queries for niche trade publications the general news groups miss
+- When results are thin, broaden with adjacent terms from the domain's taxonomy
+- The more specific the queries, the better the signal — 20 precise queries beat 3 generic ones
+
 ## Presentation Rules — MANDATORY
 
 When presenting search or news results, ALWAYS include **every** field the JSON returned. NEVER drop fields to make a narrower table.
