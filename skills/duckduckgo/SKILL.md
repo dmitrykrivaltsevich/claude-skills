@@ -76,6 +76,27 @@ uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/vision.py find_similar --image-pa
 4. Run further `search.py` queries based on what was learned
 5. Synthesise findings across all sources
 
+## Presentation Rules — MANDATORY
+
+When presenting search or news results, ALWAYS include **every** field the JSON returned. NEVER drop fields to make a narrower table.
+
+**Required columns for news results** (table or list):
+- **#** — rank position
+- **Date** — human-readable
+- **Title** — as a clickable markdown link: `[Title](url)`
+- **Source** — publication/outlet name from the `source` field
+- **Summary** — the `description` field, 1–2 sentences. This is the most valuable field for the user — it tells them what the article says without clicking.
+- **Author** — when present in JSON (e.g. from `--enrich-authors`). Omit column if no results have it.
+
+**Required columns for text search results**:
+- **Title** — clickable link
+- **Summary** — the `description` field
+- **Site** — domain extracted from URL
+
+**After the table**, add a "Key themes" section that clusters results by topic and highlights patterns across sources.
+
+NEVER present a table with only title + date + source. The `description` field exists in every result — use it.
+
 ## `top_news.py` — Multi-Source News Fetcher
 
 Queries 11 source groups (62+ queries) in parallel via DDG News API:
