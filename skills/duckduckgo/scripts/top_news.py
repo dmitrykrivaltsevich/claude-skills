@@ -8,16 +8,22 @@
 #   "beautifulsoup4 >= 4.12",
 # ]
 # ///
-"""Fetch comprehensive global news via DuckDuckGo and rank by impact.
+"""Fetch news from many sources in parallel and output structured JSON.
 
-Covers: mainstream news wires, print media, broadcast, tech/science blogs,
-academic publishers, finance, international & regional press, and social
-aggregators (Reddit, Hacker News).
+This script is a **data-gathering facility** for the LLM.  It handles what the
+LLM cannot: bulk parallel HTTP requests across 60+ DDG queries without being
+blocked, author metadata extraction, and URL-level deduplication.
 
-Impact metric (equal weights A + B + C):
-  A — cross-source frequency: how many independent queries surfaced the story
-  B — recency + prominence: freshness × outlet authority
-  C — engagement proxy: keyword signals (breaking, exclusive, fatalities, ...)
+The LLM receives the raw JSON array and handles the intelligence work:
+  • semantic deduplication (same story, different wording)
+  • story clustering ("5 outlets cover X")
+  • context-aware ranking based on the user's actual intent
+  • presentation tailored to the conversation
+
+Output: a JSON array on stdout where each element is:
+  { title, url, source, date, description, author, query_group }
+
+Progress messages go to stderr so they don't pollute the JSON.
 """
 
 from __future__ import annotations
@@ -26,7 +32,7 @@ import argparse
 import concurrent.futures
 import json
 import re
-import textwrap
+import sys
 from datetime import datetime, timezone
 from typing import List
 
@@ -402,6 +408,8 @@ def extract_byline(body: str) -> str:
 
 
 def source_prominence(source: str) -> float:
+    """Return 0–1 prominence score for an outlet.  Exposed so the LLM can
+    reference it, but the LLM is expected to apply its own judgement."""
     s = (source or "").lower()
     for k, v in KNOWN_PROMINENCE.items():
         if k in s:
@@ -413,18 +421,35 @@ def source_prominence(source: str) -> float:
 # Fetching
 # ---------------------------------------------------------------------------
 
-def fetch_news(queries: List[str], per_query: int = 20) -> List[dict]:
-    """Fetch news for all queries in parallel, each with its own DDGS instance."""
+def _build_query_map(groups: list[str]) -> dict[str, str]:
+    """Return {query: group_name} for the selected groups."""
+    qmap: dict[str, str] = {}
+    for g in groups:
+        for q in QUERY_GROUPS.get(g, []):
+            qmap[q] = g
+    return qmap
+
+
+def fetch_news(
+    query_map: dict[str, str],
+    per_query: int = 20,
+) -> list[dict]:
+    """Fetch news for all queries in parallel, each with its own DDGS instance.
+
+    Returns a flat list of article dicts, each tagged with ``query_group``.
+    """
+    queries = list(query_map)
 
     def fetch_one(q: str) -> list:
         try:
-            # Each thread gets its own client to avoid shared-state races
             return DDGS().news(q, max_results=per_query)
         except Exception:
             return []
 
     results: list[dict] = []
+    seen_urls: set[str] = set()  # URL-level dedup — exact same article
     max_workers = min(12, len(queries))
+
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as ex:
         future_to_q = {ex.submit(fetch_one, q): q for q in queries}
         for fut in concurrent.futures.as_completed(future_to_q, timeout=90):
@@ -433,224 +458,98 @@ def fetch_news(queries: List[str], per_query: int = 20) -> List[dict]:
                 raw = fut.result(timeout=12)
             except Exception:
                 raw = []
+            group = query_map.get(q, "")
             for r in raw:
+                url = (r.get("url", "") or "").strip()
+                # Skip exact-URL duplicates so the LLM doesn't waste context
+                norm_url = re.sub(r"^https?://(www\.)?", "", url).rstrip("/")
+                if norm_url in seen_urls:
+                    continue
+                seen_urls.add(norm_url)
                 results.append(
                     {
-                        "query": q,
                         "title": r.get("title", "") or "",
-                        "url": r.get("url", "") or "",
-                        "description": (r.get("body", "") or "")[:1200],
-                        "date": r.get("date", "") or "",
+                        "url": url,
                         "source": r.get("source", "") or "",
-                        "author": r.get("author", "") or extract_byline(r.get("body", "") or ""),
+                        "date": r.get("date", "") or "",
+                        "description": (r.get("body", "") or "")[:1200],
+                        "author": (
+                            r.get("author", "")
+                            or extract_byline(r.get("body", "") or "")
+                        ),
+                        "query_group": group,
                     }
                 )
     return results
 
 
 # ---------------------------------------------------------------------------
-# Scoring
-# ---------------------------------------------------------------------------
-
-def normalize_title(t: str) -> str:
-    return re.sub(r"\s+", " ", re.sub(r"[^\w\s]", "", t or "")).strip().lower()
-
-
-def normalize_url(url: str) -> str:
-    return re.sub(r"^https?://(www\.)?", "", url).rstrip("/")
-
-
-def parse_date(s: str) -> datetime | None:
-    if not s:
-        return None
-    try:
-        return dateparser.parse(s)
-    except Exception:
-        return None
-
-
-def fmt_date(s: str) -> str:
-    d = parse_date(s)
-    if d:
-        return d.strftime("%b %d, %Y %H:%M UTC").replace(" 0", " ")
-    return s or "—"
-
-
-def compute_scores(items: List[dict]) -> List[dict]:
-    # Cluster by normalised title so the same story from many outlets merges
-    clusters: dict[str, list[dict]] = {}
-    for it in items:
-        key = normalize_title(it["title"])[:120]
-        if not key:
-            key = normalize_url(it.get("url", ""))[:120]
-        if not key:
-            continue
-        clusters.setdefault(key, []).append(it)
-
-    scored: list[dict] = []
-    now = datetime.now(timezone.utc)
-    max_mentions = max((len(v) for v in clusters.values()), default=1)
-
-    for _key, group in clusters.items():
-        canonical = group[0].copy()
-        mentions = len(group)
-
-        # A — cross-source frequency
-        sources_score = mentions / max_mentions
-
-        # B — recency (decays linearly over 7 days)
-        dates = [parse_date(g.get("date", "")) for g in group]
-        dates_valid = [d for d in dates if d is not None]
-        if dates_valid:
-            most_recent = max(dates_valid)
-            hours_old = (now - most_recent).total_seconds() / 3600.0
-            recency_score = max(0.0, 1.0 - hours_old / (24 * 7))
-            # store the best date back on the canonical item for display
-            canonical["date"] = most_recent.isoformat()
-        else:
-            recency_score = 0.1
-
-        # B — prominence: best outlet across all group items
-        prominence_score = max(source_prominence(g.get("source", "")) for g in group)
-
-        # collect all sources in the group for display
-        canonical["all_sources"] = sorted(
-            {g.get("source", "") for g in group if g.get("source")}
-        )
-
-        # C — engagement keyword proxy
-        engagement = 0.0
-        txt = (canonical.get("title", "") + " " + canonical.get("description", "")).lower()
-        if "breaking" in txt:
-            engagement += 0.30
-        if "exclusive" in txt:
-            engagement += 0.20
-        if any(w in txt for w in ("killed", "dead", "dies", "disaster", "crisis", "war", "attack")):
-            engagement += 0.10
-        if any(w in txt for w in ("record", "historic", "milestone", "landmark")):
-            engagement += 0.05
-        engagement = min(1.0, engagement)
-
-        # Combined score — equal weights A + B + C
-        b = (recency_score + prominence_score) / 2.0
-        total = (sources_score + b + ((engagement + b) / 2.0)) / 3.0
-
-        canonical.update(
-            {
-                "mentions": mentions,
-                "sources_score": round(sources_score, 3),
-                "recency_score": round(recency_score, 3),
-                "prominence_score": round(prominence_score, 3),
-                "engagement": round(engagement, 3),
-                "impact": round(total, 4),
-            }
-        )
-        scored.append(canonical)
-
-    scored.sort(key=lambda x: x["impact"], reverse=True)
-    return scored
-
-
-# ---------------------------------------------------------------------------
-# Presentation
-# ---------------------------------------------------------------------------
-SEP = "─" * 72
-
-
-def print_story(rank: int, s: dict) -> None:
-    title = s.get("title", "(no title)")
-    source = s.get("source", "")
-    all_srcs = s.get("all_sources", [])
-    date_str = fmt_date(s.get("date", ""))
-    url = s.get("url", "")
-    description = s.get("description", "")
-    author = s.get("author", "")
-
-    # Build a tidy 1-2 sentence summary from the description,
-    # skipping any leading byline line ("By Name ...") so it doesn't duplicate
-    body_lines = description.strip().splitlines()
-    if body_lines and _BYLINE_RE.match(body_lines[0]):
-        body_lines = body_lines[1:]
-    clean_body = " ".join(body_lines).strip()
-    sentences = re.split(r"(?<=[.!?])\s+", clean_body)
-    summary = " ".join(sentences[:2]).strip()
-    if summary and len(summary) > 280:
-        summary = summary[:277] + "…"
-
-    # Build the source line
-    src_display = source
-    if all_srcs and len(all_srcs) > 1:
-        extras = [s2 for s2 in all_srcs if s2 != source][:3]
-        src_display = source + (f"  +also: {', '.join(extras)}" if extras else "")
-
-    impact_line = (
-        f"Impact {s['impact']:.4f}  "
-        f"[freq={s['sources_score']:.2f}  "
-        f"recent={s['recency_score']:.2f}  "
-        f"prominence={s['prominence_score']:.2f}  "
-        f"engagement={s['engagement']:.2f}  "
-        f"mentions={s['mentions']}]"
-    )
-
-    print(SEP)
-    # Wrap long titles at 70 chars
-    wrapped = textwrap.fill(f"#{rank}  {title}", width=70, subsequent_indent="    ")
-    print(wrapped)
-    print(f"  Source : {src_display}")
-    if author:
-        print(f"  Author : {author}")
-    print(f"  Date   : {date_str}")
-    if summary:
-        wrapped_sum = textwrap.fill(summary, width=68, initial_indent="  Summary: ", subsequent_indent="           ")
-        print(wrapped_sum)
-    print(f"  {impact_line}")
-    print(f"  Link   : {url}")
-
-
-# ---------------------------------------------------------------------------
-# Entry point
+# Entry point — output JSON to stdout, progress to stderr
 # ---------------------------------------------------------------------------
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Top global news ranked by impact")
-    parser.add_argument("--per-query", "-n", type=int, default=20,
-                        help="Max results per query (default 20 — keeps rate limits safe)")
-    parser.add_argument("--top", "-t", type=int, default=20,
-                        help="Number of top stories to display")
-    parser.add_argument("--groups", "-g", nargs="*", default=None,
-                        help="Query groups to use (default: all). "
-                             f"Choices: {list(QUERY_GROUPS)}")
+    parser = argparse.ArgumentParser(
+        description="Fetch news from many sources and output structured JSON."
+    )
+    parser.add_argument(
+        "--per-query", "-n", type=int, default=20,
+        help="Max results per DDG query (default 20)",
+    )
+    parser.add_argument(
+        "--groups", "-g", nargs="*", default=None,
+        help=(
+            "Source groups to query (default: all).  "
+            f"Choices: {list(QUERY_GROUPS)}"
+        ),
+    )
+    parser.add_argument(
+        "--queries", "-q", nargs="*", default=None,
+        help="Additional free-form DDG news queries (mixed with groups)",
+    )
+    parser.add_argument(
+        "--enrich-authors", "-a", action="store_true", default=False,
+        help="Fetch page metadata to fill in missing author names (adds ~10–20 s)",
+    )
+    parser.add_argument(
+        "--max-enrich", type=int, default=60,
+        help="Max articles to fetch author metadata for (default 60)",
+    )
     args = parser.parse_args()
 
+    # Build the query map from selected groups
     selected_groups = args.groups or list(QUERY_GROUPS)
-    queries: list[str] = []
-    for g in selected_groups:
-        if g in QUERY_GROUPS:
-            queries.extend(QUERY_GROUPS[g])
-        else:
-            print(f"Warning: unknown group '{g}', skipping")
+    query_map = _build_query_map(selected_groups)
 
-    if not queries:
-        print("No queries to run.")
+    # Add any free-form queries under a "custom" pseudo-group
+    if args.queries:
+        for q in args.queries:
+            query_map[q] = "custom"
+
+    if not query_map:
+        print("No queries to run.", file=sys.stderr)
+        sys.exit(1)
+
+    print(
+        f"Fetching from {len(query_map)} queries across "
+        f"{len(selected_groups)} groups…",
+        file=sys.stderr,
+    )
+    results = fetch_news(query_map, per_query=args.per_query)
+
+    if not results:
+        print("No results found.", file=sys.stderr)
+        json.dump([], sys.stdout)
         return
 
-    print(f"Fetching from {len(queries)} queries across {len(selected_groups)} groups…")
-    raw = fetch_news(queries, per_query=args.per_query)
-    if not raw:
-        print("No results found.")
-        return
+    print(f"Collected {len(results)} unique articles.", file=sys.stderr)
 
-    print(f"Collected {len(raw)} raw items — scoring & deduplicating…")
-    scored = compute_scores(raw)
+    # Optional author enrichment via page metadata
+    if args.enrich_authors:
+        enrich_authors(results, max_fetch=args.max_enrich)
 
-    # Enrich with structured page metadata (JSON-LD, OG, meta) before display
-    enrich_authors(scored, max_fetch=args.top * 2)
-    top = scored[: args.top]
-
-    print(f"\n{SEP}\n  TOP {args.top} GLOBAL STORIES BY IMPACT  —  {datetime.now(timezone.utc).strftime('%b %d, %Y %H:%M UTC')}\n{SEP}")
-    for i, s in enumerate(top, 1):
-        print_story(i, s)
-    print(SEP)
+    # Emit JSON to stdout — the LLM reads this and does the smart work
+    json.dump(results, sys.stdout, ensure_ascii=False, indent=None)
+    print(file=sys.stdout)  # trailing newline
 
 
 if __name__ == "__main__":

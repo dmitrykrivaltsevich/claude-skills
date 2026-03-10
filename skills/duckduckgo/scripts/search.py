@@ -5,11 +5,19 @@
 #   "ddgs >= 6.0",
 # ]
 # ///
-"""DuckDuckGo text, image, and news search."""
+"""DuckDuckGo text, image, and news search — outputs JSON to stdout.
+
+This script is a **data-gathering facility** for the LLM.  It handles the DDG
+API call and returns structured JSON so the LLM can filter, rank, summarise,
+and present results according to the user's actual intent.
+
+Progress / error messages go to stderr.
+"""
 
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import sys
 
@@ -123,7 +131,7 @@ def search_news(query: str, max_results: int = DEFAULT_NEWS_RESULTS) -> list[dic
 
 
 def main():
-    parser = argparse.ArgumentParser(description="DuckDuckGo search")
+    parser = argparse.ArgumentParser(description="DuckDuckGo search — outputs JSON")
     parser.add_argument("type", choices=["text", "image", "news"], help="Search type")
     parser.add_argument("--query", "-q", required=True, help="Search query (min 2 chars)")
     parser.add_argument("--max-results", "-n", type=int, default=None, help="Maximum number of results to return")
@@ -139,39 +147,20 @@ def main():
     if args.type == "text":
         kwargs = {"max_results": args.max_results} if args.max_results is not None else {}
         results = search_text(args.query, **kwargs)
-        print(f"Found {len(results)} results:")
-        for i, r in enumerate(results, 1):
-            print(f"\n{i}. {r['title']}")
-            if r.get("description"):
-                print(f"   {r['description'][:200]}")
-            if r.get("url"):
-                print(f"   {r['url']}")
 
     elif args.type == "image":
         img_kwargs: dict = {}
         if args.max_results is not None:
             img_kwargs["max_results"] = args.max_results
         results = search_image(args.query, args.size, args.image_type, args.color, **img_kwargs)
-        print(f"Found {len(results)} images:")
-        for i, r in enumerate(results, 1):
-            print(f"\n{i}. {r['title']}")
-            if r.get("image"):
-                print(f"   {r['image']}")
-            if r.get("source"):
-                print(f"   Source: {r['source']}")
 
     elif args.type == "news":
         news_kwargs = {"max_results": args.max_results} if args.max_results is not None else {}
         results = search_news(args.query, **news_kwargs)
-        print(f"Found {len(results)} news results:")
-        for i, r in enumerate(results, 1):
-            print(f"\n{i}. {r['title']}")
-            if r.get("date"):
-                print(f"   Date: {r['date']}")
-            if r.get("description"):
-                print(f"   {r['description'][:300]}")
-            if r.get("url"):
-                print(f"   {r['url']}")
+
+    print(f"Found {len(results)} results.", file=sys.stderr)
+    json.dump(results, sys.stdout, ensure_ascii=False, indent=None)
+    print(file=sys.stdout)  # trailing newline
 
 
 if __name__ == "__main__":
