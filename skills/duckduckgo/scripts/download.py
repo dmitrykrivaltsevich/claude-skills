@@ -387,7 +387,7 @@ def main() -> None:
         dest.parent.mkdir(parents=True, exist_ok=True)
     else:
         slug = _slug_from_url(final_url)
-        dest = Path.cwd() / f"{slug}.{fmt}"
+        dest = Path("/tmp") / f"{slug}.{fmt}"
 
     print(f"Saving to {dest} …", file=sys.stderr)
 

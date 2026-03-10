@@ -28,4 +28,5 @@
 - File paths in SKILL.md MUST use forward slashes, NEVER backslashes.
 - Complex multi-step operations SHOULD provide a checklist pattern so the model can track progress through the workflow.
 - Quality-critical operations SHOULD include a feedback loop: execute → validate → fix → repeat.
+- Skill scripts MUST be data pipes: handle I/O (HTTP, APIs, file system, parallel fetch, rate limits) and output structured data (JSON to stdout, progress/errors to stderr). Scripts MUST NOT perform ranking, scoring, semantic analysis, deduplication by meaning, clustering, or presentation — the LLM is better at all of these. SKILL.md MUST guide the LLM on how to use script output intelligently (workflow patterns, when to dig deeper, how to rank/cluster/present results to the user).
 - After fixing a bug or mistake that reflects a reusable lesson (not task-specific), MUST add a corresponding rule to this file following the same MUST/SHOULD/CAN/NOT style.
