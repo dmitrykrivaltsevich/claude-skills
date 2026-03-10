@@ -36,18 +36,22 @@ DEFAULT_NEWS_RESULTS = 9
     lambda query, **_: len(query.strip()) >= 2,
     "Query must be at least 2 characters",
 )
-def search_text(query: str, max_results: int = DEFAULT_TEXT_RESULTS) -> list[dict]:
+def search_text(query: str, max_results: int = DEFAULT_TEXT_RESULTS, timelimit: str | None = None) -> list[dict]:
     """Search DuckDuckGo for text results.
 
     Args:
         query: Search term (at least 2 characters).
         max_results: Maximum number of results to return.
+        timelimit: Time filter — d (day), w (week), m (month), y (year), or None.
 
     Returns:
         List of result dicts with title, url, and description.
     """
     ddgs = DDGS()
-    raw = ddgs.text(query, max_results=max_results)
+    kwargs: dict = {"max_results": max_results}
+    if timelimit:
+        kwargs["timelimit"] = timelimit
+    raw = ddgs.text(query, **kwargs)
     return [
         {
             "title": r.get("title", ""),
@@ -68,6 +72,7 @@ def search_image(
     type_: str | None = None,
     color: str | None = None,
     max_results: int = DEFAULT_IMAGE_RESULTS,
+    timelimit: str | None = None,
 ) -> list[dict]:
     """Search DuckDuckGo for images.
 
@@ -77,6 +82,7 @@ def search_image(
         type_: Image type — photo, clipart, gif, transparent, line.
         color: Color filter — color, Monochrome, Red, Orange, etc.
         max_results: Maximum number of results to return.
+        timelimit: Time filter — Day, Week, Month, Year, or None.
 
     Returns:
         List of result dicts with title, image url, thumbnail, and source.
@@ -89,6 +95,8 @@ def search_image(
         kwargs["type_image"] = type_
     if color:
         kwargs["color"] = color
+    if timelimit:
+        kwargs["timelimit"] = timelimit
     raw = ddgs.images(query, **kwargs)
     return [
         {
@@ -106,18 +114,22 @@ def search_image(
     lambda query, **_: len(query.strip()) >= 2,
     "Query must be at least 2 characters",
 )
-def search_news(query: str, max_results: int = DEFAULT_NEWS_RESULTS) -> list[dict]:
+def search_news(query: str, max_results: int = DEFAULT_NEWS_RESULTS, timelimit: str | None = None) -> list[dict]:
     """Search DuckDuckGo for news results.
 
     Args:
         query: Search term (at least 2 characters).
         max_results: Maximum number of results to return.
+        timelimit: Time filter — d (day), w (week), m (month), y (year), or None.
 
     Returns:
         List of result dicts with title, url, description, date, and source.
     """
     ddgs = DDGS()
-    raw = ddgs.news(query, max_results=max_results)
+    kwargs: dict = {"max_results": max_results}
+    if timelimit:
+        kwargs["timelimit"] = timelimit
+    raw = ddgs.news(query, **kwargs)
     return [
         {
             "title": r.get("title", ""),
@@ -141,21 +153,31 @@ def main():
         help="Image type: photo, clipart, gif, transparent, line",
     )
     parser.add_argument("--color", help="Color filter: color, Monochrome, Red, Orange, etc.")
+    parser.add_argument(
+        "--timelimit", "-t",
+        help="Time filter: d (day), w (week), m (month), y (year)",
+    )
 
     args = parser.parse_args()
 
     if args.type == "text":
         kwargs = {"max_results": args.max_results} if args.max_results is not None else {}
+        if args.timelimit:
+            kwargs["timelimit"] = args.timelimit
         results = search_text(args.query, **kwargs)
 
     elif args.type == "image":
         img_kwargs: dict = {}
         if args.max_results is not None:
             img_kwargs["max_results"] = args.max_results
+        if args.timelimit:
+            img_kwargs["timelimit"] = args.timelimit
         results = search_image(args.query, args.size, args.image_type, args.color, **img_kwargs)
 
     elif args.type == "news":
         news_kwargs = {"max_results": args.max_results} if args.max_results is not None else {}
+        if args.timelimit:
+            news_kwargs["timelimit"] = args.timelimit
         results = search_news(args.query, **news_kwargs)
 
     print(f"Found {len(results)} results.", file=sys.stderr)

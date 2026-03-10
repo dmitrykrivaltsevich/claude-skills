@@ -34,16 +34,16 @@ The LLM handles what scripts cannot: semantic deduplication, story clustering ("
 
 ```bash
 # Text search — returns JSON:
-uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/search.py text --query "your query" [--max-results N]
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/search.py text --query "your query" [--max-results N] [--timelimit d|w|m|y]
 
 # News search — returns JSON:
-uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/search.py news --query "your query" [--max-results N]
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/search.py news --query "your query" [--max-results N] [--timelimit d|w|m|y]
 
 # Image search — returns JSON:
-uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/search.py image --query "your query" [--max-results N]
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/search.py image --query "your query" [--max-results N] [--timelimit Day|Week|Month|Year]
 
 # Multi-source news sweep — returns JSON:
-uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/top_news.py [--groups GROUP …] [--queries "Q1" "Q2" …] [--per-query N] [--enrich-authors]
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/top_news.py [--groups GROUP …] [--queries "Q1" "Q2" …] [--per-query N] [--timelimit d|w|m|y] [--enrich-authors]
 
 # Download a URL:
 uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/download.py <url> [--format txt|md|pdf] [--output PATH]
@@ -52,6 +52,23 @@ uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/download.py <url> [--format txt|m
 uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/vision.py analyze --image-path PATH
 uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/vision.py find_similar --image-path PATH
 ```
+
+## Time Filtering — `--timelimit`
+
+All search scripts support `--timelimit` to restrict results by recency:
+
+| User says… | `--timelimit` value |
+|---|---|
+| "past 24 hours", "today", "yesterday" | `d` |
+| "this week", "past few days", "past 7 days" | `w` |
+| "this month", "past few weeks", "past 30 days" | `m` |
+| "this year", "past few months", "past year" | `y` |
+| "old articles", "from 2020", "5 years ago" | omit timelimit — filter by date in results JSON |
+| no time constraint mentioned | omit `--timelimit` (default: no filter) |
+
+For **image search**, use capitalized values: `Day`, `Week`, `Month`, `Year`.
+
+For periods the API doesn't directly support ("past 3 months", "2019–2021"), omit `--timelimit` and filter the returned JSON by the `date` field.
 
 ## How the LLM Should Use These
 
@@ -119,6 +136,7 @@ Queries 11 source groups (62+ queries) in parallel via DDG News API:
 - `--groups tech science` — restrict to specific groups
 - `--queries "AI boom" "LLM safety"` — add free-form queries (tagged `query_group: "custom"`)
 - `--per-query 20` — DDG results per query (default 20)
+- `--timelimit d|w|m|y` — restrict news to past day/week/month/year
 - `--enrich-authors` — fetch page metadata (JSON-LD/OG) for author names (adds ~10–20 s)
 - `--max-enrich 60` — cap how many articles get metadata fetch
 

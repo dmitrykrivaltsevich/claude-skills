@@ -433,6 +433,7 @@ def _build_query_map(groups: list[str]) -> dict[str, str]:
 def fetch_news(
     query_map: dict[str, str],
     per_query: int = 20,
+    timelimit: str | None = None,
 ) -> list[dict]:
     """Fetch news for all queries in parallel, each with its own DDGS instance.
 
@@ -442,7 +443,10 @@ def fetch_news(
 
     def fetch_one(q: str) -> list:
         try:
-            return DDGS().news(q, max_results=per_query)
+            kwargs: dict = {"max_results": per_query}
+            if timelimit:
+                kwargs["timelimit"] = timelimit
+            return DDGS().news(q, **kwargs)
         except Exception:
             return []
 
@@ -514,6 +518,10 @@ def main() -> None:
         "--max-enrich", type=int, default=60,
         help="Max articles to fetch author metadata for (default 60)",
     )
+    parser.add_argument(
+        "--timelimit", "-t",
+        help="Time filter: d (day), w (week), m (month), y (year)",
+    )
     args = parser.parse_args()
 
     # Build the query map from selected groups
@@ -534,7 +542,7 @@ def main() -> None:
         f"{len(selected_groups)} groups…",
         file=sys.stderr,
     )
-    results = fetch_news(query_map, per_query=args.per_query)
+    results = fetch_news(query_map, per_query=args.per_query, timelimit=args.timelimit)
 
     if not results:
         print("No results found.", file=sys.stderr)
