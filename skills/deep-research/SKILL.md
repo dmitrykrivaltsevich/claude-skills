@@ -58,8 +58,8 @@ LLM: synthesise final report
 | Initialize/resume research | `state.py init` | Creates or resumes a research session |
 | Add research questions | `state.py add-questions` | Appends questions (deduped) to state |
 | Update question status | `state.py update-question` | Marks question as unexplored/partially/covered |
-| Add sources | `state.py add-sources` | Records URLs/docs with skill attribution |
-| Add facts | `state.py add-facts` | Records claims with source IDs and confidence |
+| Add sources | `state.py add-sources` | Records URLs/docs with skill attribution (use `--file`) |
+| Add facts | `state.py add-facts` | Records claims with source IDs and confidence (use `--file`) |
 | Advance phase | `state.py update-phase` | Moves to next research phase |
 | Check progress | `state.py status` | Returns coverage summary JSON |
 | Export full state | `state.py export` | Dumps complete research state as JSON |
@@ -79,11 +79,17 @@ uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/state.py add-questions --research
 # Update a question's status:
 uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/state.py update-question --research-id "my-topic" --question "What is X?" --status covered
 
-# Record sources found:
-uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/state.py add-sources --research-id "my-topic" --sources '[{"url": "https://...", "title": "Article", "skill": "duckduckgo"}]'
+# Record sources found (write JSON to a file, then pass with --file):
+cat > /tmp/sources.json << 'HEREDOC'
+[{"url": "https://...", "title": "Article", "skill": "duckduckgo"}]
+HEREDOC
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/state.py add-sources --research-id "my-topic" --file /tmp/sources.json
 
-# Record extracted facts:
-uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/state.py add-facts --research-id "my-topic" --facts '[{"claim": "X causes Y", "source_ids": ["s1", "s2"], "confidence": "high"}]'
+# Record extracted facts (write JSON to a file, then pass with --file):
+cat > /tmp/facts.json << 'HEREDOC'
+[{"claim": "X causes Y", "source_ids": ["s1", "s2"], "confidence": "high"}]
+HEREDOC
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/state.py add-facts --research-id "my-topic" --file /tmp/facts.json
 
 # Advance to next phase:
 uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/state.py update-phase --research-id "my-topic" --phase sweep
@@ -206,6 +212,26 @@ For large research tasks, the context window can fill up. The LLM should:
 2. **Offload to state**: The state file is the persistent memory. Export it when starting a new phase to refresh working memory.
 3. **Split rounds**: Do 3–5 questions per round, record facts, then move to the next batch. This keeps each round manageable.
 4. **Progressive depth**: Start with broad sweeps (summaries only), then deep-read only the most promising sources. Don't try to download every article.
+
+## Large Data — MUST Use `--file`
+
+When adding sources or facts, **always write the JSON to a temp file first**, then pass `--file /path/to/file.json`. NEVER pass large JSON arrays as inline `--sources` or `--facts` CLI arguments — shell quoting mangles them.
+
+```bash
+# Correct — write to file, pass path:
+cat > /tmp/facts.json << 'HEREDOC'
+[
+  {"claim": "fact 1", "source_ids": ["s1"], "confidence": "high"},
+  {"claim": "fact 2", "source_ids": ["s2"], "confidence": "medium"}
+]
+HEREDOC
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/state.py add-facts --research-id "my-topic" --file /tmp/facts.json
+
+# Also works — pipe via stdin:
+cat /tmp/facts.json | uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/state.py add-facts --research-id "my-topic" --file -
+```
+
+Inline `--facts '...'` is only safe for 1–2 simple items. For any batch of facts or sources from a research round, use `--file`.
 
 ## Reference
 

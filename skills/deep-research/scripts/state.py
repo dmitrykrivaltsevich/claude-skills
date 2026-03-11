@@ -266,6 +266,27 @@ def export_research(
 # CLI
 # ---------------------------------------------------------------------------
 
+def _read_json_input(file_arg: str | None, inline_arg: str | None) -> list[dict]:
+    """Read JSON array from --file path, stdin ('-'), or inline --arg string.
+
+    Priority: --file > inline arg.  Exits with an error if neither provided.
+    """
+    if file_arg is not None:
+        if file_arg == "-":
+            raw = sys.stdin.read()
+        else:
+            path = Path(file_arg)
+            if not path.exists():
+                sys.exit(f"ERROR: file not found: {path}")
+            raw = path.read_text(encoding="utf-8")
+        return json.loads(raw)
+
+    if inline_arg is not None:
+        return json.loads(inline_arg)
+
+    sys.exit("ERROR: provide --file PATH (or '-' for stdin), or pass data inline")
+
+
 def _add_common_args(p: argparse.ArgumentParser) -> None:
     """Add arguments shared by all subcommands."""
     p.add_argument("--research-id", required=True)
@@ -299,12 +320,16 @@ def main(argv: list[str] | None = None) -> None:
     # add-sources
     p_as = sub.add_parser("add-sources")
     _add_common_args(p_as)
-    p_as.add_argument("--sources", required=True, help="JSON array string")
+    p_as.add_argument("--sources", default=None, help="JSON array string (small data)")
+    p_as.add_argument("--file", default=None, dest="sources_file",
+                       help="Path to JSON file, or '-' for stdin (recommended for large data)")
 
     # add-facts
     p_af = sub.add_parser("add-facts")
     _add_common_args(p_af)
-    p_af.add_argument("--facts", required=True, help="JSON array string")
+    p_af.add_argument("--facts", default=None, help="JSON array string (small data)")
+    p_af.add_argument("--file", default=None, dest="facts_file",
+                       help="Path to JSON file, or '-' for stdin (recommended for large data)")
 
     # update-phase
     p_up = sub.add_parser("update-phase")
@@ -331,10 +356,10 @@ def main(argv: list[str] | None = None) -> None:
             args.research_id, args.question, args.status, state_dir=state_dir
         )
     elif args.command == "add-sources":
-        sources = json.loads(args.sources)
+        sources = _read_json_input(args.sources_file, args.sources)
         result = add_sources(args.research_id, sources, state_dir=state_dir)
     elif args.command == "add-facts":
-        facts = json.loads(args.facts)
+        facts = _read_json_input(args.facts_file, args.facts)
         result = add_facts(args.research_id, facts, state_dir=state_dir)
     elif args.command == "update-phase":
         result = update_phase(args.research_id, args.phase, state_dir=state_dir)

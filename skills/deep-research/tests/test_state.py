@@ -484,6 +484,26 @@ class TestCLI:
         data = json.loads(captured.out)
         assert data["total_sources"] == 1
 
+    def test_cli_add_sources_from_file(self, state_dir: Path, capsys, tmp_path: Path):
+        state.main([
+            "init", "--research-id", "cli-src-f", "--goal", "Src file goal",
+            "--state-dir", str(state_dir),
+        ])
+        capsys.readouterr()
+        json_file = tmp_path / "sources.json"
+        json_file.write_text(json.dumps([
+            {"url": "https://b.com", "title": "B", "skill": "drive"},
+            {"url": "https://c.com", "title": "C", "skill": "web"},
+        ]), encoding="utf-8")
+        state.main([
+            "add-sources", "--research-id", "cli-src-f",
+            "--file", str(json_file),
+            "--state-dir", str(state_dir),
+        ])
+        captured = capsys.readouterr()
+        data = json.loads(captured.out)
+        assert data["total_sources"] == 2
+
     def test_cli_add_facts(self, state_dir: Path, capsys):
         state.main([
             "init", "--research-id", "cli-fact", "--goal", "Fact goal",
@@ -500,6 +520,69 @@ class TestCLI:
         captured = capsys.readouterr()
         data = json.loads(captured.out)
         assert data["total_facts"] == 1
+
+    def test_cli_add_facts_from_file(self, state_dir: Path, capsys, tmp_path: Path):
+        state.main([
+            "init", "--research-id", "cli-fact-f", "--goal", "Fact file goal",
+            "--state-dir", str(state_dir),
+        ])
+        capsys.readouterr()
+        json_file = tmp_path / "facts.json"
+        json_file.write_text(json.dumps([
+            {"claim": "A causes B", "source_ids": ["s1"], "confidence": "high"},
+            {"claim": "C implies D", "source_ids": ["s2"], "confidence": "low"},
+        ]), encoding="utf-8")
+        state.main([
+            "add-facts", "--research-id", "cli-fact-f",
+            "--file", str(json_file),
+            "--state-dir", str(state_dir),
+        ])
+        captured = capsys.readouterr()
+        data = json.loads(captured.out)
+        assert data["total_facts"] == 2
+
+    def test_cli_add_facts_from_stdin(self, state_dir: Path, capsys, monkeypatch):
+        state.main([
+            "init", "--research-id", "cli-fact-stdin", "--goal", "Stdin goal",
+            "--state-dir", str(state_dir),
+        ])
+        capsys.readouterr()
+        import io
+        stdin_data = json.dumps([
+            {"claim": "stdin fact", "source_ids": [], "confidence": "medium"},
+        ])
+        monkeypatch.setattr("sys.stdin", io.StringIO(stdin_data))
+        state.main([
+            "add-facts", "--research-id", "cli-fact-stdin",
+            "--file", "-",
+            "--state-dir", str(state_dir),
+        ])
+        captured = capsys.readouterr()
+        data = json.loads(captured.out)
+        assert data["total_facts"] == 1
+
+    def test_cli_add_facts_file_overrides_inline(self, state_dir: Path, capsys, tmp_path: Path):
+        """When both --file and --facts are given, --file wins."""
+        state.main([
+            "init", "--research-id", "cli-fact-both", "--goal", "Both goal",
+            "--state-dir", str(state_dir),
+        ])
+        capsys.readouterr()
+        json_file = tmp_path / "facts_override.json"
+        json_file.write_text(json.dumps([
+            {"claim": "from file", "source_ids": [], "confidence": "high"},
+            {"claim": "also from file", "source_ids": [], "confidence": "high"},
+        ]), encoding="utf-8")
+        state.main([
+            "add-facts", "--research-id", "cli-fact-both",
+            "--facts", json.dumps([{"claim": "from inline", "source_ids": [], "confidence": "low"}]),
+            "--file", str(json_file),
+            "--state-dir", str(state_dir),
+        ])
+        captured = capsys.readouterr()
+        data = json.loads(captured.out)
+        # File has 2 facts, inline has 1 — file wins
+        assert data["total_facts"] == 2
 
     def test_cli_update_phase(self, state_dir: Path, capsys):
         state.main([

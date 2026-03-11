@@ -50,8 +50,8 @@ Questions:
 1. Select unexplored questions
 2. For each, choose the best script from the capability map
 3. Execute searches
-4. Record sources: `state.py add-sources --sources '[...]'`
-5. Extract quick facts from summaries: `state.py add-facts --facts '[...]'`
+4. Write sources JSON to temp file → `state.py add-sources --file /tmp/sources.json`
+5. Write facts JSON to temp file → `state.py add-facts --file /tmp/facts.json`
 6. Update question status: `state.py update-question --status partially`
 
 **Routing pattern**:
@@ -85,7 +85,7 @@ For each question:
 2. Download full text: duckduckgo `download.py <url> --format md`
 3. Read the downloaded content
 4. Extract facts with confidence levels and source attribution
-5. Record: `state.py add-facts --facts '[{"claim": "...", "source_ids": ["s1"], "confidence": "high"}]'`
+5. Write facts JSON to temp file → `state.py add-facts --file /tmp/facts.json`
 6. If the article mentions something unexpected, generate a new question
 
 **Confidence levels**:
