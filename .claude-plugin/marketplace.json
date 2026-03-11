@@ -1,1 +1,24 @@
-{"name": "claude-skills", "owner": {"name": "Dmitry Krivaltsevich"}, "metadata": {"description": "A collection of skills for Claude Code", "version": "0.14.5"}, "plugins": [{"name": "google-drive", "description": "Search, list, download, upload, create, update, share, and manage Google Drive files and folders", "source": "./", "strict": false, "skills": ["./skills/google-drive/drive", "./skills/google-drive/drive-trash"]}, {"name": "duckduckgo", "description": "Internet search via DuckDuckGo - text, image, and news search. No auth required.", "source": "./", "strict": false, "skills": ["./skills/duckduckgo"]}, {"name": "deep-research", "description": "Autonomous multi-phase research orchestrator across all available skills. No auth required.", "source": "./", "strict": false, "skills": ["./skills/deep-research"]}]}
+{
+  "name": "claude-skills",
+  "owner": {
+    "name": "Dmitry Krivaltsevich"
+  },
+  "metadata": {
+    "description": "A collection of skills for Claude Code",
+    "version": "0.16.0"
+  },
+  "plugins": [
+    {
+      "name": "claude-skills",
+      "description": "Google Drive file management, DuckDuckGo internet search, and autonomous multi-phase deep research",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./skills/drive",
+        "./skills/drive-trash",
+        "./skills/duckduckgo",
+        "./skills/deep-research"
+      ]
+    }
+  ]
+}
