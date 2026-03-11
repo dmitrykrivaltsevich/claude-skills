@@ -54,14 +54,14 @@ Questions:
 5. Write facts JSON to temp file → `state.py add-facts --file /tmp/facts.json`
 6. Update question status: `state.py update-question --status partially`
 
-**Routing pattern**:
+**Routing pattern** (read each skill's SKILL.md to get correct `${CLAUDE_SKILL_DIR}` paths):
 ```
 For each question:
-  1. Does it need web data? → duckduckgo search.py / top_news.py
-  2. Does it need internal docs? → drive search.py
-  3. Does it need claim verification? → duckduckgo fact_check.py
-  4. Does it need trend data? → duckduckgo trending.py
-  5. Does it need multi-language coverage? → duckduckgo translate_search.py
+  1. Does it need web data? → read /duckduckgo SKILL.md → use its search.py / top_news.py
+  2. Does it need internal docs? → read /google-drive SKILL.md → use its search.py
+  3. Does it need claim verification? → read /duckduckgo SKILL.md → use its fact_check.py
+  4. Does it need trend data? → read /duckduckgo SKILL.md → use its trending.py
+  5. Does it need multi-language coverage? → read /duckduckgo SKILL.md → use its translate_search.py
 ```
 
 **Search strategy**:
@@ -82,7 +82,7 @@ For each question:
 
 **Steps**:
 1. For each `partially` covered question, pick top 2–3 sources
-2. Download full text: duckduckgo `download.py <url> --format md`
+2. Download full text: read `/duckduckgo` SKILL.md, use its `download.py <url> --format md`
 3. Read the downloaded content
 4. Extract facts with confidence levels and source attribution
 5. Write facts JSON to temp file → `state.py add-facts --file /tmp/facts.json`
@@ -159,17 +159,19 @@ For each question:
 
 ## Skill Routing Examples
 
-| Research need | Skill | Script | Flags |
+Read each skill's SKILL.md before running its scripts — each skill has its own `${CLAUDE_SKILL_DIR}`.
+
+| Research need | Skill to read | Script | Flags |
 |---|---|---|---|
-| Recent news on topic | duckduckgo | `search.py news` | `--timelimit w` |
-| Comprehensive news sweep | duckduckgo | `top_news.py` | `--groups tech science` |
-| Full article text | duckduckgo | `download.py` | `--format md` |
-| Claim verification | duckduckgo | `fact_check.py` | |
-| Trending topics | duckduckgo | `trending.py` | `--discover` or `--topics` |
-| Multi-language search | duckduckgo | `translate_search.py` | region:query pairs |
-| Topic monitoring | duckduckgo | `monitor.py` | |
-| Internal documents | drive | `search.py` | `--query "..."` |
-| File content | drive | `download.py` | `--file-id "..."` |
+| Recent news on topic | `/duckduckgo` | `search.py news` | `--timelimit w` |
+| Comprehensive news sweep | `/duckduckgo` | `top_news.py` | `--groups tech science` |
+| Full article text | `/duckduckgo` | `download.py` | `--format md` |
+| Claim verification | `/duckduckgo` | `fact_check.py` | |
+| Trending topics | `/duckduckgo` | `trending.py` | `--discover` or `--topics` |
+| Multi-language search | `/duckduckgo` | `translate_search.py` | region:query pairs |
+| Topic monitoring | `/duckduckgo` | `monitor.py` | |
+| Internal documents | `/google-drive` | `search.py` | `--query "..."` |
+| File content | `/google-drive` | `download.py` | `--file-id "..."` |
 
 ---
 

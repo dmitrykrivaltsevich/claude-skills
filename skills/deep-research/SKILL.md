@@ -24,7 +24,9 @@ user-invocable: true
 
 **This skill is an orchestrator, not a data fetcher.** It provides two data-pipe scripts — one discovers available skill capabilities, the other manages persistent research state. The LLM does all the thinking: decomposing goals into questions, choosing which skills to invoke, evaluating coverage, deciding when to dig deeper, and synthesising findings.
 
-> **CRITICAL**: Do NOT use built-in Web Search, Fetch, or any other built-in web tools. ALL web searches and page downloads MUST go through the `/duckduckgo` skill scripts (`search.py`, `top_news.py`, `download.py`, `trending.py`, `fact_check.py`). Built-in tools are unreliable and produce worse results. Run `discover.py` first to see all available skills, then use ONLY skill scripts for data gathering.
+> **CRITICAL**: Do NOT use built-in Web Search, Fetch, or any other built-in web tools. ALL web searches and page downloads MUST go through the `/duckduckgo` skill. Built-in tools are unreliable and produce worse results.
+
+> **CRITICAL**: `${CLAUDE_SKILL_DIR}` points to THIS skill's directory only. Do NOT use it to construct paths to other skills' scripts — that will fail. To run duckduckgo scripts, read the `/duckduckgo` SKILL.md first — it provides its own `${CLAUDE_SKILL_DIR}` with the correct paths. Same for `/google-drive` or any other skill.
 
 ```
 User question
@@ -129,18 +131,18 @@ The LLM drives each phase. Scripts provide I/O and persistence; the LLM provides
 ### Phase 2: Broad Sweep
 
 1. For each unexplored question, choose the best skill/script to gather data
-2. Run the chosen scripts (e.g. duckduckgo's `search.py`, `top_news.py`, drive's `search.py`)
+2. Run the chosen skill's scripts — **read the skill's SKILL.md first** to get correct commands
 3. Record discovered sources via `state.py add-sources`
 4. Extract preliminary facts from result summaries via `state.py add-facts`
 5. Mark questions as `partially` if some data found, leave `unexplored` if nothing useful
 6. Run `state.py update-phase --phase sweep`
 
-**Skill routing** — use the capability map from discover.py:
-- Web search → `/duckduckgo` skill scripts (`search.py`, `top_news.py`). NEVER use built-in Web Search.
-- Page download → `/duckduckgo` skill `download.py`. NEVER use built-in Fetch.
-- Fact checking → `/duckduckgo` skill `fact_check.py`
-- Trending topics → `/duckduckgo` skill `trending.py`
-- Google Drive documents → `/google-drive` skill scripts
+**Skill routing** — use the capability map from discover.py, then READ the target skill's SKILL.md:
+- Web search → read `/duckduckgo` SKILL.md, use its `search.py`, `top_news.py`. NEVER use built-in Web Search.
+- Page download → read `/duckduckgo` SKILL.md, use its `download.py`. NEVER use built-in Fetch.
+- Fact checking → read `/duckduckgo` SKILL.md, use its `fact_check.py`
+- Trending topics → read `/duckduckgo` SKILL.md, use its `trending.py`
+- Google Drive documents → read `/google-drive` SKILL.md, use its scripts
 - Other skills as discovered
 
 **Decomposition before search**: For specialized topics, decompose into precise queries BEFORE running search scripts. Enumerate vendors, products, publications, and sub-categories from existing knowledge, then search for each specifically.
@@ -148,7 +150,7 @@ The LLM drives each phase. Scripts provide I/O and persistence; the LLM provides
 ### Phase 3: Deep Read
 
 1. For each `partially` covered question, fetch full content of promising sources
-2. Use duckduckgo `download.py` (or drive `download.py`) to get full text
+2. Read `/duckduckgo` SKILL.md, use its `download.py` to get full text (or `/google-drive` `download.py` for Drive files)
 3. Extract detailed facts with source attribution
 4. Run `state.py add-facts` for each batch of findings
 5. Discover new questions from what was read — run `state.py add-questions`
@@ -203,19 +205,27 @@ The LLM decides when to stop. These are guidelines, not hard limits:
 
 ## Working with Other Skills
 
-This skill does NOT fetch data itself. It discovers and orchestrates other skills:
+This skill does NOT fetch data itself. It orchestrates other skills.
 
-1. **Discovery**: `discover.py` scans the skills/ directory and returns a capability map — which skills exist, what scripts they offer, and what triggers them
-2. **Routing**: The LLM reads the capability map and picks the right skill/script for each question
-3. **Attribution**: When recording sources via `state.py add-sources`, always set the `skill` field so the final report knows where each piece of data came from
+> **PATH WARNING**: Each skill has its OWN `${CLAUDE_SKILL_DIR}`. You MUST read the target skill's SKILL.md before running its scripts — that will give you the correct `${CLAUDE_SKILL_DIR}` for that skill. NEVER construct paths to other skills' scripts using this skill's `${CLAUDE_SKILL_DIR}`.
 
-**Example routing decisions**:
-- "Find recent news about X" → `/duckduckgo` `search.py news`
-- "Get comprehensive coverage" → `/duckduckgo` `top_news.py`
-- "Download full article" → `/duckduckgo` `download.py`
-- "Find our internal doc about X" → `/google-drive` `search.py`
-- "Verify this claim" → `/duckduckgo` `fact_check.py`
-- "Get trending angles" → `/duckduckgo` `trending.py`
+**How to invoke another skill's scripts**:
+1. Read the skill's SKILL.md (e.g. read `/duckduckgo` SKILL.md)
+2. The SKILL.md will show commands using `${CLAUDE_SKILL_DIR}` — that variable resolves to the correct path for THAT skill
+3. Copy the command patterns from that SKILL.md and run them
+
+**Workflow**:
+1. **Discovery**: `discover.py` tells you WHAT skills exist and what they can do
+2. **Invocation**: Read the target skill's SKILL.md to get the correct script commands
+3. **Attribution**: When recording sources via `state.py add-sources`, set the `skill` field
+
+**Example routing decisions** (read the skill's SKILL.md first for exact commands):
+- "Find recent news about X" → read `/duckduckgo` SKILL.md → use its `search.py news`
+- "Get comprehensive coverage" → read `/duckduckgo` SKILL.md → use its `top_news.py`
+- "Download full article" → read `/duckduckgo` SKILL.md → use its `download.py`
+- "Find our internal doc about X" → read `/google-drive` SKILL.md → use its `search.py`
+- "Verify this claim" → read `/duckduckgo` SKILL.md → use its `fact_check.py`
+- "Get trending angles" → read `/duckduckgo` SKILL.md → use its `trending.py`
 
 ## Context Management
 
