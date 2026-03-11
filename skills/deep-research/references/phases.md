@@ -126,13 +126,12 @@ For each question:
 # Research Report: <goal>
 
 ## Executive Summary
-2–3 paragraph overview of key findings.
+2–3 paragraph overview of key findings. Include inline citations [1], [2] for every claim.
 
 ## Key Findings
 ### Finding 1: <headline>
-<details with source attribution>
+<details with inline citations, e.g. "X increased by 40% [1] while Y declined [2, 3].">
 **Confidence**: high | medium | low
-**Sources**: [Source A](url), [Source B](url)
 
 ### Finding 2: ...
 
@@ -145,8 +144,16 @@ For each question:
 - Research phases completed: scope → sweep → deep-read → cross-reference
 
 ## Sources
-Full bibliography with URLs and access dates.
+[1] Author (if known). "Title". URL. Accessed YYYY-MM-DD.
+[2] Author. "Title". URL. Accessed YYYY-MM-DD.
+[3] ...
 ```
+
+**Citation rules**:
+- Every claim, statistic, or factual statement in the report MUST have at least one `[N]` citation
+- Use the source IDs from state.py to build the numbered list — assign `[1]`, `[2]`, etc. in order of first appearance in the text
+- When multiple sources support the same claim, list all: `[2, 5]`
+- The Sources section MUST be numbered, not bulleted — each `[N]` in the text maps to exactly one entry
 
 ---
 

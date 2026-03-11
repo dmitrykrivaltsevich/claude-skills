@@ -169,11 +169,12 @@ The LLM drives each phase. Scripts provide I/O and persistence; the LLM provides
 2. Run `state.py status` to confirm coverage
 3. Synthesise findings into a structured report with:
    - Executive summary
-   - Key findings (with source attribution)
+   - Key findings with **inline numbered citations** `[1]`, `[2]` etc. in the body text
    - Confidence assessment per finding
    - Open questions / areas needing more research
-   - Source bibliography
-4. Run `state.py update-phase --phase synthesise`
+   - Numbered **Sources** section — each source gets a number matching the inline citations, with full title, author (if known), URL, and access date
+4. Every claim, statistic, or factual statement in the report MUST have at least one inline citation `[N]` pointing to the Sources section. Do not leave any claim unsourced.
+5. Run `state.py update-phase --phase synthesise`
 
 ## Convergence Rules
 
