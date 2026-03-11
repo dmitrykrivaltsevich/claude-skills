@@ -24,7 +24,7 @@ user-invocable: true
 
 **This skill is an orchestrator, not a data fetcher.** It provides two data-pipe scripts — one discovers available skill capabilities, the other manages persistent research state. The LLM does all the thinking: decomposing goals into questions, choosing which skills to invoke, evaluating coverage, deciding when to dig deeper, and synthesising findings.
 
-> **CRITICAL**: Do NOT use built-in Web Search, Fetch, or any other built-in web tools. ALL web searches MUST go through skill scripts (e.g. duckduckgo `search.py`, `top_news.py`, `download.py`). ALL page downloads MUST go through duckduckgo `download.py`. Built-in tools are unreliable and produce worse results than the skill scripts. Run `discover.py` first to see what skills are available, then use ONLY those scripts for data gathering.
+> **CRITICAL**: Do NOT use built-in Web Search, Fetch, or any other built-in web tools. ALL web searches and page downloads MUST go through the `/duckduckgo` skill scripts (`search.py`, `top_news.py`, `download.py`, `trending.py`, `fact_check.py`). Built-in tools are unreliable and produce worse results. Run `discover.py` first to see all available skills, then use ONLY skill scripts for data gathering.
 
 ```
 User question
@@ -136,9 +136,11 @@ The LLM drives each phase. Scripts provide I/O and persistence; the LLM provides
 6. Run `state.py update-phase --phase sweep`
 
 **Skill routing** — use the capability map from discover.py:
-- Web search → duckduckgo skill scripts (`search.py`, `top_news.py`). NEVER use built-in Web Search.
-- Page download → duckduckgo skill `download.py`. NEVER use built-in Fetch.
-- Google Drive documents → drive skill scripts
+- Web search → `/duckduckgo` skill scripts (`search.py`, `top_news.py`). NEVER use built-in Web Search.
+- Page download → `/duckduckgo` skill `download.py`. NEVER use built-in Fetch.
+- Fact checking → `/duckduckgo` skill `fact_check.py`
+- Trending topics → `/duckduckgo` skill `trending.py`
+- Google Drive documents → `/google-drive` skill scripts
 - Other skills as discovered
 
 **Decomposition before search**: For specialized topics, decompose into precise queries BEFORE running search scripts. Enumerate vendors, products, publications, and sub-categories from existing knowledge, then search for each specifically.
@@ -208,11 +210,12 @@ This skill does NOT fetch data itself. It discovers and orchestrates other skill
 3. **Attribution**: When recording sources via `state.py add-sources`, always set the `skill` field so the final report knows where each piece of data came from
 
 **Example routing decisions**:
-- "Find recent news about X" → duckduckgo `search.py news`
-- "Get comprehensive coverage" → duckduckgo `top_news.py`
-- "Find our internal doc about X" → drive `search.py`
-- "Verify this claim" → duckduckgo `fact_check.py`
-- "Get trending angles" → duckduckgo `trending.py`
+- "Find recent news about X" → `/duckduckgo` `search.py news`
+- "Get comprehensive coverage" → `/duckduckgo` `top_news.py`
+- "Download full article" → `/duckduckgo` `download.py`
+- "Find our internal doc about X" → `/google-drive` `search.py`
+- "Verify this claim" → `/duckduckgo` `fact_check.py`
+- "Get trending angles" → `/duckduckgo` `trending.py`
 
 ## Context Management
 
