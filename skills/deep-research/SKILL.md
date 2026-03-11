@@ -24,6 +24,8 @@ user-invocable: true
 
 **This skill is an orchestrator, not a data fetcher.** It provides two data-pipe scripts — one discovers available skill capabilities, the other manages persistent research state. The LLM does all the thinking: decomposing goals into questions, choosing which skills to invoke, evaluating coverage, deciding when to dig deeper, and synthesising findings.
 
+> **CRITICAL**: Do NOT use built-in Web Search, Fetch, or any other built-in web tools. ALL web searches MUST go through skill scripts (e.g. duckduckgo `search.py`, `top_news.py`, `download.py`). ALL page downloads MUST go through duckduckgo `download.py`. Built-in tools are unreliable and produce worse results than the skill scripts. Run `discover.py` first to see what skills are available, then use ONLY those scripts for data gathering.
+
 ```
 User question
     ↓
@@ -134,7 +136,8 @@ The LLM drives each phase. Scripts provide I/O and persistence; the LLM provides
 6. Run `state.py update-phase --phase sweep`
 
 **Skill routing** — use the capability map from discover.py:
-- Web search → duckduckgo skill scripts
+- Web search → duckduckgo skill scripts (`search.py`, `top_news.py`). NEVER use built-in Web Search.
+- Page download → duckduckgo skill `download.py`. NEVER use built-in Fetch.
 - Google Drive documents → drive skill scripts
 - Other skills as discovered
 
