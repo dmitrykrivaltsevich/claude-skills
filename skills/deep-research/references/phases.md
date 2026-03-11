@@ -84,7 +84,7 @@ For each question:
 
 **Steps**:
 1. For each `partially` covered question, pick top 2–3 sources
-2. Download full text: read `/duckduckgo` SKILL.md, use its `download.py <url> --format md`
+2. Download full text using duckduckgo's `download.py <url> --format md`. **NEVER use built-in Fetch** — it gets 403 errors because it doesn't mimic a browser. `download.py` handles this.
 3. Read the downloaded content
 4. Extract facts with confidence levels and source attribution
 5. Write facts JSON to temp file → `state.py add-facts --file /tmp/facts.json`

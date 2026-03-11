@@ -12,8 +12,9 @@ user-invocable: true
 > **MANDATORY — read before doing anything else:**
 >
 > 1. **NEVER delegate research to Agent() or any subagent.** Execute ALL phases directly in the main conversation. Spawning an Agent bypasses these instructions and breaks the workflow.
-> 2. **NEVER use built-in Web Search, Fetch, or any built-in web tools.** They are forbidden. ALL web searches and page downloads MUST go through the `/duckduckgo` skill scripts via `uv run`.
-> 3. **`${CLAUDE_SKILL_DIR}` = this skill only.** To run duckduckgo scripts, read the `/duckduckgo` SKILL.md first — it has its own `${CLAUDE_SKILL_DIR}`.
+> 2. **NEVER use built-in Fetch to download URLs.** It does NOT mimic a browser and gets blocked (403). To download ANY URL, use duckduckgo's `download.py` — it sets browser headers and handles anti-bot protection. **Every URL you want to read MUST go through `download.py`.**
+> 3. **NEVER use built-in Web Search.** Use duckduckgo's `search.py` instead.
+> 4. **`${CLAUDE_SKILL_DIR}` = this skill only.** To run duckduckgo scripts, read the `/duckduckgo` SKILL.md first — it has its own `${CLAUDE_SKILL_DIR}`.
 
 ## Contents
 
@@ -71,7 +72,7 @@ uv run --no-config ${DDG_DIR}/scripts/search.py images "your query"
 # Comprehensive news sweep (multiple topics):
 uv run --no-config ${DDG_DIR}/scripts/top_news.py --groups tech science
 
-# Download full page as markdown:
+# *** DOWNLOAD ANY URL (replaces Fetch — mimics browser, avoids 403) ***:
 uv run --no-config ${DDG_DIR}/scripts/download.py "https://example.com" --format md
 
 # Fact checking (multi-source):
@@ -84,7 +85,7 @@ uv run --no-config ${DDG_DIR}/scripts/trending.py --discover
 uv run --no-config ${DDG_DIR}/scripts/translate_search.py "en:query" "de:query"
 ```
 
-**Remember**: NEVER use built-in Web Search or Fetch. Use these scripts instead.
+**When you find a URL you want to read — use `download.py`, NEVER Fetch.** Fetch gets 403 errors; `download.py` mimics a real browser.
 
 ## Scripts
 
