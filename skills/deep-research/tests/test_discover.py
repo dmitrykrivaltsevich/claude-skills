@@ -107,6 +107,12 @@ def skill_tree(tmp_path: Path) -> Path:
     (skills_dir / "not-a-skill").mkdir(parents=True)
     (skills_dir / "not-a-skill" / "random.txt").write_text("hi")
 
+    # Skill 5: nested inside a plugin wrapper dir (like google-drive/drive)
+    wrapper = skills_dir / "plugin-wrapper"
+    s5 = wrapper / "nested-skill"
+    s5.mkdir(parents=True)
+    (s5 / "SKILL.md").write_text(SKILL_MD_NO_TABLE, encoding="utf-8")
+
     return skills_dir
 
 
@@ -201,6 +207,13 @@ class TestDiscoverSkills:
         # no-front has no frontmatter name → falls back to dir name
         assert "no-front" in names
 
+    def test_discovers_nested_skills(self, skill_tree: Path):
+        """Skills nested inside wrapper dirs (e.g. google-drive/drive/) are found."""
+        skills = discover.discover_skills(skill_tree)
+        paths = {s["path"] for s in skills}
+        nested_path = str(skill_tree / "plugin-wrapper" / "nested-skill")
+        assert nested_path in paths
+
     def test_skips_non_skill_dirs(self, skill_tree: Path):
         skills = discover.discover_skills(skill_tree)
         names = {s["name"] for s in skills}
@@ -231,7 +244,7 @@ class TestCLI:
         captured = capsys.readouterr()
         data = json.loads(captured.out)
         assert isinstance(data, list)
-        assert len(data) >= 3
+        assert len(data) >= 4
 
     def test_cli_with_nonexistent_dir(self, tmp_path: Path, capsys):
         discover.main(["--skills-dir", str(tmp_path / "nope")])

@@ -152,17 +152,15 @@ def scan_skill(skill_dir: Path) -> dict | None:
 def discover_skills(skills_dir: Path) -> list[dict]:
     """Scan all skill directories under skills_dir and return capability map.
 
-    Returns a sorted list of skill descriptors.  Skips directories that
-    don't contain a SKILL.md file.
+    Returns a sorted list of skill descriptors.  Finds SKILL.md files
+    at any depth (supports both flat and nested layouts).
     """
     if not skills_dir.exists():
         return []
 
     skills: list[dict] = []
-    for child in sorted(skills_dir.iterdir()):
-        if not child.is_dir():
-            continue
-        result = scan_skill(child)
+    for skill_md in sorted(skills_dir.rglob("SKILL.md")):
+        result = scan_skill(skill_md.parent)
         if result is not None:
             skills.append(result)
 
