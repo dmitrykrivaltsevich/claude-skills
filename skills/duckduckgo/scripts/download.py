@@ -420,7 +420,10 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description="Download a URL and save as txt, md, or pdf."
     )
-    parser.add_argument("url", help="URL to download")
+    parser.add_argument("url", nargs="?", help="URL to download")
+    parser.add_argument(
+        "-u", dest="url_flag", help="URL to download (alias for positional url)"
+    )
     parser.add_argument(
         "--format",
         choices=["txt", "md", "pdf"],
@@ -433,10 +436,14 @@ def main() -> None:
     )
     args = parser.parse_args()
 
+    url = args.url or args.url_flag
+    if not url:
+        parser.error("url is required (positional or via -u)")
+
     fmt = infer_format(args.output, args.format)
 
-    print(f"Fetching {args.url} …", file=sys.stderr)
-    html, final_url = fetch(args.url)
+    print(f"Fetching {url} …", file=sys.stderr)
+    html, final_url = fetch(url)
 
     dest: Path
     if args.output:
