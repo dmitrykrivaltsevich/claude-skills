@@ -439,6 +439,98 @@ class TestCLI:
         data = json.loads(captured.out)
         assert data["total_questions"] == 2
 
+    def test_cli_add_questions_from_file(self, state_dir: Path, capsys, tmp_path: Path):
+        state.main([
+            "init", "--research-id", "cli-q-f", "--goal", "Q file goal",
+            "--state-dir", str(state_dir),
+        ])
+        capsys.readouterr()
+        json_file = tmp_path / "questions.json"
+        json_file.write_text(json.dumps([
+            "What is the impact of X on Y?",
+            "How does A relate to B in context of C?",
+            "What are the key\nmulti-line\nquestions?",
+        ]), encoding="utf-8")
+        state.main([
+            "add-questions", "--research-id", "cli-q-f",
+            "--file", str(json_file),
+            "--state-dir", str(state_dir),
+        ])
+        captured = capsys.readouterr()
+        data = json.loads(captured.out)
+        assert data["total_questions"] == 3
+
+    def test_cli_add_questions_from_stdin(self, state_dir: Path, capsys, monkeypatch):
+        state.main([
+            "init", "--research-id", "cli-q-stdin", "--goal", "Q stdin goal",
+            "--state-dir", str(state_dir),
+        ])
+        capsys.readouterr()
+        import io
+        stdin_data = json.dumps(["Stdin question 1", "Stdin question 2"])
+        monkeypatch.setattr("sys.stdin", io.StringIO(stdin_data))
+        state.main([
+            "add-questions", "--research-id", "cli-q-stdin",
+            "--file", "-",
+            "--state-dir", str(state_dir),
+        ])
+        captured = capsys.readouterr()
+        data = json.loads(captured.out)
+        assert data["total_questions"] == 2
+
+    def test_cli_add_questions_file_overrides_inline(self, state_dir: Path, capsys, tmp_path: Path):
+        """When both --file and --questions are given, --file wins."""
+        state.main([
+            "init", "--research-id", "cli-q-both", "--goal", "Q both goal",
+            "--state-dir", str(state_dir),
+        ])
+        capsys.readouterr()
+        json_file = tmp_path / "questions_override.json"
+        json_file.write_text(json.dumps([
+            "File question 1",
+            "File question 2",
+            "File question 3",
+        ]), encoding="utf-8")
+        state.main([
+            "add-questions", "--research-id", "cli-q-both",
+            "--questions", "Inline Q",
+            "--file", str(json_file),
+            "--state-dir", str(state_dir),
+        ])
+        captured = capsys.readouterr()
+        data = json.loads(captured.out)
+        # File has 3 questions, inline has 1 — file wins
+        assert data["total_questions"] == 3
+
+    def test_cli_update_question_from_file(self, state_dir: Path, capsys, tmp_path: Path):
+        state.main([
+            "init", "--research-id", "cli-uq-f", "--goal", "UQ file goal",
+            "--state-dir", str(state_dir),
+        ])
+        capsys.readouterr()
+        state.main([
+            "add-questions", "--research-id", "cli-uq-f",
+            "--questions", "What is the meaning of life?",
+            "--state-dir", str(state_dir),
+        ])
+        capsys.readouterr()
+        json_file = tmp_path / "update_q.json"
+        json_file.write_text(json.dumps({
+            "question": "What is the meaning of life?",
+            "status": "covered",
+        }), encoding="utf-8")
+        state.main([
+            "update-question", "--research-id", "cli-uq-f",
+            "--status", "open",
+            "--file", str(json_file),
+            "--state-dir", str(state_dir),
+        ])
+        captured = capsys.readouterr()
+        data = json.loads(captured.out)
+        assert data["question"] == "What is the meaning of life?"
+        # --file status ("covered") wins over --status ("open")
+        assert data["status"] == "covered"
+
     def test_cli_status(self, state_dir: Path, capsys):
         state.main([
             "init", "--research-id", "cli-s", "--goal", "S goal",

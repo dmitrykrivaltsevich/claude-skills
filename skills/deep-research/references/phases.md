@@ -20,7 +20,7 @@
 1. Run `discover.py` — get the capability map
 2. Run `state.py init --research-id "<slug>" --goal "<user's goal>"`
 3. Generate 5–15 sub-questions from the goal
-4. Run `state.py add-questions --research-id "<slug>" --questions "Q1" "Q2" ...`
+4. Write questions JSON to temp file → `state.py add-questions --file /tmp/questions.json`
 
 **Question quality checklist**:
 - [ ] Each question is specific and answerable from a source

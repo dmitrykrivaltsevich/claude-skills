@@ -56,8 +56,8 @@ LLM: synthesise final report
 |---|---|---|
 | Discover available skills | `discover.py` | Scans skills/ directory, outputs JSON capability map |
 | Initialize/resume research | `state.py init` | Creates or resumes a research session |
-| Add research questions | `state.py add-questions` | Appends questions (deduped) to state |
-| Update question status | `state.py update-question` | Marks question as unexplored/partially/covered |
+| Add research questions | `state.py add-questions` | Appends questions (deduped) to state (use `--file`) |
+| Update question status | `state.py update-question` | Marks question as unexplored/partially/covered (use `--file`) |
 | Add sources | `state.py add-sources` | Records URLs/docs with skill attribution (use `--file`) |
 | Add facts | `state.py add-facts` | Records claims with source IDs and confidence (use `--file`) |
 | Advance phase | `state.py update-phase` | Moves to next research phase |
@@ -73,11 +73,17 @@ uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/discover.py [--skills-dir PATH]
 # Initialize a research session:
 uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/state.py init --research-id "my-topic" --goal "Understand X in depth"
 
-# Add questions:
-uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/state.py add-questions --research-id "my-topic" --questions "What is X?" "How does Y relate?"
+# Add questions (write JSON to a file, then pass with --file):
+cat > /tmp/questions.json << 'HEREDOC'
+["What is X?", "How does Y relate to Z?"]
+HEREDOC
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/state.py add-questions --research-id "my-topic" --file /tmp/questions.json
 
-# Update a question's status:
-uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/state.py update-question --research-id "my-topic" --question "What is X?" --status covered
+# Update a question's status (write JSON to a file, then pass with --file):
+cat > /tmp/update_q.json << 'HEREDOC'
+{"question": "What is X?", "status": "covered"}
+HEREDOC
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/state.py update-question --research-id "my-topic" --file /tmp/update_q.json --status covered
 
 # Record sources found (write JSON to a file, then pass with --file):
 cat > /tmp/sources.json << 'HEREDOC'
@@ -215,10 +221,25 @@ For large research tasks, the context window can fill up. The LLM should:
 
 ## Large Data — MUST Use `--file`
 
-When adding sources or facts, **always write the JSON to a temp file first**, then pass `--file /path/to/file.json`. NEVER pass large JSON arrays as inline `--sources` or `--facts` CLI arguments — shell quoting mangles them.
+When adding questions, sources, or facts, **always write data to a temp file first**, then pass `--file /path/to/file.json`. NEVER pass multi-line text or large JSON as inline CLI arguments — shell quoting mangles them.
+
+Affected commands:
+- `add-questions --file /tmp/questions.json` — JSON array of question strings
+- `add-sources --file /tmp/sources.json` — JSON array of source objects
+- `add-facts --file /tmp/facts.json` — JSON array of fact objects
+- `update-question --file /tmp/uq.json` — JSON object `{"question": "...", "status": "..."}`
 
 ```bash
-# Correct — write to file, pass path:
+# Questions — write array to file:
+cat > /tmp/questions.json << 'HEREDOC'
+[
+  "What are the key factors influencing X?",
+  "How does Y compare to Z in the context of W?"
+]
+HEREDOC
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/state.py add-questions --research-id "my-topic" --file /tmp/questions.json
+
+# Facts — write array to file:
 cat > /tmp/facts.json << 'HEREDOC'
 [
   {"claim": "fact 1", "source_ids": ["s1"], "confidence": "high"},
@@ -231,7 +252,7 @@ uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/state.py add-facts --research-id 
 cat /tmp/facts.json | uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/state.py add-facts --research-id "my-topic" --file -
 ```
 
-Inline `--facts '...'` is only safe for 1–2 simple items. For any batch of facts or sources from a research round, use `--file`.
+Inline `--questions`/`--facts`/`--sources` are only safe for 1–2 very short items. For any batch from a research round, use `--file`.
 
 ## Reference
 

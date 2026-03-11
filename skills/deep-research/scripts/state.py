@@ -266,10 +266,11 @@ def export_research(
 # CLI
 # ---------------------------------------------------------------------------
 
-def _read_json_input(file_arg: str | None, inline_arg: str | None) -> list[dict]:
-    """Read JSON array from --file path, stdin ('-'), or inline --arg string.
+def _read_json_input(file_arg: str | None, inline_arg: str | None) -> list:
+    """Read JSON from --file path, stdin ('-'), or inline --arg string.
 
     Priority: --file > inline arg.  Exits with an error if neither provided.
+    Returns the parsed JSON (list of dicts, list of strings, or dict).
     """
     if file_arg is not None:
         if file_arg == "-":
@@ -309,13 +310,18 @@ def main(argv: list[str] | None = None) -> None:
     # add-questions
     p_aq = sub.add_parser("add-questions")
     _add_common_args(p_aq)
-    p_aq.add_argument("--questions", nargs="+", required=True)
+    p_aq.add_argument("--questions", nargs="+", default=None,
+                       help="Questions as separate args (short lists only)")
+    p_aq.add_argument("--file", default=None, dest="questions_file",
+                       help="Path to JSON array of question strings, or '-' for stdin")
 
     # update-question
     p_uq = sub.add_parser("update-question")
     _add_common_args(p_uq)
-    p_uq.add_argument("--question", required=True)
+    p_uq.add_argument("--question", default=None, help="Question text (short only)")
     p_uq.add_argument("--status", required=True)
+    p_uq.add_argument("--file", default=None, dest="uq_file",
+                       help='Path to JSON object {"question": "...", "status": "..."}, or \'-\' for stdin')
 
     # add-sources
     p_as = sub.add_parser("add-sources")
@@ -350,10 +356,25 @@ def main(argv: list[str] | None = None) -> None:
     if args.command == "init":
         result = init_research(args.research_id, args.goal, state_dir=state_dir)
     elif args.command == "add-questions":
-        result = add_questions(args.research_id, args.questions, state_dir=state_dir)
+        if args.questions_file is not None:
+            questions = _read_json_input(args.questions_file, None)
+        elif args.questions is not None:
+            questions = args.questions
+        else:
+            sys.exit("ERROR: provide --file PATH or --questions 'Q1' 'Q2'")
+        result = add_questions(args.research_id, questions, state_dir=state_dir)
     elif args.command == "update-question":
+        if args.uq_file is not None:
+            uq_data = _read_json_input(args.uq_file, None)
+            q_text = uq_data["question"]
+            q_status = uq_data.get("status", args.status)
+        elif args.question is not None:
+            q_text = args.question
+            q_status = args.status
+        else:
+            sys.exit("ERROR: provide --file PATH or --question 'text'")
         result = update_question(
-            args.research_id, args.question, args.status, state_dir=state_dir
+            args.research_id, q_text, q_status, state_dir=state_dir
         )
     elif args.command == "add-sources":
         sources = _read_json_input(args.sources_file, args.sources)
