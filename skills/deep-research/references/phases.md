@@ -46,10 +46,12 @@ Questions:
 
 **Goal**: Cast a wide net — find sources for as many questions as possible.
 
+> **NEVER use Agent(), built-in Web Search, or Fetch.** Run `/duckduckgo` scripts directly via `uv run`. Read `/duckduckgo` SKILL.md first to get the correct `${CLAUDE_SKILL_DIR}`.
+
 **Steps per round** (3–5 questions per round):
 1. Select unexplored questions
 2. For each, choose the best script from the capability map
-3. Execute searches
+3. Execute searches via duckduckgo scripts (NEVER built-in Web Search)
 4. Write sources JSON to temp file → `state.py add-sources --file /tmp/sources.json`
 5. Write facts JSON to temp file → `state.py add-facts --file /tmp/facts.json`
 6. Update question status: `state.py update-question --status partially`

@@ -3,30 +3,34 @@ name: deep-research
 description: Orchestrates multi-phase autonomous research across all available skills. Discovers skill capabilities, manages persistent research state (questions, sources, facts, coverage), and guides the LLM through scope → sweep → deep-read → cross-reference → synthesise phases. Use when the user asks for deep research, comprehensive analysis, multi-source investigation, literature review, or any task requiring iterative search-read-analyse cycles across multiple data sources.
 allowed-tools:
   - Bash(uv run *)
+  - Bash(cat *)
 user-invocable: true
 ---
 
 # Deep Research Skill
 
+> **MANDATORY — read before doing anything else:**
+>
+> 1. **NEVER delegate research to Agent() or any subagent.** Execute ALL phases directly in the main conversation. Spawning an Agent bypasses these instructions and breaks the workflow.
+> 2. **NEVER use built-in Web Search, Fetch, or any built-in web tools.** They are forbidden. ALL web searches and page downloads MUST go through the `/duckduckgo` skill scripts via `uv run`.
+> 3. **`${CLAUDE_SKILL_DIR}` = this skill only.** To run duckduckgo scripts, read the `/duckduckgo` SKILL.md first — it has its own `${CLAUDE_SKILL_DIR}`.
+
 ## Contents
 
 1. [Architecture](#architecture)
-2. [Scripts](#scripts)
-3. [Quick Start](#quick-start)
-4. [Research Workflow](#research-workflow--5-phases)
-5. [Convergence Rules](#convergence-rules)
-6. [State File](#state-file)
-7. [Working with Other Skills](#working-with-other-skills)
-8. [Context Management](#context-management)
-9. [Reference](#reference)
+2. [DuckDuckGo Quick Reference](#duckduckgo-quick-reference)
+3. [Scripts](#scripts)
+4. [Quick Start](#quick-start)
+5. [Research Workflow](#research-workflow--5-phases)
+6. [Convergence Rules](#convergence-rules)
+7. [State File](#state-file)
+8. [Working with Other Skills](#working-with-other-skills)
+9. [Context Management](#context-management)
+10. [Reference](#reference)
 
 ## Architecture
 
 **This skill is an orchestrator, not a data fetcher.** It provides two data-pipe scripts — one discovers available skill capabilities, the other manages persistent research state. The LLM does all the thinking: decomposing goals into questions, choosing which skills to invoke, evaluating coverage, deciding when to dig deeper, and synthesising findings.
-
-> **CRITICAL**: Do NOT use built-in Web Search, Fetch, or any other built-in web tools. ALL web searches and page downloads MUST go through the `/duckduckgo` skill. Built-in tools are unreliable and produce worse results.
-
-> **CRITICAL**: `${CLAUDE_SKILL_DIR}` points to THIS skill's directory only. Do NOT use it to construct paths to other skills' scripts — that will fail. To run duckduckgo scripts, read the `/duckduckgo` SKILL.md first — it provides its own `${CLAUDE_SKILL_DIR}` with the correct paths. Same for `/google-drive` or any other skill.
 
 ```
 User question
@@ -53,6 +57,34 @@ state.py export → full research state
     ↓
 LLM: synthesise final report
 ```
+
+## DuckDuckGo Quick Reference
+
+**Before using these commands**: read the `/duckduckgo` SKILL.md to get its `${CLAUDE_SKILL_DIR}`. The variable below (`DDG_DIR`) is a placeholder — replace it with the actual path from the duckduckgo SKILL.md.
+
+```bash
+# Web search (text, news, or images):
+uv run --no-config ${DDG_DIR}/scripts/search.py text "your query" --max-results 10
+uv run --no-config ${DDG_DIR}/scripts/search.py news "your query" --timelimit w
+uv run --no-config ${DDG_DIR}/scripts/search.py images "your query"
+
+# Comprehensive news sweep (multiple topics):
+uv run --no-config ${DDG_DIR}/scripts/top_news.py --groups tech science
+
+# Download full page as markdown:
+uv run --no-config ${DDG_DIR}/scripts/download.py "https://example.com" --format md
+
+# Fact checking (multi-source):
+uv run --no-config ${DDG_DIR}/scripts/fact_check.py "claim to verify"
+
+# Trending topics:
+uv run --no-config ${DDG_DIR}/scripts/trending.py --discover
+
+# Multi-language search:
+uv run --no-config ${DDG_DIR}/scripts/translate_search.py "en:query" "de:query"
+```
+
+**Remember**: NEVER use built-in Web Search or Fetch. Use these scripts instead.
 
 ## Scripts
 
@@ -130,6 +162,8 @@ The LLM drives each phase. Scripts provide I/O and persistence; the LLM provides
 
 ### Phase 2: Broad Sweep
 
+> **Reminder**: Do NOT use Agent(), Web Search, or Fetch. Run duckduckgo scripts directly via `uv run`.
+
 1. For each unexplored question, choose the best skill/script to gather data
 2. Run the chosen skill's scripts — **read the skill's SKILL.md first** to get correct commands
 3. Record discovered sources via `state.py add-sources`
@@ -205,7 +239,7 @@ The LLM decides when to stop. These are guidelines, not hard limits:
 
 ## Working with Other Skills
 
-This skill does NOT fetch data itself. It orchestrates other skills.
+This skill does NOT fetch data itself. It orchestrates other skills. **Execute searches directly — NEVER delegate to Agent().**
 
 > **PATH WARNING**: Each skill has its OWN `${CLAUDE_SKILL_DIR}`. You MUST read the target skill's SKILL.md before running its scripts — that will give you the correct `${CLAUDE_SKILL_DIR}` for that skill. NEVER construct paths to other skills' scripts using this skill's `${CLAUDE_SKILL_DIR}`.
 
