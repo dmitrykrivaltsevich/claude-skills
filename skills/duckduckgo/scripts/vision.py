@@ -6,12 +6,17 @@
 #   "ddgs >= 6.0",
 # ]
 # ///
-"""DuckDuckGo visual search — analyze images and find similar ones."""
+"""DuckDuckGo visual search — analyze images and find similar ones.
+
+Outputs JSON to stdout.  Progress/errors to stderr.
+"""
 
 from __future__ import annotations
 
 import argparse
+import json
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -20,6 +25,120 @@ from PIL import Image
 sys.path.insert(0, os.path.dirname(__file__))
 from contracts import precondition
 from search import search_image
+
+# Camera filename prefixes that carry no semantic content.
+_CAMERA_PREFIX_RE = re.compile(
+    r"^(IMG|DSC|DSCN?|DCIM|P|GOPR|GoPro|DJI|VID|MOV|MVI|PANO|"
+    r"Screenshot|Screen[\s_-]*Shot|Capture|Photo|Image|Untitled)[_\-\s]*",
+    re.IGNORECASE,
+)
+# Pure timestamp patterns (no semantic value).
+_TIMESTAMP_RE = re.compile(
+    r"^\d{4}[-_]?\d{2}[-_]?\d{2}[-_T]?\d{2}[-_:]?\d{2}[-_:]?\d{0,6}$"
+)
+_DATE_ONLY_RE = re.compile(r"^\d{4}[-_]?\d{2}[-_]?\d{2}$")
+
+
+def _extract_image_metadata(image_path: str) -> dict:
+    """Extract rich metadata from an image file, including EXIF text fields.
+
+    Returns a dict with dimensions, format, and any textual EXIF metadata
+    (descriptions, keywords, subjects) that could form a useful search query.
+    """
+    path = Path(image_path)
+    metadata: dict = {}
+
+    with Image.open(path) as img:
+        metadata["width"] = img.size[0]
+        metadata["height"] = img.size[1]
+        metadata["format"] = img.format
+        metadata["mode"] = img.mode
+        metadata["file_size_bytes"] = path.stat().st_size
+
+        if hasattr(img, "info") and "dpi" in img.info:
+            metadata["dpi"] = img.info["dpi"]
+
+        # EXIF data — use public API (works for JPEG, TIFF, WebP, etc.)
+        try:
+            exif = img.getexif()
+        except Exception:
+            exif = {}
+
+        # Key text fields in EXIF
+        exif_text = {
+            270: "image_description",  # ImageDescription
+            315: "artist",             # Artist
+        }
+        for tag_id, key in exif_text.items():
+            val = exif.get(tag_id)
+            if isinstance(val, str) and val.strip():
+                metadata[key] = val.strip()
+
+        # Windows XP metadata (stored as UTF-16LE bytes in JPEG)
+        xp_fields = {
+            40091: "xp_title",
+            40092: "xp_comment",
+            40093: "xp_author",
+            40094: "xp_keywords",
+            40095: "xp_subject",
+        }
+        for tag_id, key in xp_fields.items():
+            val = exif.get(tag_id)
+            if val:
+                if isinstance(val, bytes):
+                    try:
+                        val = val.decode("utf-16-le").rstrip("\x00")
+                    except Exception:
+                        continue
+                if isinstance(val, str) and val.strip():
+                    metadata[key] = val.strip()
+
+        # GPS presence flag (the LLM can ask the user for context)
+        if 34853 in exif:
+            metadata["has_gps"] = True
+
+    return metadata
+
+
+def _build_query_from_image(image_path: str, metadata: dict) -> str:
+    """Build the best possible search query from image metadata.
+
+    Priority:
+      1. EXIF text (description, subject, keywords, title, comment)
+      2. Smart filename parsing (strip camera prefixes + timestamps)
+      3. Empty string if nothing useful remains
+
+    Returns:
+        Query string, or empty string if no useful query can be formed.
+    """
+    # Priority 1: EXIF text metadata
+    for field in (
+        "image_description",
+        "xp_subject",
+        "xp_keywords",
+        "xp_title",
+        "xp_comment",
+    ):
+        val = metadata.get(field, "")
+        if val and len(val.strip()) >= 3:
+            return val.strip()[:200]
+
+    # Priority 2: Smart filename parsing
+    stem = Path(image_path).stem
+    cleaned = _CAMERA_PREFIX_RE.sub("", stem)
+    cleaned = cleaned.replace("_", " ").replace("-", " ").strip()
+
+    # If what remains is just a timestamp, it's useless
+    no_spaces = cleaned.replace(" ", "")
+    if _TIMESTAMP_RE.match(no_spaces) or _DATE_ONLY_RE.match(no_spaces):
+        return ""
+
+    # If what remains has fewer than 2 alphabetic characters, it's useless
+    alpha_only = re.sub(r"[^a-zA-Z]", "", cleaned)
+    if len(alpha_only) < 2:
+        return ""
+
+    return cleaned[:200]
 
 
 @precondition(
@@ -54,21 +173,41 @@ def get_image_info(image_path: str) -> dict:
     lambda image_path: Path(image_path).is_file(),
     "image_path must point to an existing file",
 )
-def find_similar_images(image_path: str) -> list[dict]:
-    """Find similar images by searching DuckDuckGo with the filename as query.
+def find_similar_images(image_path: str) -> dict:
+    """Find similar images using metadata-driven search.
+
+    Extracts EXIF metadata and filename cues to build a search query.
+    Returns image metadata, the query used, and search results as a
+    structured dict.  If no useful query can be formed, returns metadata
+    with empty results and a diagnostic message so the LLM can ask the
+    user to describe the image.
 
     Args:
-        image_path: Path to the reference image.
+        image_path: Path to an existing image file.
 
     Returns:
-        List of image result dicts from DuckDuckGo image search.
+        Dict with ``image_metadata``, ``query_used``, ``results``,
+        and optionally ``diagnostic``.
     """
-    stem = Path(image_path).stem
-    # Use filename (without extension) as search query, replacing separators with spaces
-    query = stem.replace("_", " ").replace("-", " ").strip()
-    if len(query) < 2:
-        query = "image"
-    return search_image(query)
+    metadata = _extract_image_metadata(image_path)
+    query = _build_query_from_image(image_path, metadata)
+
+    result: dict = {
+        "image_metadata": metadata,
+        "query_used": query,
+        "results": [],
+    }
+
+    if query:
+        result["results"] = search_image(query)
+    else:
+        result["diagnostic"] = (
+            "No useful search query could be derived from the filename or EXIF "
+            "metadata.  Provide a text description of the image content for a "
+            "targeted search."
+        )
+
+    return result
 
 
 def main():
@@ -89,23 +228,16 @@ def main():
 
     if args.command == "analyze":
         info = get_image_info(args.image_path)
-        print(f"Image: {info['path']}")
-        print(f"Size: {info['width']}x{info['height']}")
-        print(f"Format: {info['format']}")
-        print(f"Mode: {info['mode']}")
-        print(f"File size: {info['file_size_bytes']} bytes")
-        if "dpi" in info:
-            print(f"DPI: {info['dpi']}")
+        print(f"Image analysis: {info['path']}", file=sys.stderr)
+        json.dump(info, sys.stdout, ensure_ascii=False, indent=2)
+        print(file=sys.stdout)
 
     elif args.command == "find_similar":
-        results = find_similar_images(args.image_path)
-        print(f"Found {len(results)} similar images:")
-        for i, r in enumerate(results[:10], 1):
-            print(f"\n{i}. {r.get('title', 'Unknown')}")
-            if r.get("image"):
-                print(f"   {r['image']}")
-            if r.get("source"):
-                print(f"   Source: {r['source']}")
+        result = find_similar_images(args.image_path)
+        n = len(result["results"])
+        print(f"Found {n} similar images.", file=sys.stderr)
+        json.dump(result, sys.stdout, ensure_ascii=False, indent=None)
+        print(file=sys.stdout)
 
 
 if __name__ == "__main__":

@@ -260,83 +260,6 @@ QUERY_GROUPS: dict[str, list[str]] = {
     ],
 }
 
-# Per-outlet prominence score (0–1).  Reflects editorial standards + global
-# reach.  Social / aggregator sources get a boost for cross-source signal only.
-KNOWN_PROMINENCE: dict[str, float] = {
-    # Wire services — top tier
-    "reuters": 1.0,
-    "associated press": 1.0,
-    "ap news": 1.0,
-    # Financial tier-1
-    "bloomberg": 0.97,
-    "financial times": 0.97,
-    "ft.com": 0.97,
-    "wsj": 0.95,
-    "wall street journal": 0.95,
-    # Newspapers of record
-    "nytimes": 0.95,
-    "new york times": 0.95,
-    "washington post": 0.93,
-    "the guardian": 0.92,
-    "bbc": 0.92,
-    "economist": 0.94,
-    "the atlantic": 0.88,
-    "new yorker": 0.87,
-    # Broadcast / digital-native
-    "cnn": 0.85,
-    "nbc": 0.84,
-    "abc news": 0.84,
-    "cbs news": 0.83,
-    "pbs": 0.83,
-    "sky news": 0.82,
-    # Finance & business
-    "cnbc": 0.82,
-    "fortune": 0.78,
-    "marketwatch": 0.78,
-    "business insider": 0.72,
-    # Policy / investigations
-    "politico": 0.82,
-    "axios": 0.80,
-    "vox": 0.76,
-    "foreign affairs": 0.85,
-    "propublica": 0.85,
-    "the intercept": 0.75,
-    # Tech press
-    "ars technica": 0.82,
-    "wired": 0.80,
-    "the verge": 0.78,
-    "techcrunch": 0.75,
-    "thenextweb": 0.70,
-    "zdnet": 0.68,
-    "venturebeat": 0.68,
-    "slashdot": 0.65,
-    # Science / academic
-    "nature": 0.96,
-    "science": 0.95,
-    "new scientist": 0.85,
-    "scientific american": 0.88,
-    "acm": 0.82,
-    "ieee": 0.82,
-    "arxiv": 0.70,
-    "phys.org": 0.72,
-    # International press
-    "spiegel": 0.85,
-    "le monde": 0.85,
-    "el pais": 0.82,
-    "france24": 0.80,
-    "dw": 0.80,
-    "hindustan times": 0.72,
-    "al jazeera": 0.65,
-    "aljazeera": 0.65,
-    # Opinion-heavy / partisan
-    "fox": 0.62,
-    "msnbc": 0.65,
-    # Independents
-    "bellingcat": 0.80,
-    "substack": 0.50,
-    "medium": 0.45,
-}
-
 
 # Byline patterns found in wire/newspaper article bodies:
 #   "By Jane Smith"  /  "By Jane Smith,"  /  "By Jane Smith and John Doe"
@@ -405,16 +328,6 @@ def extract_byline(body: str) -> str:
     if not name or len(name.split()) > 6:
         return ""
     return name
-
-
-def source_prominence(source: str) -> float:
-    """Return 0–1 prominence score for an outlet.  Exposed so the LLM can
-    reference it, but the LLM is expected to apply its own judgement."""
-    s = (source or "").lower()
-    for k, v in KNOWN_PROMINENCE.items():
-        if k in s:
-            return v
-    return 0.35  # unknown outlet baseline
 
 
 # ---------------------------------------------------------------------------
