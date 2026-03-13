@@ -722,7 +722,7 @@ connPairs.forEach(([a,b])=>{{
   const offsets=new Float32Array(total),speeds=new Float32Array(total),dirs=new Int8Array(total);
   for(let i=0;i<total;i++){{
     offsets[i]=Math.random();  /* spread along path */
-    speeds[i]=0.0008+Math.random()*0.0012;  /* slow drift matching ambient streams */
+    speeds[i]=0.0003+Math.random()*0.0005;  /* very slow ghost drift */
     dirs[i]=i<PARTICLES_PER_CONN?1:-1;  /* direction: A→B or B→A */
     const tt=offsets[i];
     const pt=dirs[i]===1?curve.getPointAt(tt):curveRev.getPointAt(tt);
@@ -735,7 +735,7 @@ connPairs.forEach(([a,b])=>{{
   geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
   geo.setAttribute('color',new THREE.BufferAttribute(col,3));
   const pts=new THREE.Points(geo,new THREE.PointsMaterial({{
-    size:0.55,vertexColors:true,transparent:true,opacity:.4,
+    size:0.45,vertexColors:true,transparent:true,opacity:.18,
     depthWrite:false,blending:THREE.AdditiveBlending,sizeAttenuation:true
   }}));
   scene.add(pts);
