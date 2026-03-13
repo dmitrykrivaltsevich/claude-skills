@@ -472,7 +472,6 @@ canvas{{display:block;position:fixed;top:0;left:0}}
     <div class="row"><span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / Arrows</span><span>Fly forward / left / back / right</span></div>
     <div class="row"><span><kbd>C</kbd></span><span>Fly up</span></div>
     <div class="row"><span><kbd>Z</kbd></span><span>Fly down</span></div>
-    <div class="row"><span><kbd>Q</kbd> / <kbd>E</kbd></span><span>Strafe left / right</span></div>
     <div class="row"><span>Drag</span><span>Orbit camera</span></div>
     <div class="row"><span>Scroll</span><span>Zoom in / out</span></div>
     <h2 style="margin-top:18px">// actions //</h2>
@@ -539,7 +538,7 @@ const MOVE_SPEED=0.45;
 const _fwd=new THREE.Vector3(),_right=new THREE.Vector3(),_move=new THREE.Vector3();
 document.addEventListener('keydown',e=>{{
   const k=e.key.toLowerCase();
-  if(['w','a','s','d','q','e','z','c','arrowup','arrowdown','arrowleft','arrowright'].includes(k)){{
+  if(['w','a','s','d','z','c','arrowup','arrowdown','arrowleft','arrowright'].includes(k)){{
     keys[k]=true;e.preventDefault();
   }}
   if(k==='t')toggleTour();
@@ -1063,8 +1062,6 @@ const clock=new THREE.Clock();
   if(keys['d']||keys['arrowright'])_move.add(_right);
   if(keys['c'])_move.y+=1;
   if(keys['z'])_move.y-=1;
-  if(keys['q'])_move.sub(_right);
-  if(keys['e'])_move.add(_right);
   if(_move.lengthSq()>0){{
     _move.normalize().multiplyScalar(MOVE_SPEED);
     cam.position.add(_move);
