@@ -54,7 +54,10 @@ user-invocable: true
       "pos": [40, 5, 0]
     }
   ],
-  "glyphs": ["TERM_1", "code::ref", "data_key"]
+  "glyphs": ["TERM_1", "code::ref", "data_key"],
+  "connections": [
+    {"from": "vault-id-1", "to": "vault-id-2"}
+  ]
 }
 ```
 
@@ -77,6 +80,7 @@ user-invocable: true
 | `vaults[].color` | auto-assigned from green palette |
 | `vaults[].pos` | auto-positioned in a circle |
 | `glyphs` | auto-generated from vault names |
+| `connections` | auto nearest-neighbor; array of `{from, to}` vault IDs for animated particle exchange |
 
 ### Panel HTML CSS Classes
 

@@ -278,6 +278,30 @@ def _conn_pairs(n: int, positions: list[tuple[float, float, float]]) -> str:
     return "[" + ",".join(f"[{a},{b}]" for a, b in sorted(edges)) + "]"
 
 
+def _resolve_connections(cfg: dict, n: int, positions: list[tuple[float, float, float]]) -> str:
+    """Resolve connections config to JS array of index pairs.
+
+    If 'connections' is present in config, resolve vault IDs to indices.
+    Otherwise fall back to auto-computed nearest-neighbor pairs.
+    """
+    conns = cfg.get("connections")
+    if not conns:
+        return _conn_pairs(n, positions)
+
+    vaults = cfg["vaults"]
+    id_to_idx = {v["id"]: i for i, v in enumerate(vaults)}
+    edges: list[tuple[int, int]] = []
+    for c in conns:
+        from_id = c.get("from", "")
+        to_id = c.get("to", "")
+        if from_id in id_to_idx and to_id in id_to_idx:
+            a, b = id_to_idx[from_id], id_to_idx[to_id]
+            edges.append((min(a, b), max(a, b)))
+    # Deduplicate
+    edges = sorted(set(edges))
+    return "[" + ",".join(f"[{a},{b}]" for a, b in edges) + "]"
+
+
 def generate_html(cfg: dict) -> str:
     """Generate the complete HTML visualization from a validated config."""
     title = cfg["title"]
@@ -295,7 +319,7 @@ def generate_html(cfg: dict) -> str:
     hud_stats_html = _hud_stats(stats)
     glyph_js = _glyph_array(glyphs_list, vaults)
     node_pos_js = _node_positions_array(vaults, positions)
-    conn_js = _conn_pairs(n, positions)
+    conn_js = _resolve_connections(cfg, n, positions)
     vault_count = str(n)
 
     title_safe = html.escape(title)
@@ -682,20 +706,40 @@ VAULT_DATA.forEach(vd=>{{
 
 function hx(c){{return'#'+new THREE.Color(c).getHexString()}}
 
-/* ═══ NODE CONNECTIONS ═══ */
+/* ═══ DATA EXCHANGE PARTICLES ═══ */
 const connPairs={CONN_PAIRS_JS};
+const PARTICLES_PER_CONN=28;  /* particles per connection per direction */
+const exchanges=[];
 connPairs.forEach(([a,b])=>{{
   const pa=new THREE.Vector3(...VAULT_DATA[a].pos),pb=new THREE.Vector3(...VAULT_DATA[b].pos);
-  const mid=pa.clone().add(pb).multiplyScalar(.5);mid.y=20+Math.random()*10;
+  const colA=new THREE.Color(VAULT_DATA[a].color),colB=new THREE.Color(VAULT_DATA[b].color);
+  const mid=pa.clone().add(pb).multiplyScalar(.5);
+  mid.y+=6+Math.random()*6;  /* gentle arc above midpoint */
   const curve=new THREE.QuadraticBezierCurve3(pa,mid,pb);
-  const pts=curve.getPoints(40);
-  const cp=new Float32Array(pts.length*3),cc=new Float32Array(pts.length*3);
-  pts.forEach((p,i)=>{{cp[i*3]=p.x;cp[i*3+1]=p.y;cp[i*3+2]=p.z;
-    const f=.05+Math.sin(i/pts.length*Math.PI)*.05;cc[i*3]=0;cc[i*3+1]=f;cc[i*3+2]=f*.3}});
-  const cg=new THREE.BufferGeometry();
-  cg.setAttribute('position',new THREE.Float32BufferAttribute(cp,3));
-  cg.setAttribute('color',new THREE.Float32BufferAttribute(cc,3));
-  scene.add(new THREE.Points(cg,new THREE.PointsMaterial({{size:0.4,vertexColors:true,transparent:true,opacity:.12,depthWrite:false,blending:THREE.AdditiveBlending,sizeAttenuation:true}})));
+  const curveRev=new THREE.QuadraticBezierCurve3(pb,mid,pa);
+  const total=PARTICLES_PER_CONN*2;
+  const pos=new Float32Array(total*3),col=new Float32Array(total*3);
+  const offsets=new Float32Array(total),speeds=new Float32Array(total),dirs=new Int8Array(total);
+  for(let i=0;i<total;i++){{
+    offsets[i]=Math.random();  /* spread along path */
+    speeds[i]=0.003+Math.random()*0.006;  /* varied travel speed */
+    dirs[i]=i<PARTICLES_PER_CONN?1:-1;  /* direction: A→B or B→A */
+    const tt=offsets[i];
+    const pt=dirs[i]===1?curve.getPointAt(tt):curveRev.getPointAt(tt);
+    pos[i*3]=pt.x;pos[i*3+1]=pt.y;pos[i*3+2]=pt.z;
+    /* initial color based on position */
+    const c=new THREE.Color().lerpColors(dirs[i]===1?colA:colB,dirs[i]===1?colB:colA,tt);
+    col[i*3]=c.r;col[i*3+1]=c.g;col[i*3+2]=c.b;
+  }}
+  const geo=new THREE.BufferGeometry();
+  geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  geo.setAttribute('color',new THREE.BufferAttribute(col,3));
+  const pts=new THREE.Points(geo,new THREE.PointsMaterial({{
+    size:0.55,vertexColors:true,transparent:true,opacity:.4,
+    depthWrite:false,blending:THREE.AdditiveBlending,sizeAttenuation:true
+  }}));
+  scene.add(pts);
+  exchanges.push({{curve,curveRev,colA,colB,geo,pos,col,offsets,speeds,dirs,total}});
 }});
 
 /* ═══ FLOATING CODE GLYPHS ═══ */
@@ -783,6 +827,28 @@ const clock=new THREE.Clock();
     if(pPos[i*3+1]>400){{pPos[i*3+1]=0;pPos[i*3]=(Math.random()-.5)*500;pPos[i*3+2]=(Math.random()-.5)*500}}
   }}
   pGeo.attributes.position.needsUpdate=true;
+
+  /* animate data exchange particles */
+  exchanges.forEach(ex=>{{
+    for(let i=0;i<ex.total;i++){{
+      ex.offsets[i]+=ex.speeds[i];
+      if(ex.offsets[i]>=1)ex.offsets[i]-=1;  /* wrap around */
+      const tt=ex.offsets[i];
+      const pt=ex.dirs[i]===1?ex.curve.getPointAt(tt):ex.curveRev.getPointAt(tt);
+      ex.pos[i*3]=pt.x;ex.pos[i*3+1]=pt.y;ex.pos[i*3+2]=pt.z;
+      /* color lerp: source vault color at tt=0 → dest vault color at tt=1 */
+      const srcCol=ex.dirs[i]===1?ex.colA:ex.colB;
+      const dstCol=ex.dirs[i]===1?ex.colB:ex.colA;
+      const r=srcCol.r+(dstCol.r-srcCol.r)*tt;
+      const g=srcCol.g+(dstCol.g-srcCol.g)*tt;
+      const b=srcCol.b+(dstCol.b-srcCol.b)*tt;
+      /* pulse brightness based on position along path */
+      const pulse=0.4+Math.sin(tt*Math.PI)*0.6;
+      ex.col[i*3]=r*pulse;ex.col[i*3+1]=g*pulse;ex.col[i*3+2]=b*pulse;
+    }}
+    ex.geo.attributes.position.needsUpdate=true;
+    ex.geo.attributes.color.needsUpdate=true;
+  }});
 
   ray.setFromCamera(mouse,cam);
   const hovHits=ray.intersectObjects(vaultHitboxes);

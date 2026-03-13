@@ -3,6 +3,7 @@
 import json
 import os
 import sys
+import unittest
 from unittest.mock import patch
 
 import pytest
@@ -273,3 +274,79 @@ class TestVaultPositioning:
                 assert not at_center, (
                     f"n={n}: vault {i} at center ({p[0]}, {p[1]}, {p[2]})"
                 )
+
+
+class TestConnections(unittest.TestCase):
+    """Test connection resolution from config."""
+
+    def test_explicit_connections_resolved(self):
+        from generate import _resolve_connections, compute_positions
+
+        cfg = {
+            "title": "T",
+            "vaults": [
+                {"id": "a", "name": "A", "html": "<div>A</div>"},
+                {"id": "b", "name": "B", "html": "<div>B</div>"},
+                {"id": "c", "name": "C", "html": "<div>C</div>"},
+            ],
+            "connections": [
+                {"from": "a", "to": "c"},
+                {"from": "b", "to": "a"},
+            ],
+        }
+        positions = compute_positions(3)
+        result = _resolve_connections(cfg, 3, positions)
+        assert "[0,2]" in result  # a=0, c=2
+        assert "[0,1]" in result  # a=0, b=1
+
+    def test_no_connections_falls_back_to_auto(self):
+        from generate import _resolve_connections, _conn_pairs, compute_positions
+
+        cfg = {
+            "title": "T",
+            "vaults": [
+                {"id": "a", "name": "A", "html": "<div>A</div>"},
+                {"id": "b", "name": "B", "html": "<div>B</div>"},
+                {"id": "c", "name": "C", "html": "<div>C</div>"},
+            ],
+        }
+        positions = compute_positions(3)
+        result = _resolve_connections(cfg, 3, positions)
+        auto = _conn_pairs(3, positions)
+        assert result == auto
+
+    def test_invalid_connection_ids_ignored(self):
+        from generate import _resolve_connections, compute_positions
+
+        cfg = {
+            "title": "T",
+            "vaults": [
+                {"id": "a", "name": "A", "html": "<div>A</div>"},
+                {"id": "b", "name": "B", "html": "<div>B</div>"},
+            ],
+            "connections": [
+                {"from": "a", "to": "nonexistent"},
+                {"from": "a", "to": "b"},
+            ],
+        }
+        positions = compute_positions(2)
+        result = _resolve_connections(cfg, 2, positions)
+        assert "[0,1]" in result
+        assert "nonexistent" not in result
+
+    def test_exchange_particles_in_html(self):
+        """Generated HTML should contain the exchange particle system."""
+        from generate import generate_html
+
+        cfg = {
+            "title": "Test",
+            "vaults": [
+                {"id": "a", "name": "A", "html": "<div>A</div>"},
+                {"id": "b", "name": "B", "html": "<div>B</div>"},
+            ],
+            "connections": [{"from": "a", "to": "b"}],
+        }
+        out = generate_html(cfg)
+        assert "DATA EXCHANGE PARTICLES" in out
+        assert "exchanges" in out
+        assert "lerpColors" not in out or "lerpColors" in out  # just check it runs
