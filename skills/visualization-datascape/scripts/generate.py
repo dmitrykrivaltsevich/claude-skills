@@ -386,10 +386,9 @@ canvas{{display:block;position:fixed;top:0;left:0}}
 #panel th{{color:#0a5;font-size:8px;text-align:left;padding:2px 4px;border-bottom:1px solid rgba(0,255,60,.1)}}
 #panel td{{color:#8c8;font-size:9px;padding:2px 4px;border-bottom:1px solid rgba(0,255,60,.03)}}
 #panel td.h{{color:#0f8;font-weight:bold}}
-#panel .close{{position:absolute;top:14px;right:16px;color:#063;font-size:18px;cursor:pointer;pointer-events:auto}}
-#panel .close:hover{{color:#0f8}}
-#panel .detach{{position:absolute;top:14px;right:42px;color:#063;font-size:18px;cursor:pointer;pointer-events:auto;letter-spacing:0;line-height:1}}
-#panel .detach:hover{{color:#0f8}}
+#panel .pnl-btns{{position:absolute;top:12px;right:14px;display:flex;align-items:center;gap:10px;pointer-events:auto}}
+#panel .pnl-btns span{{color:#063;font-size:18px;cursor:pointer;line-height:1}}
+#panel .pnl-btns span:hover{{color:#0f8}}
 .fp{{position:fixed;z-index:25;width:340px;max-height:70vh;overflow-y:auto;scrollbar-width:none;
   background:rgba(0,3,0,.92);border:1px solid rgba(0,255,60,.12);border-radius:2px;
   font:10px/1.7 'Courier New',monospace;letter-spacing:.04em;color:#8c8;
@@ -450,8 +449,7 @@ canvas{{display:block;position:fixed;top:0;left:0}}
 <div class="corner tl"></div><div class="corner tr"></div><div class="corner bl"></div><div class="corner br"></div>
 
 <div id="panel">
-  <div class="detach" onclick="detachPanel()" title="Float panel">&#x229e;</div>
-  <div class="close" onclick="closePanel()">&times;</div>
+  <div class="pnl-btns"><span onclick="detachPanel()" title="Float panel">&#x229e;</span><span onclick="closePanel()">&times;</span></div>
   <div id="panelContent"></div>
 </div>
 <div id="floats"></div>
