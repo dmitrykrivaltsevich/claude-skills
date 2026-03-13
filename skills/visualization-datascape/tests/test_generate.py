@@ -194,13 +194,14 @@ class TestGenerateHtml:
 class TestVaultPositioning:
     """Test vault positions on 3D hexagonal crystal lattice."""
 
-    def test_single_vault_at_origin_area(self):
+    def test_single_vault_on_edge(self):
         from generate import compute_positions
 
         positions = compute_positions(1)
         assert len(positions) == 1
-        assert abs(positions[0][0]) < 10
-        assert abs(positions[0][2]) < 10
+        # Single vault should be on a ring vertex, not at center
+        assert abs(positions[0][0]) < 50
+        assert abs(positions[0][2]) < 50
 
     def test_positions_are_spread_out_3d(self):
         from generate import compute_positions
@@ -260,3 +261,15 @@ class TestVaultPositioning:
         positions = compute_positions(4)
         y_values = set(round(p[1], 1) for p in positions)
         assert len(y_values) >= 2, "4 vaults should span at least 2 Y levels"
+
+    def test_no_center_positions(self):
+        """No vault should be at a hexagon center (0, y, 0) for n >= 2."""
+        from generate import compute_positions
+
+        for n in range(2, 17):
+            positions = compute_positions(n)
+            for i, p in enumerate(positions):
+                at_center = abs(p[0]) < 0.5 and abs(p[2]) < 0.5
+                assert not at_center, (
+                    f"n={n}: vault {i} at center ({p[0]}, {p[1]}, {p[2]})"
+                )

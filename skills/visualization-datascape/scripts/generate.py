@@ -99,17 +99,16 @@ def validate_and_parse(raw_json: str) -> dict:
 
 
 def compute_positions(n: int) -> list[tuple[float, float, float]]:
-    """Compute vault positions on a 3D hexagonal crystal lattice.
+    """Compute vault positions on edge vertices of a 3D hexagonal lattice.
 
-    Uses hexagonal close-packed (HCP) geometry:
-    - Layer 0 (y=5):  hexagonal ring + optional center
+    Uses hexagonal close-packed (HCP) geometry with vaults placed
+    ONLY at ring (edge) vertices — never at face/hexagon centers.
+    - Layer 0 (y=5):  hexagonal ring (6 vertices)
     - Layer 1 (y=28): hexagonal ring rotated 30° (HCP stagger)
-    - Layer 2 (y=50): apex point(s)
+    - Layer 2 (y=50): smaller hexagonal ring
 
     The 30° rotation between layers mirrors real crystal packing
     where atoms of one layer nest in the hollows of the layer below.
-    For any n, vaults are placed at crystal vertices that form
-    recognizable polyhedra (tetrahedron, bipyramid, prism, etc.).
     """
     R = 40.0   # Crystal lattice parameter — hex ring radius
     Y0 = 5.0   # Ground layer
@@ -126,43 +125,40 @@ def compute_positions(n: int) -> list[tuple[float, float, float]]:
             for k in range(6)
         ]
 
-    if n == 1:
-        return [(0.0, Y0, 0.0)]
-
-    ring0 = hex_ring(Y0, R, 0)          # 6 ground hex vertices
+    ring0 = hex_ring(Y0, R, 0)          # 6 ground hex edge vertices
     ring1 = hex_ring(Y1, R, 30)         # 6 mid-layer, 30° HCP offset
-    center0 = (0.0, Y0, 0.0)
-    apex = (0.0, Y2, 0.0)
+    ring2 = hex_ring(Y2, R * 0.55, 0)   # 6 top-layer, smaller radius
 
-    # Selection creates balanced crystal shapes for each n.
-    # Small n → recognizable polyhedra; large n → full two/three-layer lattice.
+    # Edge-only pool: ring0 (6) + ring1 (6) + ring2 (6) = 18 slots max
+    # Selection picks spread-out subsets for small n, fills layers for large n.
+    if n == 1:
+        return [ring0[0]]
     if n == 2:
-        return [center0, (0.0, Y1, 0.0)]           # vertical crystal axis
+        return [ring0[0], ring0[3]]                     # opposite hex vertices
     if n == 3:
-        return [ring0[0], ring0[2], ring0[4]]       # equilateral triangle
+        return [ring0[0], ring0[2], ring0[4]]           # equilateral triangle
     if n == 4:
         return [ring0[0], ring0[2], ring0[4],
-                (0.0, Y1, 0.0)]                     # tetrahedron
+                ring1[1]]                               # triangle + one above
     if n == 5:
         return [ring0[0], ring0[2], ring0[4],
-                center0, apex]                       # triangular bipyramid
+                ring1[1], ring1[3]]                     # 3 ground + 2 mid
     if n == 6:
-        return ring0                                 # full hexagon
+        return ring0                                    # full ground hexagon
     if n == 7:
-        return [center0] + ring0                     # hexagon + center
+        return ring0 + [ring1[0]]                       # hex + 1 mid vertex
     if n == 8:
-        return [center0] + ring0 + [apex]            # hex bipyramid
+        return ring0 + [ring1[0], ring1[3]]             # hex + 2 mid opposite
 
-    # n=9-14: two-layer crystal (ground + HCP mid-ring)
-    base = [center0] + ring0 + [apex]               # 8 positions
-    mid_needed = min(n - 8, 6)
-    positions = base + ring1[:mid_needed]
-    if n <= 14:
+    # n=9-12: ground ring + mid-layer ring vertices
+    mid_needed = min(n - 6, 6)
+    positions = ring0 + ring1[:mid_needed]
+    if n <= 12:
         return positions
 
-    # n=15-16: add smaller top-layer ring
-    ring2 = hex_ring(Y2, R * 0.55, 0)
-    return positions + ring2[: n - 14]
+    # n=13-16: all of ring0 + ring1 + top-layer ring vertices
+    top_needed = min(n - 12, 6)
+    return ring0 + ring1 + ring2[:top_needed]
 
 
 def _js_vault_array(vaults: list[dict], positions: list[tuple]) -> str:
