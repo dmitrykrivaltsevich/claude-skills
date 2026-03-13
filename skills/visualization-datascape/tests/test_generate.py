@@ -350,3 +350,36 @@ class TestConnections(unittest.TestCase):
         assert "DATA EXCHANGE PARTICLES" in out
         assert "exchanges" in out
         assert "lerpColors" not in out or "lerpColors" in out  # just check it runs
+
+
+class TestFloatingPanels(unittest.TestCase):
+    """Test floating/detachable panel feature."""
+
+    def _html(self):
+        from generate import generate_html
+
+        return generate_html(
+            {
+                "title": "FP",
+                "vaults": [
+                    {"id": "a", "name": "A", "html": "<div>A</div>"},
+                    {"id": "b", "name": "B", "html": "<div>B</div>"},
+                ],
+            }
+        )
+
+    def test_detach_button_present(self):
+        out = self._html()
+        assert "detachPanel()" in out
+
+    def test_floating_panel_css(self):
+        out = self._html()
+        assert ".fp{" in out or ".fp " in out
+
+    def test_spawn_float_function(self):
+        out = self._html()
+        assert "function spawnFloat" in out
+
+    def test_floats_container(self):
+        out = self._html()
+        assert 'id="floats"' in out

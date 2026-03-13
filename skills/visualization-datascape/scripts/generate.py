@@ -388,6 +388,31 @@ canvas{{display:block;position:fixed;top:0;left:0}}
 #panel td.h{{color:#0f8;font-weight:bold}}
 #panel .close{{position:absolute;top:14px;right:16px;color:#063;font-size:18px;cursor:pointer;pointer-events:auto}}
 #panel .close:hover{{color:#0f8}}
+#panel .detach{{position:absolute;top:14px;right:42px;color:#063;font-size:14px;cursor:pointer;pointer-events:auto;letter-spacing:0}}
+#panel .detach:hover{{color:#0f8}}
+.fp{{position:fixed;z-index:25;width:340px;max-height:70vh;overflow-y:auto;scrollbar-width:none;
+  background:rgba(0,3,0,.92);border:1px solid rgba(0,255,60,.12);border-radius:2px;
+  font:10px/1.7 'Courier New',monospace;letter-spacing:.04em;color:#8c8;
+  box-shadow:0 0 20px rgba(0,255,60,.06),inset 0 0 30px rgba(0,0,0,.5);pointer-events:auto}}
+.fp::-webkit-scrollbar{{display:none}}
+.fp .fp-bar{{padding:8px 12px;cursor:move;display:flex;justify-content:space-between;align-items:center;
+  border-bottom:1px solid rgba(0,255,60,.08);user-select:none;-webkit-user-select:none}}
+.fp .fp-bar .fp-title{{color:#0f8;font-size:11px;font-weight:bold;letter-spacing:.15em;text-transform:uppercase;text-shadow:0 0 8px rgba(0,255,60,.3);
+  overflow:hidden;white-space:nowrap;text-overflow:ellipsis;max-width:260px}}
+.fp .fp-bar .fp-close{{color:#063;font-size:16px;cursor:pointer;flex-shrink:0;margin-left:8px}}
+.fp .fp-bar .fp-close:hover{{color:#f44}}
+.fp .fp-body{{padding:14px 16px}}
+.fp .pt,.fp .ps,.fp .ph,.fp .pd,.fp .pv,.fp .pw{{display:block}}
+.fp .pt{{color:#0f8;font-size:13px;font-weight:bold;letter-spacing:.2em;margin-bottom:6px;text-transform:uppercase;text-shadow:0 0 10px #0f844}}
+.fp .ps{{color:#052;font-size:8px;letter-spacing:.15em;text-transform:uppercase;margin-bottom:12px}}
+.fp .ph{{color:#0c6;font-size:11px;font-weight:bold;letter-spacing:.1em;margin:14px 0 4px;text-shadow:0 0 6px #0c633;border-bottom:1px solid rgba(0,255,60,.06);padding-bottom:3px}}
+.fp .pd{{color:#8c8;margin-bottom:2px}}
+.fp .pv{{color:#0f8;font-weight:bold}}
+.fp .pw{{color:#063;font-size:8px;letter-spacing:.08em;margin-top:4px}}
+.fp table{{border-collapse:collapse;width:100%;margin:6px 0}}
+.fp th{{color:#0a5;font-size:8px;text-align:left;padding:2px 4px;border-bottom:1px solid rgba(0,255,60,.1)}}
+.fp td{{color:#8c8;font-size:9px;padding:2px 4px;border-bottom:1px solid rgba(0,255,60,.03)}}
+.fp td.h{{color:#0f8;font-weight:bold}}
 
 .nav{{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);display:flex;gap:2px;pointer-events:auto;z-index:20}}
 .nav button{{background:rgba(0,255,60,.03);border:1px solid rgba(0,255,60,.1);color:#0a6;
@@ -425,9 +450,11 @@ canvas{{display:block;position:fixed;top:0;left:0}}
 <div class="corner tl"></div><div class="corner tr"></div><div class="corner bl"></div><div class="corner br"></div>
 
 <div id="panel">
+  <div class="detach" onclick="detachPanel()" title="Float panel">&#x229e;</div>
   <div class="close" onclick="closePanel()">&times;</div>
   <div id="panelContent"></div>
 </div>
+<div id="floats"></div>
 
 <div id="nodeInfo"><span class="name"></span><div class="sub">click to access data vault</div></div>
 
@@ -757,7 +784,9 @@ glyphTexts.forEach(txt=>{{
 /* ═══ PANEL LOGIC ═══ */
 const panelEl=document.getElementById('panel');
 const panelContent=document.getElementById('panelContent');
+const floatsEl=document.getElementById('floats');
 let openVaultId=null;
+let fpCount=0;  /* offset counter for cascading new floating panels */
 
 function openPanel(id){{
   const vd=VAULT_DATA.find(v=>v.id===id);
@@ -767,6 +796,53 @@ function openPanel(id){{
   openVaultId=id;
 }}
 window.closePanel=function(){{panelEl.classList.remove('open');openVaultId=null}};
+
+/* ═══ FLOATING PANELS ═══ */
+window.detachPanel=function(){{
+  if(!openVaultId)return;
+  const vd=VAULT_DATA.find(v=>v.id===openVaultId);
+  if(!vd)return;
+  const html=panelContent.innerHTML;
+  closePanel();
+  spawnFloat(vd,html);
+}};
+
+function spawnFloat(vd,html){{
+  const fp=document.createElement('div');
+  fp.className='fp';
+  /* cascade offset so panels don't stack exactly */
+  const ox=60+((fpCount%5)*30), oy=40+((fpCount%5)*30);
+  fpCount++;
+  fp.style.left=ox+'px';fp.style.top=oy+'px';
+  /* vault-color border glow */
+  const vc=new THREE.Color(vd.color);
+  const hex='#'+vc.getHexString();
+  fp.style.borderColor=hex.replace('#','rgba(')? `rgba(${{Math.round(vc.r*255)}},${{Math.round(vc.g*255)}},${{Math.round(vc.b*255)}},.25)` : fp.style.borderColor;
+  fp.style.boxShadow=`0 0 20px rgba(${{Math.round(vc.r*255)}},${{Math.round(vc.g*255)}},${{Math.round(vc.b*255)}},.1), inset 0 0 30px rgba(0,0,0,.5)`;
+  fp.innerHTML=`<div class="fp-bar"><span class="fp-title">${{vd.name}}</span><span class="fp-close">&times;</span></div><div class="fp-body">${{html}}</div>`;
+  /* bring to front on mousedown */
+  fp.addEventListener('mousedown',()=>{{fp.style.zIndex=++fpZ}});
+  /* close button */
+  fp.querySelector('.fp-close').addEventListener('click',()=>fp.remove());
+  /* dragging via title bar */
+  const bar=fp.querySelector('.fp-bar');
+  let dragging=false,dx=0,dy=0;
+  bar.addEventListener('mousedown',e=>{{
+    dragging=true;
+    dx=e.clientX-fp.offsetLeft;
+    dy=e.clientY-fp.offsetTop;
+    fp.style.zIndex=++fpZ;
+    e.preventDefault();
+  }});
+  document.addEventListener('mousemove',e=>{{
+    if(!dragging)return;
+    fp.style.left=Math.max(0,Math.min(innerWidth-100,e.clientX-dx))+'px';
+    fp.style.top=Math.max(0,Math.min(innerHeight-40,e.clientY-dy))+'px';
+  }});
+  document.addEventListener('mouseup',()=>{{dragging=false}});
+  floatsEl.appendChild(fp);
+}}
+let fpZ=30;  /* z-index counter for floating panels */
 
 /* ═══ RAYCASTER ═══ */
 const ray=new THREE.Raycaster();
