@@ -389,6 +389,18 @@ canvas{{display:block;position:fixed;top:0;left:0}}
 #panel .pnl-btns{{position:absolute;top:12px;right:14px;display:flex;align-items:center;gap:10px;pointer-events:auto}}
 #panel .pnl-btns span{{color:#063;font-size:18px;cursor:pointer;line-height:1}}
 #panel .pnl-btns span:hover{{color:#0f8}}
+#help{{position:fixed;top:0;left:0;width:100%;height:100%;z-index:50;display:none;align-items:center;justify-content:center;
+  background:rgba(0,1,0,.85);pointer-events:auto}}
+#help.open{{display:flex}}
+#help .hbox{{border:1px solid rgba(0,255,60,.15);padding:30px 40px;max-width:420px;width:90%;font:11px/2.2 'Courier New',monospace;color:#8c8;letter-spacing:.06em}}
+#help .hbox h2{{color:#0f8;font-size:14px;letter-spacing:.25em;text-transform:uppercase;margin:0 0 14px;text-shadow:0 0 10px rgba(0,255,60,.3)}}
+#help .hbox kbd{{display:inline-block;min-width:22px;text-align:center;padding:1px 6px;border:1px solid rgba(0,255,60,.2);border-radius:2px;color:#0f8;font-size:10px;margin-right:4px}}
+#help .hbox .row{{display:flex;justify-content:space-between}}
+#help .hbox .row span:first-child{{color:#0c6}}
+#helpBtn{{display:inline-block;color:rgba(0,255,60,.35);font:bold 10px 'Courier New',monospace;
+  cursor:pointer;pointer-events:auto;padding:1px 5px;border:1px solid rgba(0,255,60,.15);border-radius:2px;
+  margin-left:10px;vertical-align:middle;transition:all .3s;letter-spacing:0}}
+#helpBtn:hover{{color:#0f8;border-color:rgba(0,255,60,.4);text-shadow:0 0 8px rgba(0,255,60,.3);background:rgba(0,255,60,.06)}}
 .fp{{position:fixed;z-index:25;width:340px;max-height:70vh;overflow-y:auto;scrollbar-width:none;
   background:rgba(0,3,0,.92);border:1px solid rgba(0,255,60,.12);border-radius:2px;
   font:10px/1.7 'Courier New',monospace;letter-spacing:.04em;color:#8c8;
@@ -436,7 +448,7 @@ canvas{{display:block;position:fixed;top:0;left:0}}
 
 <div id="hud">
   <div class="hl">
-    <div class="dim">/// CYBERSPACE NEURAL INTERFACE v7.0 ///</div>
+    <div class="dim">/// CYBERSPACE NEURAL INTERFACE v7.0 ///<span id="helpBtn" onclick="toggleHelp()">?</span></div>
     <div class="big">{TITLE}</div>
     <div>{SUBTITLE}</div>
   </div>
@@ -454,11 +466,28 @@ canvas{{display:block;position:fixed;top:0;left:0}}
 </div>
 <div id="floats"></div>
 
+<div id="help" onclick="if(event.target===this)toggleHelp()">
+  <div class="hbox">
+    <h2>// navigation //</h2>
+    <div class="row"><span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / Arrows</span><span>Fly forward / left / back / right</span></div>
+    <div class="row"><span><kbd>C</kbd></span><span>Fly up</span></div>
+    <div class="row"><span><kbd>Z</kbd></span><span>Fly down</span></div>
+    <div class="row"><span><kbd>Q</kbd> / <kbd>E</kbd></span><span>Strafe left / right</span></div>
+    <div class="row"><span>Drag</span><span>Orbit camera</span></div>
+    <div class="row"><span>Scroll</span><span>Zoom in / out</span></div>
+    <h2 style="margin-top:18px">// actions //</h2>
+    <div class="row"><span>Click vault</span><span>Open data panel</span></div>
+    <div class="row"><span><kbd>&#x229e;</kbd> button</span><span>Detach panel (float)</span></div>
+    <div class="row"><span><kbd>T</kbd></span><span>Toggle auto-fly tour</span></div>
+    <div class="row"><span><kbd>?</kbd></span><span>This help overlay</span></div>
+  </div>
+</div>
+
 <div id="nodeInfo"><span class="name"></span><div class="sub">click to access data vault</div></div>
 
 <div id="hint">
   <span class="big">ENTERING CYBERSPACE</span>
-  fly to nodes below &middot; click structures to open data vaults<br>WASD / arrows to fly &middot; space/shift for up/down &middot; drag to orbit
+  fly to nodes below &middot; click structures to open data vaults<br>WASD / arrows to fly &middot; Z/C for down/up &middot; drag to orbit &middot; T for tour &middot; ? for help
 </div>
 
 <div class="nav">
@@ -510,9 +539,11 @@ const MOVE_SPEED=0.45;
 const _fwd=new THREE.Vector3(),_right=new THREE.Vector3(),_move=new THREE.Vector3();
 document.addEventListener('keydown',e=>{{
   const k=e.key.toLowerCase();
-  if(['w','a','s','d','q','e','arrowup','arrowdown','arrowleft','arrowright',' ','shift'].includes(k)){{
+  if(['w','a','s','d','q','e','z','c','arrowup','arrowdown','arrowleft','arrowright'].includes(k)){{
     keys[k]=true;e.preventDefault();
   }}
+  if(k==='t')toggleTour();
+  if(k==='?'||k==='/')toggleHelp();
 }});
 document.addEventListener('keyup',e=>{{keys[e.key.toLowerCase()]=false}});
 
@@ -879,6 +910,57 @@ document.querySelectorAll('.nav button').forEach(b=>b.addEventListener('click',(
   document.querySelectorAll('.nav button').forEach(x=>x.classList.toggle('active',x===b));
 }}));
 
+/* ═══ HELP OVERLAY ═══ */
+window.toggleHelp=function(){{document.getElementById('help').classList.toggle('open')}};
+
+/* ═══ AUTO-FLY TOUR ═══ */
+let touring=false;
+let tourT=0;
+const tourWaypoints=[];
+(function buildTour(){{
+  const R=65,hBase=25;
+  for(let i=0;i<8;i++){{
+    const a=i/8*Math.PI*2;
+    const h=hBase+Math.sin(a*2)*20+Math.random()*15;
+    tourWaypoints.push(new THREE.Vector3(Math.cos(a)*R, h, Math.sin(a)*R));
+  }}
+  tourWaypoints.push(new THREE.Vector3(0, 90, 0));
+  tourWaypoints.push(new THREE.Vector3(-40, 50, 60));
+  tourWaypoints.push(new THREE.Vector3(5, 12, 15));
+  tourWaypoints.push(new THREE.Vector3(-20, 18, -30));
+}})();
+
+function toggleTour(){{
+  touring=!touring;
+  if(touring)tourT=0;
+}}
+
+function updateTour(dt){{
+  if(!touring)return;
+  tourT+=dt*0.018;
+  const n=tourWaypoints.length;
+  const totalT=tourT%n;
+  const i0=Math.floor(totalT)%n;
+  const i1=(i0+1)%n;
+  const i2=(i0+2)%n;
+  const iPrev=(i0-1+n)%n;
+  const frac=totalT-Math.floor(totalT);
+  const cr=(p0,p1,p2,p3,t)=>{{
+    const t2=t*t,t3=t2*t;
+    return new THREE.Vector3(
+      0.5*((2*p1.x)+(-p0.x+p2.x)*t+(2*p0.x-5*p1.x+4*p2.x-p3.x)*t2+(-p0.x+3*p1.x-3*p2.x+p3.x)*t3),
+      0.5*((2*p1.y)+(-p0.y+p2.y)*t+(2*p0.y-5*p1.y+4*p2.y-p3.y)*t2+(-p0.y+3*p1.y-3*p2.y+p3.y)*t3),
+      0.5*((2*p1.z)+(-p0.z+p2.z)*t+(2*p0.z-5*p1.z+4*p2.z-p3.z)*t2+(-p0.z+3*p1.z-3*p2.z+p3.z)*t3)
+    );
+  }};
+  const pos=cr(tourWaypoints[iPrev],tourWaypoints[i0],tourWaypoints[i1],tourWaypoints[i2],frac);
+  const lookFrac=Math.min(frac+0.15,1);
+  const look=cr(tourWaypoints[iPrev],tourWaypoints[i0],tourWaypoints[i1],tourWaypoints[i2],lookFrac);
+  cam.position.copy(pos);
+  ctrl.target.copy(look);
+  if(Object.values(keys).some(v=>v))touring=false;
+}}
+
 /* ═══ ANIMATION ═══ */
 const clock=new THREE.Clock();
 
@@ -979,8 +1061,8 @@ const clock=new THREE.Clock();
   if(keys['s']||keys['arrowdown'])_move.sub(_fwd);
   if(keys['a']||keys['arrowleft'])_move.sub(_right);
   if(keys['d']||keys['arrowright'])_move.add(_right);
-  if(keys[' '])_move.y+=1;
-  if(keys['shift'])_move.y-=1;
+  if(keys['c'])_move.y+=1;
+  if(keys['z'])_move.y-=1;
   if(keys['q'])_move.sub(_right);
   if(keys['e'])_move.add(_right);
   if(_move.lengthSq()>0){{
@@ -990,10 +1072,11 @@ const clock=new THREE.Clock();
   }}
 
   ctrl.update();
+  updateTour(clock.getDelta()||0.016);
   renderer.render(scene,cam);
 }})();
 
-/* ═══ RESIZE + HINT ═══ */
+/* ═══ RESIZE ═══ */
 addEventListener('resize',()=>{{cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)}});
 setTimeout(()=>{{const h=document.getElementById('hint');if(h){{h.style.opacity='0';setTimeout(()=>h.remove(),3000)}}}},4000);
 

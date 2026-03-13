@@ -383,3 +383,36 @@ class TestFloatingPanels(unittest.TestCase):
     def test_floats_container(self):
         out = self._html()
         assert 'id="floats"' in out
+
+
+class TestHelpAndTour(unittest.TestCase):
+    """Test help overlay and auto-fly tour."""
+
+    def _html(self):
+        from generate import generate_html
+
+        return generate_html(
+            {
+                "title": "HT",
+                "vaults": [{"id": "a", "name": "A", "html": "<div>A</div>"}],
+            }
+        )
+
+    def test_help_overlay_present(self):
+        out = self._html()
+        assert 'id="help"' in out
+        assert "toggleHelp" in out
+
+    def test_help_button_present(self):
+        out = self._html()
+        assert 'id="helpBtn"' in out
+
+    def test_tour_mode_present(self):
+        out = self._html()
+        assert "toggleTour" in out
+        assert "tourWaypoints" in out
+
+    def test_z_c_keybindings(self):
+        out = self._html()
+        assert "keys['c']" in out
+        assert "keys['z']" in out
