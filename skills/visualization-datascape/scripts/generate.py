@@ -713,8 +713,8 @@ const exchanges=[];
 connPairs.forEach(([a,b])=>{{
   const pa=new THREE.Vector3(...VAULT_DATA[a].pos),pb=new THREE.Vector3(...VAULT_DATA[b].pos);
   const colA=new THREE.Color(VAULT_DATA[a].color),colB=new THREE.Color(VAULT_DATA[b].color);
+  /* straight line — midpoint sits exactly between endpoints */
   const mid=pa.clone().add(pb).multiplyScalar(.5);
-  mid.y+=6+Math.random()*6;  /* gentle arc above midpoint */
   const curve=new THREE.QuadraticBezierCurve3(pa,mid,pb);
   const curveRev=new THREE.QuadraticBezierCurve3(pb,mid,pa);
   const total=PARTICLES_PER_CONN*2;
@@ -722,7 +722,7 @@ connPairs.forEach(([a,b])=>{{
   const offsets=new Float32Array(total),speeds=new Float32Array(total),dirs=new Int8Array(total);
   for(let i=0;i<total;i++){{
     offsets[i]=Math.random();  /* spread along path */
-    speeds[i]=0.003+Math.random()*0.006;  /* varied travel speed */
+    speeds[i]=0.0008+Math.random()*0.0012;  /* slow drift matching ambient streams */
     dirs[i]=i<PARTICLES_PER_CONN?1:-1;  /* direction: A→B or B→A */
     const tt=offsets[i];
     const pt=dirs[i]===1?curve.getPointAt(tt):curveRev.getPointAt(tt);
