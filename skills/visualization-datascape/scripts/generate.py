@@ -388,7 +388,7 @@ canvas{{display:block;position:fixed;top:0;left:0}}
 #panel td.h{{color:#0f8;font-weight:bold}}
 #panel .close{{position:absolute;top:14px;right:16px;color:#063;font-size:18px;cursor:pointer;pointer-events:auto}}
 #panel .close:hover{{color:#0f8}}
-#panel .detach{{position:absolute;top:14px;right:42px;color:#063;font-size:14px;cursor:pointer;pointer-events:auto;letter-spacing:0}}
+#panel .detach{{position:absolute;top:14px;right:42px;color:#063;font-size:18px;cursor:pointer;pointer-events:auto;letter-spacing:0;line-height:1}}
 #panel .detach:hover{{color:#0f8}}
 .fp{{position:fixed;z-index:25;width:340px;max-height:70vh;overflow-y:auto;scrollbar-width:none;
   background:rgba(0,3,0,.92);border:1px solid rgba(0,255,60,.12);border-radius:2px;
@@ -840,6 +840,7 @@ function spawnFloat(vd,html){{
     fp.style.top=Math.max(0,Math.min(innerHeight-40,e.clientY-dy))+'px';
   }});
   document.addEventListener('mouseup',()=>{{dragging=false}});
+  fp.style.zIndex=++fpZ;  /* spawn on top of existing panels */
   floatsEl.appendChild(fp);
 }}
 let fpZ=30;  /* z-index counter for floating panels */
