@@ -1,0 +1,223 @@
+"""Tests for visualization-datascape generate.py — TDD red phase."""
+
+import json
+import os
+import sys
+from unittest.mock import patch
+
+import pytest
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
+
+from contracts import ContractViolationError
+
+
+class TestValidateConfig:
+    """Test config validation via @precondition."""
+
+    def test_missing_title_raises(self):
+        from generate import validate_and_parse
+
+        bad = {"vaults": [{"id": "a", "name": "A", "html": "<p>hi</p>"}]}
+        with pytest.raises(ContractViolationError, match="title"):
+            validate_and_parse(json.dumps(bad))
+
+    def test_empty_vaults_raises(self):
+        from generate import validate_and_parse
+
+        bad = {"title": "Test", "vaults": []}
+        with pytest.raises(ContractViolationError, match="at least 1 vault"):
+            validate_and_parse(json.dumps(bad))
+
+    def test_too_many_vaults_raises(self):
+        from generate import validate_and_parse
+
+        vaults = [{"id": f"v{i}", "name": f"V{i}", "html": f"<p>{i}</p>"} for i in range(17)]
+        bad = {"title": "Test", "vaults": vaults}
+        with pytest.raises(ContractViolationError, match="at most 16"):
+            validate_and_parse(json.dumps(bad))
+
+    def test_vault_missing_id_raises(self):
+        from generate import validate_and_parse
+
+        bad = {"title": "Test", "vaults": [{"name": "A", "html": "<p>hi</p>"}]}
+        with pytest.raises(ContractViolationError, match="id"):
+            validate_and_parse(json.dumps(bad))
+
+    def test_vault_missing_name_raises(self):
+        from generate import validate_and_parse
+
+        bad = {"title": "Test", "vaults": [{"id": "a", "html": "<p>hi</p>"}]}
+        with pytest.raises(ContractViolationError, match="name"):
+            validate_and_parse(json.dumps(bad))
+
+    def test_vault_missing_html_raises(self):
+        from generate import validate_and_parse
+
+        bad = {"title": "Test", "vaults": [{"id": "a", "name": "A"}]}
+        with pytest.raises(ContractViolationError, match="html"):
+            validate_and_parse(json.dumps(bad))
+
+    def test_duplicate_ids_raises(self):
+        from generate import validate_and_parse
+
+        bad = {
+            "title": "Test",
+            "vaults": [
+                {"id": "a", "name": "A", "html": "<p>1</p>"},
+                {"id": "a", "name": "B", "html": "<p>2</p>"},
+            ],
+        }
+        with pytest.raises(ContractViolationError, match="unique"):
+            validate_and_parse(json.dumps(bad))
+
+    def test_invalid_json_raises(self):
+        from generate import validate_and_parse
+
+        with pytest.raises(ContractViolationError, match="valid JSON"):
+            validate_and_parse("not json {{{")
+
+    def test_valid_minimal_config(self):
+        from generate import validate_and_parse
+
+        good = {
+            "title": "Test Dashboard",
+            "vaults": [{"id": "alpha", "name": "Alpha", "html": "<p>Data</p>"}],
+        }
+        result = validate_and_parse(json.dumps(good))
+        assert result["title"] == "Test Dashboard"
+        assert len(result["vaults"]) == 1
+
+
+class TestGenerateHtml:
+    """Test HTML generation output."""
+
+    def _minimal_config(self, n_vaults=3):
+        return {
+            "title": "Test Vis",
+            "subtitle": "A subtitle",
+            "stats": [{"label": "items", "value": "42"}],
+            "vaults": [
+                {"id": f"v{i}", "name": f"Vault {i}", "html": f"<p>Content {i}</p>"}
+                for i in range(n_vaults)
+            ],
+        }
+
+    def test_output_is_valid_html(self):
+        from generate import generate_html, validate_and_parse
+
+        cfg = validate_and_parse(json.dumps(self._minimal_config()))
+        html = generate_html(cfg)
+        assert html.startswith("<!DOCTYPE html>")
+        assert "</html>" in html
+
+    def test_title_appears_in_output(self):
+        from generate import generate_html, validate_and_parse
+
+        cfg = validate_and_parse(json.dumps(self._minimal_config()))
+        html = generate_html(cfg)
+        assert "Test Vis" in html
+
+    def test_subtitle_appears(self):
+        from generate import generate_html, validate_and_parse
+
+        cfg = validate_and_parse(json.dumps(self._minimal_config()))
+        html = generate_html(cfg)
+        assert "A subtitle" in html
+
+    def test_stats_appear_in_hud(self):
+        from generate import generate_html, validate_and_parse
+
+        cfg = validate_and_parse(json.dumps(self._minimal_config()))
+        html = generate_html(cfg)
+        assert "42" in html
+        assert "items" in html
+
+    def test_vault_names_in_nav(self):
+        from generate import generate_html, validate_and_parse
+
+        cfg = validate_and_parse(json.dumps(self._minimal_config()))
+        html = generate_html(cfg)
+        for i in range(3):
+            assert f"Vault {i}" in html
+
+    def test_vault_html_content_embedded(self):
+        from generate import generate_html, validate_and_parse
+
+        cfg = validate_and_parse(json.dumps(self._minimal_config()))
+        html = generate_html(cfg)
+        for i in range(3):
+            assert f"Content {i}" in html
+
+    def test_vault_ids_in_data(self):
+        from generate import generate_html, validate_and_parse
+
+        cfg = validate_and_parse(json.dumps(self._minimal_config()))
+        html = generate_html(cfg)
+        for i in range(3):
+            assert f"'v{i}'" in html or f'"v{i}"' in html
+
+    def test_three_js_import(self):
+        from generate import generate_html, validate_and_parse
+
+        cfg = validate_and_parse(json.dumps(self._minimal_config()))
+        html = generate_html(cfg)
+        assert "three@0.170.0" in html
+
+    def test_wasd_controls_present(self):
+        from generate import generate_html, validate_and_parse
+
+        cfg = validate_and_parse(json.dumps(self._minimal_config()))
+        html = generate_html(cfg)
+        assert "WASD" in html or "wasd" in html.lower()
+
+    def test_custom_glyphs(self):
+        from generate import generate_html, validate_and_parse
+
+        conf = self._minimal_config()
+        conf["glyphs"] = ["HELLO", "WORLD"]
+        cfg = validate_and_parse(json.dumps(conf))
+        html = generate_html(cfg)
+        assert "HELLO" in html
+        assert "WORLD" in html
+
+    def test_custom_color(self):
+        from generate import generate_html, validate_and_parse
+
+        conf = self._minimal_config(1)
+        conf["vaults"][0]["color"] = "0xff0000"
+        cfg = validate_and_parse(json.dumps(conf))
+        html = generate_html(cfg)
+        assert "0xff0000" in html
+
+
+class TestVaultPositioning:
+    """Test that vault positions are computed sensibly."""
+
+    def test_single_vault_at_origin_area(self):
+        from generate import compute_positions
+
+        positions = compute_positions(1)
+        assert len(positions) == 1
+        # Single vault should be near center
+        assert abs(positions[0][0]) < 10
+        assert abs(positions[0][2]) < 10
+
+    def test_positions_are_spread_out(self):
+        from generate import compute_positions
+        import math
+
+        positions = compute_positions(8)
+        # All pairs should have minimum distance > 15
+        for i in range(len(positions)):
+            for j in range(i + 1, len(positions)):
+                dx = positions[i][0] - positions[j][0]
+                dz = positions[i][2] - positions[j][2]
+                dist = math.hypot(dx, dz)
+                assert dist > 12, f"Vaults {i} and {j} too close: {dist:.1f}"
+
+    def test_positions_count_matches(self):
+        from generate import compute_positions
+
+        for n in [1, 3, 5, 8, 12, 16]:
+            assert len(compute_positions(n)) == n

@@ -5,19 +5,20 @@
   },
   "metadata": {
     "description": "A collection of skills for Claude Code",
-    "version": "0.16.3"
+    "version": "0.17.0"
   },
   "plugins": [
     {
       "name": "claude-skills",
-      "description": "Google Drive file management, DuckDuckGo internet search, and autonomous multi-phase deep research",
+      "description": "Google Drive file management, DuckDuckGo internet search, autonomous multi-phase deep research, and immersive 3D data visualization",
       "source": "./",
       "strict": false,
       "skills": [
         "./skills/drive",
         "./skills/drive-trash",
         "./skills/duckduckgo",
-        "./skills/deep-research"
+        "./skills/deep-research",
+        "./skills/visualization-datascape"
       ]
     }
   ]
