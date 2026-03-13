@@ -141,14 +141,19 @@ Script has **zero external dependencies** — pure Python stdlib.
 
 ## Visual Design
 
-The output is a cyberpunk point-cloud cityscape:
+The output is a cyberpunk point-cloud cityscape with **3D hexagonal crystal lattice** vault placement:
 
+- **Crystal lattice**: Vaults placed at vertices of a hexagonal close-packed (HCP) structure across 3 layers
+  - Layer 0 (y=5): ground hex ring + center
+  - Layer 1 (y=28): hex ring rotated 30° (HCP stagger — nestles in layer 0 hollows)
+  - Layer 2 (y=50): apex points
+- **Polyhedra by count**: n=3 triangle, n=4 tetrahedron, n=5 bipyramid, n=6 hexagon, n=8 hex bipyramid, n=9+ two-layer crystal
+- **Crystal edges**: Vault connections trace nearest-neighbor bonds (like atomic bonds in a real crystal)
 - **City**: Dense point-cloud buildings in inner core (±80), sparse outer sprawl (±250)
 - **Ground grid**: Dot matrix extending ±350
 - **Data streams**: 250 falling green code columns
 - **Particles**: 25,000 ambient floating dust motes
 - **Vaults**: Pulsing sphere cores + expanding cube shells + vertical beams + labels
-- **Connections**: Dotted arc lines between vaults
 - **Glyphs**: Floating code text sprites
 - **Controls**: Mouse orbit + WASD/arrows + space/shift for vertical + Q/E strafe
 

@@ -99,24 +99,70 @@ def validate_and_parse(raw_json: str) -> dict:
 
 
 def compute_positions(n: int) -> list[tuple[float, float, float]]:
-    """Compute vault positions arranged in a circle on the xz-plane.
+    """Compute vault positions on a 3D hexagonal crystal lattice.
 
-    Returns list of (x, y, z) tuples. y is always 5 (ground level
-    for vaults). For n=1, position is near origin.
+    Uses hexagonal close-packed (HCP) geometry:
+    - Layer 0 (y=5):  hexagonal ring + optional center
+    - Layer 1 (y=28): hexagonal ring rotated 30° (HCP stagger)
+    - Layer 2 (y=50): apex point(s)
+
+    The 30° rotation between layers mirrors real crystal packing
+    where atoms of one layer nest in the hollows of the layer below.
+    For any n, vaults are placed at crystal vertices that form
+    recognizable polyhedra (tetrahedron, bipyramid, prism, etc.).
     """
-    if n == 1:
-        return [(0.0, 5.0, 0.0)]
+    R = 40.0   # Crystal lattice parameter — hex ring radius
+    Y0 = 5.0   # Ground layer
+    Y1 = 28.0  # Mid layer (HCP offset)
+    Y2 = 50.0  # Top layer
 
-    # Radius scales with count to keep spacing reasonable
-    # min spacing ~15 units between neighbours
-    radius = max(20.0, n * 5.0)
-    positions = []
-    for i in range(n):
-        angle = 2 * math.pi * i / n - math.pi / 2  # start from top
-        x = radius * math.cos(angle)
-        z = radius * math.sin(angle)
-        positions.append((round(x, 1), 5.0, round(z, 1)))
-    return positions
+    def hex_ring(y: float, radius: float, offset_deg: float = 0) -> list[tuple[float, float, float]]:
+        return [
+            (
+                round(radius * math.cos(math.radians(k * 60 + offset_deg)), 1),
+                y,
+                round(radius * math.sin(math.radians(k * 60 + offset_deg)), 1),
+            )
+            for k in range(6)
+        ]
+
+    if n == 1:
+        return [(0.0, Y0, 0.0)]
+
+    ring0 = hex_ring(Y0, R, 0)          # 6 ground hex vertices
+    ring1 = hex_ring(Y1, R, 30)         # 6 mid-layer, 30° HCP offset
+    center0 = (0.0, Y0, 0.0)
+    apex = (0.0, Y2, 0.0)
+
+    # Selection creates balanced crystal shapes for each n.
+    # Small n → recognizable polyhedra; large n → full two/three-layer lattice.
+    if n == 2:
+        return [center0, (0.0, Y1, 0.0)]           # vertical crystal axis
+    if n == 3:
+        return [ring0[0], ring0[2], ring0[4]]       # equilateral triangle
+    if n == 4:
+        return [ring0[0], ring0[2], ring0[4],
+                (0.0, Y1, 0.0)]                     # tetrahedron
+    if n == 5:
+        return [ring0[0], ring0[2], ring0[4],
+                center0, apex]                       # triangular bipyramid
+    if n == 6:
+        return ring0                                 # full hexagon
+    if n == 7:
+        return [center0] + ring0                     # hexagon + center
+    if n == 8:
+        return [center0] + ring0 + [apex]            # hex bipyramid
+
+    # n=9-14: two-layer crystal (ground + HCP mid-ring)
+    base = [center0] + ring0 + [apex]               # 8 positions
+    mid_needed = min(n - 8, 6)
+    positions = base + ring1[:mid_needed]
+    if n <= 14:
+        return positions
+
+    # n=15-16: add smaller top-layer ring
+    ring2 = hex_ring(Y2, R * 0.55, 0)
+    return positions + ring2[: n - 14]
 
 
 def _js_vault_array(vaults: list[dict], positions: list[tuple]) -> str:
@@ -213,30 +259,27 @@ def _node_positions_array(vaults: list[dict], positions: list[tuple]) -> str:
     return "[" + ",".join(entries) + "]"
 
 
-def _conn_pairs(n: int) -> str:
-    """Build JS connection-pair array. Connect each vault to its neighbors + hub."""
+def _conn_pairs(n: int, positions: list[tuple[float, float, float]]) -> str:
+    """Build JS connection-pair array using crystal lattice nearest-neighbor edges.
+
+    Each vault connects to its 2-3 closest neighbors, producing edges
+    that trace the crystal bonds of the lattice.
+    """
     if n <= 1:
         return "[]"
-    pairs = []
+    k = min(3, n - 1)  # connect to k nearest neighbors
+    edges: set[tuple[int, int]] = set()
     for i in range(n):
-        nxt = (i + 1) % n
-        pairs.append(f"[{i},{nxt}]")
-        # Also connect to vault across the circle for visual interest
-        opp = (i + n // 2) % n
-        if opp != i and opp != nxt:
-            pair = tuple(sorted((i, opp)))
-            if list(pair) not in [[int(x) for x in p.strip("[]").split(",")] for p in pairs]:
-                pairs.append(f"[{pair[0]},{pair[1]}]")
-    # Deduplicate
-    seen: set[tuple[int, int]] = set()
-    deduped = []
-    for p in pairs:
-        nums = tuple(int(x) for x in p.strip("[]").split(","))
-        key = (min(nums), max(nums))
-        if key not in seen:
-            seen.add(key)
-            deduped.append(f"[{key[0]},{key[1]}]")
-    return "[" + ",".join(deduped) + "]"
+        dists = []
+        for j in range(n):
+            if i == j:
+                continue
+            d = math.sqrt(sum((a - b) ** 2 for a, b in zip(positions[i], positions[j])))
+            dists.append((d, j))
+        dists.sort()
+        for _, j in dists[:k]:
+            edges.add((min(i, j), max(i, j)))
+    return "[" + ",".join(f"[{a},{b}]" for a, b in sorted(edges)) + "]"
 
 
 def generate_html(cfg: dict) -> str:
@@ -256,7 +299,7 @@ def generate_html(cfg: dict) -> str:
     hud_stats_html = _hud_stats(stats)
     glyph_js = _glyph_array(glyphs_list, vaults)
     node_pos_js = _node_positions_array(vaults, positions)
-    conn_js = _conn_pairs(n)
+    conn_js = _conn_pairs(n, positions)
     vault_count = str(n)
 
     title_safe = html.escape(title)

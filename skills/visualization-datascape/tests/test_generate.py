@@ -192,32 +192,71 @@ class TestGenerateHtml:
 
 
 class TestVaultPositioning:
-    """Test that vault positions are computed sensibly."""
+    """Test vault positions on 3D hexagonal crystal lattice."""
 
     def test_single_vault_at_origin_area(self):
         from generate import compute_positions
 
         positions = compute_positions(1)
         assert len(positions) == 1
-        # Single vault should be near center
         assert abs(positions[0][0]) < 10
         assert abs(positions[0][2]) < 10
 
-    def test_positions_are_spread_out(self):
+    def test_positions_are_spread_out_3d(self):
         from generate import compute_positions
         import math
 
         positions = compute_positions(8)
-        # All pairs should have minimum distance > 15
+        # All pairs should have minimum 3D distance > 15
         for i in range(len(positions)):
             for j in range(i + 1, len(positions)):
                 dx = positions[i][0] - positions[j][0]
+                dy = positions[i][1] - positions[j][1]
                 dz = positions[i][2] - positions[j][2]
-                dist = math.hypot(dx, dz)
-                assert dist > 12, f"Vaults {i} and {j} too close: {dist:.1f}"
+                dist = math.sqrt(dx * dx + dy * dy + dz * dz)
+                assert dist > 15, f"Vaults {i} and {j} too close: {dist:.1f}"
 
     def test_positions_count_matches(self):
         from generate import compute_positions
 
         for n in [1, 3, 5, 8, 12, 16]:
             assert len(compute_positions(n)) == n
+
+    def test_lattice_has_3d_spread(self):
+        """For n>=4, positions should span multiple Y levels (crystal layers)."""
+        from generate import compute_positions
+
+        positions = compute_positions(8)
+        y_values = set(round(p[1], 1) for p in positions)
+        assert len(y_values) >= 2, "Crystal lattice should use multiple Y levels"
+
+    def test_lattice_hex_symmetry(self):
+        """Layer 0 ring should have ~60-degree angular spacing."""
+        from generate import compute_positions
+        import math
+
+        positions = compute_positions(7)  # center + hex ring
+        # Find the most common Y level (ground ring)
+        y_counts: dict[float, int] = {}
+        for p in positions:
+            y = round(p[1], 1)
+            y_counts[y] = y_counts.get(y, 0) + 1
+        main_y = max(y_counts, key=y_counts.get)
+        # Extract ring positions (exclude center)
+        ring = [(p[0], p[2]) for p in positions
+                if round(p[1], 1) == main_y and (abs(p[0]) > 1 or abs(p[2]) > 1)]
+        if len(ring) >= 6:
+            angles = sorted(math.atan2(z, x) for x, z in ring)
+            diffs = [angles[i + 1] - angles[i] for i in range(len(angles) - 1)]
+            for d in diffs:
+                assert abs(d - math.radians(60)) < 0.15, (
+                    f"Hex angle diff {math.degrees(d):.1f} deg, expected ~60"
+                )
+
+    def test_tetrahedron_for_four_vaults(self):
+        """4 vaults should form a 3D tetrahedron, not a flat square."""
+        from generate import compute_positions
+
+        positions = compute_positions(4)
+        y_values = set(round(p[1], 1) for p in positions)
+        assert len(y_values) >= 2, "4 vaults should span at least 2 Y levels"
