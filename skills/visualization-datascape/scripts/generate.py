@@ -26,7 +26,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 from contracts import ContractViolationError, precondition
 
 # ── Default color palette (cyberpunk greens) ──────────────────────
-# 16 distinct hues so vaults are visually distinguishable
+# 16 distinct hues so vaults are visually distinguishable; palette wraps for >16
 DEFAULT_COLORS = [
     "0x00ff66", "0x00ff44", "0x00ff88", "0x33ff55",
     "0x00ee77", "0x44ff44", "0x00ff99", "0x22ff66",
@@ -69,9 +69,9 @@ def validate_and_parse(raw_json: str) -> dict:
         raise ContractViolationError(
             "'vaults' must contain at least 1 vault", kind="precondition"
         )
-    if len(vaults) > 16:
+    if len(vaults) > 32768:
         raise ContractViolationError(
-            "'vaults' must contain at most 16 entries", kind="precondition"
+            "'vaults' must contain at most 32768 entries", kind="precondition"
         )
 
     seen_ids: set[str] = set()
@@ -103,12 +103,9 @@ def compute_positions(n: int) -> list[tuple[float, float, float]]:
 
     Uses hexagonal close-packed (HCP) geometry with vaults placed
     ONLY at ring (edge) vertices — never at face/hexagon centers.
-    - Layer 0 (y=5):  hexagonal ring (6 vertices)
-    - Layer 1 (y=28): hexagonal ring rotated 30° (HCP stagger)
-    - Layer 2 (y=50): smaller hexagonal ring
-
-    The 30° rotation between layers mirrors real crystal packing
-    where atoms of one layer nest in the hollows of the layer below.
+    For n <= 18, uses hand-tuned layouts across 3 HCP layers.
+    For n > 18, generates additional concentric ring layers dynamically,
+    expanding outward and upward to accommodate any count.
     """
     R = 40.0   # Crystal lattice parameter — hex ring radius
     Y0 = 5.0   # Ground layer
@@ -156,9 +153,22 @@ def compute_positions(n: int) -> list[tuple[float, float, float]]:
     if n <= 12:
         return positions
 
-    # n=13-16: all of ring0 + ring1 + top-layer ring vertices
-    top_needed = min(n - 12, 6)
-    return ring0 + ring1 + ring2[:top_needed]
+    # n=13-18: all of ring0 + ring1 + top-layer ring vertices
+    if n <= 18:
+        top_needed = min(n - 12, 6)
+        return ring0 + ring1 + ring2[:top_needed]
+
+    # n>18: start with all 3 base rings, then generate additional
+    # concentric rings expanding outward and upward.
+    pool = ring0 + ring1 + ring2  # 18 base slots
+    layer = 3  # next layer index
+    while len(pool) < n:
+        y = Y0 + layer * 22.0                   # 22 units vertical spacing per layer
+        r = R + (layer - 2) * 15.0               # expand radius outward
+        offset = 30.0 * (layer % 2)              # alternate HCP stagger
+        pool.extend(hex_ring(y, r, offset))      # +6 each ring
+        layer += 1
+    return pool[:n]
 
 
 def _js_vault_array(vaults: list[dict], positions: list[tuple]) -> str:

@@ -33,9 +33,9 @@ class TestValidateConfig:
     def test_too_many_vaults_raises(self):
         from generate import validate_and_parse
 
-        vaults = [{"id": f"v{i}", "name": f"V{i}", "html": f"<p>{i}</p>"} for i in range(17)]
+        vaults = [{"id": f"v{i}", "name": f"V{i}", "html": f"<p>{i}</p>"} for i in range(32769)]
         bad = {"title": "Test", "vaults": vaults}
-        with pytest.raises(ContractViolationError, match="at most 16"):
+        with pytest.raises(ContractViolationError, match="at most 32768"):
             validate_and_parse(json.dumps(bad))
 
     def test_vault_missing_id_raises(self):
@@ -221,7 +221,7 @@ class TestVaultPositioning:
     def test_positions_count_matches(self):
         from generate import compute_positions
 
-        for n in [1, 3, 5, 8, 12, 16]:
+        for n in [1, 3, 5, 8, 12, 16, 24, 50]:
             assert len(compute_positions(n)) == n
 
     def test_lattice_has_3d_spread(self):
@@ -274,6 +274,17 @@ class TestVaultPositioning:
                 assert not at_center, (
                     f"n={n}: vault {i} at center ({p[0]}, {p[1]}, {p[2]})"
                 )
+
+    def test_dynamic_scaling_beyond_18(self):
+        """compute_positions should scale dynamically for n > 18."""
+        from generate import compute_positions
+
+        for n in [20, 50, 100]:
+            positions = compute_positions(n)
+            assert len(positions) == n
+            # All positions should be unique
+            unique = set(positions)
+            assert len(unique) == n, f"n={n}: expected {n} unique positions, got {len(unique)}"
 
 
 class TestConnections(unittest.TestCase):
