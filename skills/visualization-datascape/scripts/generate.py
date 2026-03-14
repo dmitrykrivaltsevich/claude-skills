@@ -531,6 +531,22 @@ video.pi{{max-height:200px}}
 .lb-corners::before{{top:0;left:0;border-width:1px 0 0 1px}}
 .lb-corners::after{{bottom:0;right:0;border-width:0 1px 1px 0}}
 .lb-hud{{position:absolute;bottom:8px;left:12px;color:#053;font:6px/1 'Courier New',monospace;letter-spacing:.18em;text-transform:uppercase;z-index:2;opacity:.5}}
+/* broken image error state */
+@keyframes lb-rain{{0%{{background-position:0 0}}100%{{background-position:0 400px}}}}
+@keyframes lb-flicker{{0%,100%{{opacity:.6}}50%{{opacity:.35}}}}
+.lb-err{{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:220px;position:relative;overflow:hidden}}
+.lb-err::before{{content:'';position:absolute;inset:0;background:repeating-linear-gradient(180deg,
+  transparent 0px,transparent 6px,rgba(0,255,60,.04) 6px,rgba(0,255,60,.04) 7px);animation:lb-rain 4s linear infinite;pointer-events:none}}
+.lb-err::after{{content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse at 30% 40%,rgba(0,255,60,.03) 0%,transparent 60%),
+            radial-gradient(ellipse at 70% 60%,rgba(255,0,60,.02) 0%,transparent 50%);
+  animation:lb-flicker 3s ease-in-out infinite;pointer-events:none}}
+.lb-err-icon{{color:#041;font:28px/1 'Courier New',monospace;margin-bottom:10px;opacity:.4;z-index:1}}
+.lb-err-msg{{color:#063;font:9px/1.4 'Courier New',monospace;letter-spacing:.2em;text-transform:uppercase;text-align:center;z-index:1;opacity:.6}}
+.lb-err-sub{{color:#042;font:7px/1 'Courier New',monospace;letter-spacing:.15em;margin-top:6px;z-index:1;opacity:.4}}
+/* inline broken image replacement */
+.pi-err-wrap{{display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid rgba(0,255,60,.06);margin:4px 0;cursor:default}}
+.pi-err-wrap span{{color:#042;font:7px/1 'Courier New',monospace;letter-spacing:.12em;text-transform:uppercase;opacity:.5}}
 
 .nav{{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);display:flex;gap:2px;pointer-events:auto;z-index:20}}
 .nav button{{background:rgba(0,255,60,.03);border:1px solid rgba(0,255,60,.1);color:#0a6;
@@ -1112,6 +1128,14 @@ function openLightbox(src,isVideo){{
   const media=isVideo?`<video src="${{src}}" controls autoplay></video>`:`<img src="${{src}}">`;
   fp.innerHTML=`<div class="fp-bar"><span class="fp-title">img::analysis</span><span class="fp-close">&times;</span></div>`
     +`<div class="fp-body"><div class="lb-frame">${{media}}<div class="lb-corners"></div><div class="lb-scan"></div><div class="lb-hud">// enhanced //</div></div></div>`;
+  /* wire error handler — replace broken img with cyberpunk error state */
+  const mediaEl=fp.querySelector('.lb-frame img, .lb-frame video');
+  if(mediaEl&&mediaEl.tagName==='IMG')mediaEl.addEventListener('error',()=>{{
+    const frame=fp.querySelector('.lb-frame');
+    frame.innerHTML='<div class="lb-err"><div class="lb-err-icon">×</div><div class="lb-err-msg">satellite link severed</div><div class="lb-err-sub">signal lost · reconnect failed · src unreachable</div></div>'
+      +'<div class="lb-corners"></div><div class="lb-scan"></div>';
+    fp.style.width='340px';
+  }});
   const removeFp=()=>{{fp.remove();lbPanels.delete(fp);if(!lbPanels.size)lightboxEl.classList.remove('open');}};
   fp.querySelector('.fp-close').addEventListener('click',removeFp);
   fp.addEventListener('mousedown',()=>{{fp.style.zIndex=++fpZ;}});
@@ -1132,7 +1156,11 @@ function wireMedia(container){{
   container.querySelectorAll('img.pi, .pi-deck img').forEach(el=>{{
     el.style.cursor='pointer';
     el.addEventListener('click',e=>{{e.stopPropagation();openLightbox(el.dataset.full||el.src,false);}});
-    el.addEventListener('error',()=>{{el.classList.add('pi-err');}});
+    el.addEventListener('error',()=>{{
+      const wrap=document.createElement('div');wrap.className='pi-err-wrap';
+      wrap.innerHTML='<span>× link severed</span>';
+      el.replaceWith(wrap);
+    }});
   }});
   container.querySelectorAll('video.pi').forEach(el=>{{
     el.addEventListener('dblclick',e=>{{e.stopPropagation();openLightbox(el.dataset.full||el.src,true);}});

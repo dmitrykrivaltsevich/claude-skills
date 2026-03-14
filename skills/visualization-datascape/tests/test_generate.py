@@ -686,5 +686,12 @@ class TestMedia(unittest.TestCase):
 
     def test_broken_image_hidden(self):
         out = self._html()
-        assert "pi-err" in out
-        assert "el.addEventListener('error'" in out
+        assert "pi-err-wrap" in out
+        assert "link severed" in out
+        assert "el.addEventListener('error'" in out or "addEventListener('error'" in out
+
+    def test_lightbox_error_state(self):
+        out = self._html()
+        assert "lb-err" in out
+        assert "satellite link severed" in out
+        assert "lb-rain" in out
