@@ -505,6 +505,7 @@ canvas{{display:block;position:fixed;top:0;left:0}}
 /* ═══ MEDIA: inline images, deck, lightbox ═══ */
 .pi{{display:block;max-width:100%;border:1px solid rgba(0,255,60,.1);margin:8px 0;cursor:pointer;transition:all .3s;filter:saturate(.7) brightness(.85)}}
 .pi:hover{{border-color:rgba(0,255,60,.35);filter:saturate(1) brightness(1);box-shadow:0 0 12px rgba(0,255,60,.1)}}
+img.pi-err{{display:none}}
 .pi-deck{{display:flex;gap:6px;overflow-x:auto;padding:6px 0;scrollbar-width:none;margin:8px 0}}
 .pi-deck::-webkit-scrollbar{{display:none}}
 .pi-deck img{{width:80px;height:80px;object-fit:cover;border:1px solid rgba(0,255,60,.1);cursor:pointer;flex-shrink:0;
@@ -513,21 +514,21 @@ canvas{{display:block;position:fixed;top:0;left:0}}
 .pv-wrap{{display:flex;gap:12px;align-items:flex-start;margin:8px 0}}
 .pv-wrap .pi{{max-width:120px;margin:0;flex-shrink:0}}
 video.pi{{max-height:200px}}
-#lightbox{{position:fixed;top:0;left:0;width:100%;height:100%;z-index:60;display:none;align-items:center;justify-content:center;
-  background:rgba(0,1,0,.92);pointer-events:auto}}
-#lightbox.open{{display:flex}}
-#lightbox .lb-frame{{position:relative;max-width:90vw;max-height:85vh;border:1px solid rgba(0,255,60,.2);
-  box-shadow:0 0 40px rgba(0,255,60,.08),0 0 120px rgba(0,255,60,.03);padding:2px}}
-#lightbox .lb-frame img,#lightbox .lb-frame video{{display:block;max-width:90vw;max-height:85vh;object-fit:contain}}
-#lightbox .lb-hud{{position:absolute;top:-22px;left:0;color:#063;font:7px/1 'Courier New',monospace;letter-spacing:.2em;text-transform:uppercase}}
-#lightbox .lb-close{{position:absolute;top:-22px;right:0;color:#063;font:14px/1 'Courier New',monospace;cursor:pointer;transition:color .2s}}
-#lightbox .lb-close:hover{{color:#0f8;text-shadow:0 0 8px rgba(0,255,60,.4)}}
-#lightbox .lb-corners{{position:absolute;top:-4px;left:-4px;right:-4px;bottom:-4px;pointer-events:none}}
-#lightbox .lb-corners::before,#lightbox .lb-corners::after{{content:'';position:absolute;width:20px;height:20px;border-color:rgba(0,255,60,.2);border-style:solid}}
-#lightbox .lb-corners::before{{top:0;left:0;border-width:1px 0 0 1px}}
-#lightbox .lb-corners::after{{bottom:0;right:0;border-width:0 1px 1px 0}}
-#lightbox .lb-scan{{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;
+/* lightbox element kept for API compat; the visual is a floating panel */
+#lightbox{{display:none}}
+#lightbox.open{{display:none}}
+/* floating image panel */
+.fp-lb{{width:min(72vw,820px);max-height:90vh}}
+.fp-lb .fp-body{{padding:0;position:relative}}
+.fp-lb .lb-frame{{position:relative;width:100%;overflow:hidden}}
+.fp-lb .lb-frame img,.fp-lb .lb-frame video{{display:block;width:100%;max-height:78vh;object-fit:contain;background:#010}}
+.lb-scan{{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;
   background:repeating-linear-gradient(transparent 0px,transparent 2px,rgba(0,15,2,.12) 2px,rgba(0,15,2,.12) 4px)}}
+.lb-corners{{position:absolute;top:4px;left:4px;right:4px;bottom:4px;pointer-events:none}}
+.lb-corners::before,.lb-corners::after{{content:'';position:absolute;width:20px;height:20px;border-color:rgba(0,255,60,.2);border-style:solid}}
+.lb-corners::before{{top:0;left:0;border-width:1px 0 0 1px}}
+.lb-corners::after{{bottom:0;right:0;border-width:0 1px 1px 0}}
+.lb-hud{{position:absolute;bottom:8px;left:12px;color:#063;font:7px/1 'Courier New',monospace;letter-spacing:.2em;text-transform:uppercase;z-index:2}}
 
 .nav{{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);display:flex;gap:2px;pointer-events:auto;z-index:20}}
 .nav button{{background:rgba(0,255,60,.03);border:1px solid rgba(0,255,60,.1);color:#0a6;
@@ -1095,16 +1096,37 @@ let fpCount=0;  /* offset counter for cascading new floating panels */
 /* ═══ MEDIA LIGHTBOX ═══ */
 const lightboxEl=document.getElementById('lightbox');
 const lbContent=document.getElementById('lbContent');
+let lbPanel=null; /* currently-open lightbox floating panel */
 function openLightbox(src,isVideo){{
-  if(isVideo){{lbContent.innerHTML=`<video src="${{src}}" controls autoplay></video>`;}}else{{lbContent.innerHTML=`<img src="${{src}}">`;}}
-  lightboxEl.classList.add('open');
+  if(lbPanel)lbPanel.remove();
+  const fp=document.createElement('div');
+  fp.className='fp fp-lb';
+  const ox=Math.max(40,Math.round((innerWidth-Math.min(innerWidth*.72,820))/2));
+  const oy=Math.max(20,Math.round(innerHeight*.05));
+  fp.style.left=ox+'px';fp.style.top=oy+'px';
+  const media=isVideo?`<video src="${{src}}" controls autoplay></video>`:`<img src="${{src}}">`;
+  fp.innerHTML=`<div class="fp-bar"><span class="fp-title">// image analysis //</span><span class="fp-close">&times;</span></div>`
+    +`<div class="fp-body"><div class="lb-frame">${{media}}<div class="lb-corners"></div><div class="lb-scan"></div><div class="lb-hud">// enhanced //</div></div></div>`;
+  fp.querySelector('.fp-close').addEventListener('click',()=>{{fp.remove();lbPanel=null;lightboxEl.classList.remove('open');}});
+  fp.addEventListener('mousedown',()=>{{fp.style.zIndex=++fpZ;}});
+  /* dragging */
+  const bar=fp.querySelector('.fp-bar');
+  let dragging=false,dx=0,dy=0;
+  bar.addEventListener('mousedown',e=>{{dragging=true;dx=e.clientX-fp.offsetLeft;dy=e.clientY-fp.offsetTop;fp.style.zIndex=++fpZ;e.preventDefault();}});
+  document.addEventListener('mousemove',e=>{{if(!dragging)return;fp.style.left=Math.max(0,Math.min(innerWidth-100,e.clientX-dx))+'px';fp.style.top=Math.max(0,Math.min(innerHeight-40,e.clientY-dy))+'px';}});
+  document.addEventListener('mouseup',()=>{{dragging=false;}});
+  fp.style.zIndex=++fpZ;
+  lightboxEl.classList.add('open'); /* keep state flag for Escape key */
+  floatsEl.appendChild(fp);
+  lbPanel=fp;
 }}
-function closeLightbox(){{lightboxEl.classList.remove('open');lbContent.innerHTML='';}}
+function closeLightbox(){{lightboxEl.classList.remove('open');if(lbPanel){{lbPanel.remove();lbPanel=null;}}}}
 /* Wire click-to-lightbox on .pi images/videos and .pi-deck imgs */
 function wireMedia(container){{
   container.querySelectorAll('img.pi, .pi-deck img').forEach(el=>{{
     el.style.cursor='pointer';
     el.addEventListener('click',e=>{{e.stopPropagation();openLightbox(el.dataset.full||el.src,false);}});
+    el.addEventListener('error',()=>{{el.classList.add('pi-err');}});
   }});
   container.querySelectorAll('video.pi').forEach(el=>{{
     el.addEventListener('dblclick',e=>{{e.stopPropagation();openLightbox(el.dataset.full||el.src,true);}});

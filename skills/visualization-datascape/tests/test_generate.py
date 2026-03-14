@@ -678,3 +678,13 @@ class TestMedia(unittest.TestCase):
     def test_media_wired_in_float(self):
         out = self._html()
         assert "wireMedia(fp)" in out
+
+    def test_lightbox_is_floating_panel(self):
+        out = self._html()
+        assert "fp-lb" in out
+        assert "fp.className='fp fp-lb'" in out or 'fp.className=' in out
+
+    def test_broken_image_hidden(self):
+        out = self._html()
+        assert "pi-err" in out
+        assert "el.addEventListener('error'" in out
