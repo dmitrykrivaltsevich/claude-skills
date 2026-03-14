@@ -524,6 +524,31 @@ canvas{{display:block;position:fixed;top:0;left:0}}
 #hint{{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;
   font-size:10px;color:rgba(0,255,60,.35);letter-spacing:.2em;pointer-events:none;z-index:15;transition:opacity 2s;text-transform:uppercase}}
 #hint .big{{font-size:18px;display:block;margin-bottom:6px;color:rgba(0,255,60,.5);text-shadow:0 0 15px rgba(0,255,60,.2)}}
+
+/* ── SEARCH ── */
+#srch{{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:30;pointer-events:auto;width:260px}}
+#srch input{{width:100%;background:rgba(0,3,0,.5);border:1px solid rgba(0,255,60,.08);color:#052;caret-color:transparent;
+  font:9px/1.6 'Courier New',monospace;letter-spacing:.15em;text-transform:uppercase;padding:5px 10px;
+  outline:none;transition:all .4s;border-radius:1px}}
+#srch input::placeholder{{color:#031;letter-spacing:.15em}}
+#srch input:focus{{border-color:rgba(0,255,60,.35);color:#0f8;background:rgba(0,3,0,.8);
+  box-shadow:0 0 12px rgba(0,255,60,.08),inset 0 0 20px rgba(0,0,0,.3);text-shadow:0 0 4px rgba(0,255,60,.3)}}
+#srch input:focus::placeholder{{color:#063}}
+#srch .cur{{position:absolute;top:5px;left:10px;width:6px;height:11px;background:#052;pointer-events:none;transition:background .4s;animation:blink 1s step-end infinite}}
+#srch input:focus~.cur{{background:#0f8;box-shadow:0 0 6px rgba(0,255,60,.4)}}
+@keyframes blink{{0%,100%{{opacity:1}}50%{{opacity:0}}}}
+#srchR{{max-height:50vh;overflow-y:auto;scrollbar-width:none;margin-top:2px;border-radius:1px;display:none}}
+#srchR::-webkit-scrollbar{{display:none}}
+#srchR.open{{display:block}}
+#srchR .sr{{background:rgba(0,3,0,.88);border:1px solid rgba(0,255,60,.08);padding:7px 10px;cursor:none;
+  transition:all .25s;border-bottom:none;pointer-events:auto}}
+#srchR .sr:last-child{{border-bottom:1px solid rgba(0,255,60,.08)}}
+#srchR .sr:hover{{background:rgba(0,255,60,.08);border-color:rgba(0,255,60,.2)}}
+#srchR .sr .sr-name{{color:#0a6;font:bold 8px 'Courier New',monospace;letter-spacing:.12em;text-transform:uppercase;margin-bottom:2px}}
+#srchR .sr:hover .sr-name{{color:#0f8;text-shadow:0 0 6px rgba(0,255,60,.3)}}
+#srchR .sr .sr-snip{{color:#063;font:8px/1.5 'Courier New',monospace;letter-spacing:.04em;overflow:hidden;text-overflow:ellipsis;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}}
+#srchR .sr .sr-snip mark{{color:#0f8;background:transparent;font-weight:bold;text-shadow:0 0 4px rgba(0,255,60,.3)}}
 </style>
 </head>
 <body>
@@ -542,6 +567,12 @@ canvas{{display:block;position:fixed;top:0;left:0}}
     <div><span class="v">{VAULT_COUNT}</span> data vaults</div>
     {HUD_STATS}
   </div>
+</div>
+
+<div id="srch">
+  <input id="srchIn" type="text" placeholder="search vaults..." autocomplete="off" spellcheck="false">
+  <div class="cur"></div>
+  <div id="srchR"></div>
 </div>
 
 <div class="corner tl"></div><div class="corner tr"></div><div class="corner bl"></div><div class="corner br"></div>
@@ -626,6 +657,7 @@ const keys={{}};
 const MOVE_SPEED=0.45;
 const _fwd=new THREE.Vector3(),_right=new THREE.Vector3(),_move=new THREE.Vector3();
 document.addEventListener('keydown',e=>{{
+  if(document.activeElement===document.getElementById('srchIn'))return;
   const k=e.key.toLowerCase();
   if(['w','a','s','d','z','c','arrowup','arrowdown','arrowleft','arrowright'].includes(k)){{
     keys[k]=true;e.preventDefault();
@@ -634,10 +666,109 @@ document.addEventListener('keydown',e=>{{
   if(k==='?'||k==='/')toggleHelp();
   if(k==='n')toggleNavGrid();
 }});
-document.addEventListener('keyup',e=>{{keys[e.key.toLowerCase()]=false}});
+document.addEventListener('keyup',e=>{{
+  if(document.activeElement===document.getElementById('srchIn'))return;
+  keys[e.key.toLowerCase()]=false;
+}});
 
 /* ═══ DATA ═══ */
 const VAULT_DATA={VAULT_DATA_JS};
+
+/* ═══ BM25 SEARCH ═══ */
+const srchIn=document.getElementById('srchIn');
+const srchR=document.getElementById('srchR');
+const srchCur=document.querySelector('#srch .cur');
+/* Strip HTML tags for indexable text */
+const _tmp=document.createElement('div');
+function stripHtml(h){{_tmp.innerHTML=h;return _tmp.textContent||'';}}
+/* Build corpus: each vault → name + full panel text */
+const corpus=VAULT_DATA.map(v=>{{
+  const txt=(v.name+' '+stripHtml(v.html)).toLowerCase();
+  const words=txt.split(/\W+/).filter(w=>w.length>1);
+  const tf={{}};
+  words.forEach(w=>{{tf[w]=(tf[w]||0)+1;}});
+  return {{id:v.id,name:v.name,words,tf,len:words.length,txt}};
+}});
+const avgDL=corpus.reduce((s,d)=>s+d.len,0)/Math.max(corpus.length,1);
+/* Document frequency */
+const df={{}};
+corpus.forEach(d=>{{
+  const seen=new Set(d.words);
+  seen.forEach(w=>{{df[w]=(df[w]||0)+1;}});
+}});
+const N=corpus.length;
+const K1=1.5,B=0.75;  /* BM25 parameters — standard defaults */
+function bm25(query){{
+  const qTerms=query.toLowerCase().split(/\W+/).filter(w=>w.length>1);
+  if(!qTerms.length)return[];
+  const scores=corpus.map((d,idx)=>{{
+    let score=0;
+    qTerms.forEach(q=>{{
+      const dfw=df[q]||0;
+      if(!dfw)return;
+      const idf=Math.log((N-dfw+0.5)/(dfw+0.5)+1);
+      const tfw=d.tf[q]||0;
+      score+=idf*(tfw*(K1+1))/(tfw+K1*(1-B+B*d.len/avgDL));
+    }});
+    return {{idx,score,id:d.id,name:d.name,txt:d.txt}};
+  }});
+  return scores.filter(s=>s.score>0).sort((a,b)=>b.score-a.score).slice(0,8);
+}}
+function snippet(txt,query,len){{
+  const lower=txt.toLowerCase();
+  const terms=query.toLowerCase().split(/\W+/).filter(w=>w.length>1);
+  let best=0;
+  terms.forEach(t=>{{const i=lower.indexOf(t);if(i>0)best=i;}});
+  const start=Math.max(0,best-40);
+  let s=txt.slice(start,start+len);
+  if(start>0)s='...'+s;
+  if(start+len<txt.length)s+='...';
+  terms.forEach(t=>{{
+    const re=new RegExp('('+t.replace(/[.*+?^${{}}()|[\\]\\\\]/g,'\\\\$&')+')','gi');
+    s=s.replace(re,'<mark>$1</mark>');
+  }});
+  return s;
+}}
+/* Position fake cursor after last character */
+function updateCursorPos(){{
+  const val=srchIn.value;
+  const m=document.createElement('span');
+  m.style.cssText='font:9px/1.6 Courier New,monospace;letter-spacing:.15em;visibility:hidden;position:absolute;white-space:pre';
+  m.textContent=val.toUpperCase();
+  document.body.appendChild(m);
+  const w=m.getBoundingClientRect().width;
+  document.body.removeChild(m);
+  srchCur.style.left=(10+w)+'px';
+}}
+srchIn.addEventListener('input',()=>{{
+  updateCursorPos();
+  const q=srchIn.value.trim();
+  if(q.length<2){{srchR.classList.remove('open');srchR.innerHTML='';return;}}
+  const results=bm25(q);
+  if(!results.length){{srchR.classList.remove('open');srchR.innerHTML='';return;}}
+  srchR.innerHTML=results.map(r=>
+    `<div class="sr" data-id="${{r.id}}"><div class="sr-name">${{r.name}}</div><div class="sr-snip">${{snippet(r.txt,q,100)}}</div></div>`
+  ).join('');
+  srchR.classList.add('open');
+  srchR.querySelectorAll('.sr').forEach(el=>el.addEventListener('click',()=>{{
+    const id=el.dataset.id;
+    navFlyTo(id);
+    openPanel(id);
+    srchIn.value='';srchIn.blur();
+    srchR.classList.remove('open');srchR.innerHTML='';
+    updateCursorPos();
+  }}));
+}});
+srchIn.addEventListener('focus',()=>{{updateCursorPos();}});
+srchIn.addEventListener('blur',()=>{{
+  setTimeout(()=>{{srchR.classList.remove('open');srchR.innerHTML='';}},200);
+}});
+document.addEventListener('keydown',e=>{{
+  if(document.activeElement===srchIn&&e.key==='Escape'){{
+    srchIn.value='';srchIn.blur();srchR.classList.remove('open');srchR.innerHTML='';updateCursorPos();
+  }}
+}});
+
 const NP={NODE_POSITIONS_JS};
 const nearNode=(x,z,r)=>NP.some(p=>Math.hypot(x-p[0],z-p[2])<r);
 const onPath=(x,z)=>Math.abs(x)<4||Math.abs(z)<4||Math.abs(x-z)<5||Math.abs(x+z)<5;

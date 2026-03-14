@@ -537,3 +537,55 @@ class TestNavGrid(unittest.TestCase):
     def test_nav_fly_to_function(self):
         out = self._html(20)
         assert "navFlyTo" in out
+
+
+class TestSearch(unittest.TestCase):
+    """Test BM25 search bar, engine, and wiring."""
+
+    def _make_vaults(self, n):
+        return [{"id": f"v{i}", "name": f"Vault {i}", "html": f"<p>content {i}</p>"}
+                for i in range(n)]
+
+    def _html(self, n=10):
+        from generate import generate_html
+        return generate_html({"title": "S", "vaults": self._make_vaults(n)})
+
+    def test_search_bar_present(self):
+        out = self._html()
+        assert 'id="srch"' in out
+        assert 'id="srchIn"' in out
+
+    def test_search_results_container(self):
+        out = self._html()
+        assert 'id="srchR"' in out
+
+    def test_search_cursor_element(self):
+        out = self._html()
+        assert 'class="cur"' in out
+
+    def test_bm25_engine_present(self):
+        out = self._html()
+        assert "bm25" in out
+        assert "corpus" in out
+        assert "stripHtml" in out
+
+    def test_search_css_present(self):
+        out = self._html()
+        assert "#srch input" in out
+        assert "#srchR .sr" in out
+        assert "#srchR.open" in out
+
+    def test_keyboard_guard_for_search(self):
+        out = self._html()
+        assert "srchIn" in out
+        assert "activeElement" in out
+
+    def test_snippet_function(self):
+        out = self._html()
+        assert "snippet" in out
+        assert "<mark>" in out
+
+    def test_search_navigates_to_vault(self):
+        out = self._html()
+        assert "navFlyTo" in out
+        assert "openPanel" in out
