@@ -685,9 +685,9 @@ const VAULT_DATA={VAULT_DATA_JS};
 const srchIn=document.getElementById('srchIn');
 const srchR=document.getElementById('srchR');
 const srchCur=document.querySelector('#srch .cur');
-/* Strip HTML tags for indexable text */
+/* Strip HTML tags for indexable text — inject spaces before tags so adjacent elements don't merge words */
 const _tmp=document.createElement('div');
-function stripHtml(h){{_tmp.innerHTML=h;return _tmp.textContent||'';}}
+function stripHtml(h){{_tmp.innerHTML=h.replace(/</g,' <');return _tmp.textContent||'';}}
 /* Build corpus: each vault → name + full panel text */
 const corpus=VAULT_DATA.map(v=>{{
   const txt=(v.name+' '+stripHtml(v.html)).toLowerCase();
