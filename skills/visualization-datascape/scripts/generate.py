@@ -526,7 +526,8 @@ canvas{{display:block;position:fixed;top:0;left:0}}
 #hint .big{{font-size:18px;display:block;margin-bottom:6px;color:rgba(0,255,60,.5);text-shadow:0 0 15px rgba(0,255,60,.2)}}
 
 /* ── SEARCH ── */
-#srch{{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:30;pointer-events:auto;width:260px}}
+#srch{{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:30;pointer-events:auto;width:260px;transition:width .4s}}
+#srch:focus-within{{width:min(560px,50vw)}}
 #srch input{{width:100%;background:rgba(0,3,0,.5);border:1px solid rgba(0,255,60,.08);color:#052;caret-color:transparent;
   font:9px/1.6 'Courier New',monospace;letter-spacing:.15em;text-transform:uppercase;padding:5px 10px;
   outline:none;transition:all .4s;border-radius:1px}}
