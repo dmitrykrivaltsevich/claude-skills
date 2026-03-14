@@ -460,6 +460,12 @@ canvas{{display:block;position:fixed;top:0;left:0}}
 #panel .pnl-btns{{position:absolute;top:12px;right:14px;display:flex;align-items:center;gap:10px;pointer-events:auto}}
 #panel .pnl-btns span{{color:#063;font-size:18px;cursor:pointer;line-height:1}}
 #panel .pnl-btns span:hover{{color:#0f8}}
+.pnl-links{{margin-top:16px;padding-top:10px;border-top:1px solid rgba(0,255,60,.08)}}
+.pnl-links .pl-hd{{color:#063;font-size:7px;letter-spacing:.2em;text-transform:uppercase;margin-bottom:6px}}
+.pnl-links .pl-list{{display:flex;flex-wrap:wrap;gap:4px}}
+.pnl-links .pl-item{{color:#0a6;font:8px/1.6 'Courier New',monospace;letter-spacing:.1em;text-transform:uppercase;
+  border:1px solid rgba(0,255,60,.1);padding:2px 8px;cursor:pointer;transition:all .25s;background:rgba(0,3,0,.4)}}
+.pnl-links .pl-item:hover{{color:#0f8;border-color:rgba(0,255,60,.35);background:rgba(0,255,60,.06);text-shadow:0 0 6px rgba(0,255,60,.3)}}
 #help{{position:fixed;top:0;left:0;width:100%;height:100%;z-index:50;display:none;align-items:center;justify-content:center;
   background:rgba(0,1,0,.85);pointer-events:auto}}
 #help.open{{display:flex}}
@@ -985,6 +991,9 @@ function hx(c){{return'#'+new THREE.Color(c).getHexString()}}
 
 /* ═══ DATA EXCHANGE PARTICLES ═══ */
 const connPairs={CONN_PAIRS_JS};
+/* Adjacency map: vault index → set of connected vault indices */
+const adjMap=new Map();
+connPairs.forEach(([a,b])=>{{if(!adjMap.has(a))adjMap.set(a,new Set());if(!adjMap.has(b))adjMap.set(b,new Set());adjMap.get(a).add(b);adjMap.get(b).add(a);}});
 const PARTICLES_PER_CONN=28;  /* particles per connection per direction */
 const exchanges=[];
 connPairs.forEach(([a,b])=>{{
@@ -1041,7 +1050,13 @@ let fpCount=0;  /* offset counter for cascading new floating panels */
 function openPanel(id){{
   const vd=VAULT_DATA.find(v=>v.id===id);
   if(!vd)return;
-  panelContent.innerHTML=vd.html;
+  const idx=VAULT_DATA.indexOf(vd);
+  let linksHtml='';
+  const neighbors=adjMap.get(idx);
+  if(neighbors&&neighbors.size){{const items=[...neighbors].map(ni=>{{const nv=VAULT_DATA[ni];return `<span class="pl-item" data-lid="${{nv.id}}">${{nv.name}}</span>`;}}).join('');
+    linksHtml=`<div class="pnl-links"><div class="pl-hd">// linked vaults //</div><div class="pl-list">${{items}}</div></div>`;}}
+  panelContent.innerHTML=vd.html+linksHtml;
+  panelContent.querySelectorAll('.pl-item').forEach(el=>el.addEventListener('click',()=>{{navFlyTo(el.dataset.lid);openPanel(el.dataset.lid);}}));
   panelEl.classList.add('open');
   openVaultId=id;
 }}

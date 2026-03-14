@@ -589,3 +589,36 @@ class TestSearch(unittest.TestCase):
         out = self._html()
         assert "navFlyTo" in out
         assert "openPanel" in out
+
+
+class TestLinkedVaults(unittest.TestCase):
+    """Test linked-vault links rendered inside info panels."""
+
+    def _make_vaults(self, n):
+        return [{"id": f"v{i}", "name": f"Vault {i}", "html": f"<p>{i}</p>"}
+                for i in range(n)]
+
+    def _html(self, n=10):
+        from generate import generate_html
+        return generate_html({"title": "LV", "vaults": self._make_vaults(n)})
+
+    def test_adjacency_map_built(self):
+        out = self._html()
+        assert "adjMap" in out
+
+    def test_linked_vaults_css(self):
+        out = self._html()
+        assert ".pnl-links" in out
+        assert ".pl-item" in out
+        assert ".pl-hd" in out
+
+    def test_panel_injects_linked_section(self):
+        out = self._html()
+        assert "pnl-links" in out
+        assert "pl-item" in out
+        assert "linked vaults" in out.lower()
+
+    def test_linked_vault_click_navigates(self):
+        out = self._html()
+        assert "navFlyTo(el.dataset.lid)" in out
+        assert "openPanel(el.dataset.lid)" in out
