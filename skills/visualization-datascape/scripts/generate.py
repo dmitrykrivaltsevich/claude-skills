@@ -98,6 +98,10 @@ def validate_and_parse(raw_json: str) -> dict:
     return cfg
 
 
+@precondition(
+    lambda n: 1 <= n <= 32768,
+    "vault count n must be between 1 and 32768",
+)
 def compute_positions(n: int) -> list[tuple[float, float, float]]:
     """Compute vault positions on edge vertices of a 3D hexagonal lattice.
 
@@ -158,16 +162,32 @@ def compute_positions(n: int) -> list[tuple[float, float, float]]:
         top_needed = min(n - 12, 6)
         return ring0 + ring1 + ring2[:top_needed]
 
-    # n>18: start with all 3 base rings, then generate additional
-    # concentric rings expanding outward and upward.
-    pool = ring0 + ring1 + ring2  # 18 base slots
-    layer = 3  # next layer index
+    # n>18: grow crystal by adding concentric hex shells at all 3 HCP
+    # y-levels before expanding vertically.  Each shell k (k>=2) places
+    # 6*k evenly-spaced vertices per y-level, so the crystal spreads
+    # horizontally first and remains roughly equiaxial.
+    SHELL_GAP = 25.0  # radial gap between concentric shells
+    hcp_layers = [(Y0, 0.0), (Y1, 30.0), (Y2, 0.0)]
+
+    pool = list(ring0 + ring1 + ring2)  # 18 base positions (shell k=1)
+    shell = 2
     while len(pool) < n:
-        y = Y0 + layer * 22.0                   # 22 units vertical spacing per layer
-        r = R + (layer - 2) * 15.0               # expand radius outward
-        offset = 30.0 * (layer % 2)              # alternate HCP stagger
-        pool.extend(hex_ring(y, r, offset))      # +6 each ring
-        layer += 1
+        r = R + (shell - 1) * SHELL_GAP
+        for y, offset in hcp_layers:
+            pts = 6 * shell  # more points at larger radii for density
+            pool.extend(
+                [
+                    (
+                        round(r * math.cos(math.radians(i * 360 / pts + offset)), 1),
+                        y,
+                        round(r * math.sin(math.radians(i * 360 / pts + offset)), 1),
+                    )
+                    for i in range(pts)
+                ]
+            )
+            if len(pool) >= n:
+                break
+        shell += 1
     return pool[:n]
 
 
@@ -216,13 +236,29 @@ def _js_views(vaults: list[dict], positions: list[tuple]) -> str:
 
 
 def _nav_buttons(vaults: list[dict]) -> str:
-    """Build nav button HTML."""
-    btns = ['<button data-t="overview" class="active">Overview</button>']
+    """Build nav button HTML.  Shows up to MAX_INLINE buttons inline;
+    extra buttons get class 'nav-x' (hidden until grid expanded via N key).
+    """
+    MAX_INLINE = 8  # Overview + first 7 vaults shown inline
+    all_btns: list[str] = ['<button data-t="overview" class="active">Overview</button>']
     for v in vaults:
         name_safe = html.escape(v["name"], quote=True)
         id_safe = html.escape(v["id"], quote=True)
-        btns.append(f'<button data-t="{id_safe}">{name_safe}</button>')
-    return "\n  ".join(btns)
+        all_btns.append(f'<button data-t="{id_safe}">{name_safe}</button>')
+
+    if len(all_btns) <= MAX_INLINE:
+        return "\n  ".join(all_btns)
+
+    # Inline portion: first MAX_INLINE buttons + expand toggle
+    inline = all_btns[:MAX_INLINE]
+    inline.append('<button id="navExpand" onclick="toggleNavGrid()">&#x25a6;</button>')
+
+    # Extra buttons (hidden in collapsed state)
+    extra = [
+        b.replace("<button ", '<button class="nav-x" ', 1)
+        for b in all_btns[MAX_INLINE:]
+    ]
+    return "\n  ".join(inline + extra)
 
 
 def _hud_stats(stats: list[dict]) -> str:
@@ -439,6 +475,13 @@ canvas{{display:block;position:fixed;top:0;left:0}}
 .nav button{{background:rgba(0,255,60,.03);border:1px solid rgba(0,255,60,.1);color:#0a6;
   font:bold 8px 'Courier New',monospace;padding:5px 10px;cursor:none;letter-spacing:.1em;text-transform:uppercase;transition:all .3s}}
 .nav button:hover,.nav button.active{{background:rgba(0,255,60,.12);border-color:#0f8;box-shadow:0 0 10px rgba(0,255,60,.15);color:#0f8}}
+.nav .nav-x{{display:none}}
+.nav.expanded{{flex-wrap:wrap;max-width:80vw;max-height:60vh;overflow-y:auto;scrollbar-width:none;
+  background:rgba(0,3,0,.92);border:1px solid rgba(0,255,60,.1);border-radius:4px;padding:6px;bottom:10px}}
+.nav.expanded::-webkit-scrollbar{{display:none}}
+.nav.expanded .nav-x{{display:inline-block}}
+#navExpand{{background:rgba(0,255,60,.06);border:1px solid rgba(0,255,60,.2);color:#0f8;
+  font:bold 10px 'Courier New',monospace;padding:5px 10px;cursor:none;letter-spacing:.1em;transition:all .3s}}
 
 #nodeInfo{{position:fixed;bottom:48px;left:50%;transform:translateX(-50%);text-align:center;
   font-size:12px;letter-spacing:.2em;color:#0f8;text-transform:uppercase;text-shadow:0 0 10px rgba(0,255,60,.35);
@@ -488,6 +531,7 @@ canvas{{display:block;position:fixed;top:0;left:0}}
     <div class="row"><span>Click vault</span><span>Open data panel</span></div>
     <div class="row"><span><kbd>&#x229e;</kbd> button</span><span>Detach panel (float)</span></div>
     <div class="row"><span><kbd>T</kbd></span><span>Toggle auto-fly tour</span></div>
+    <div class="row"><span><kbd>N</kbd></span><span>Expand / collapse nav grid</span></div>
     <div class="row"><span><kbd>?</kbd></span><span>This help overlay</span></div>
   </div>
 </div>
@@ -496,7 +540,7 @@ canvas{{display:block;position:fixed;top:0;left:0}}
 
 <div id="hint">
   <span class="big">ENTERING CYBERSPACE</span>
-  fly to nodes below &middot; click structures to open data vaults<br>WASD / arrows to fly &middot; Z/C for down/up &middot; drag to orbit &middot; T for tour &middot; ? for help
+  fly to nodes below &middot; click structures to open data vaults<br>WASD / arrows to fly &middot; Z/C for down/up &middot; drag to orbit &middot; T for tour &middot; N for nav grid &middot; ? for help
 </div>
 
 <div class="nav">
@@ -553,6 +597,7 @@ document.addEventListener('keydown',e=>{{
   }}
   if(k==='t')toggleTour();
   if(k==='?'||k==='/')toggleHelp();
+  if(k==='n')toggleNavGrid();
 }});
 document.addEventListener('keyup',e=>{{keys[e.key.toLowerCase()]=false}});
 
@@ -917,11 +962,14 @@ document.querySelectorAll('.nav button').forEach(b=>b.addEventListener('click',(
   flyTarget=new THREE.Vector3(...v.p);flyLook=new THREE.Vector3(...v.l);
   flyProg=0;
   document.querySelectorAll('.nav button').forEach(x=>x.classList.toggle('active',x===b));
+  document.querySelector('.nav').classList.remove('expanded');
 }}));
 
 /* ═══ HELP OVERLAY ═══ */
 window.toggleHelp=function(){{document.getElementById('help').classList.toggle('open')}};
 
+/* ═══ NAV GRID (expand/collapse) ═══ */
+window.toggleNavGrid=function(){{document.querySelector('.nav').classList.toggle('expanded')}};
 /* ═══ AUTO-FLY TOUR ═══ */
 let touring=false;
 let tourT=0;

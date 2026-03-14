@@ -286,6 +286,31 @@ class TestVaultPositioning:
             unique = set(positions)
             assert len(unique) == n, f"n={n}: expected {n} unique positions, got {len(unique)}"
 
+    def test_large_n_spreads_horizontally(self):
+        """For 50+ vaults the crystal must be wider than it is tall."""
+        from generate import compute_positions
+
+        positions = compute_positions(50)
+        xs = [p[0] for p in positions]
+        ys = [p[1] for p in positions]
+        zs = [p[2] for p in positions]
+        x_span = max(xs) - min(xs)
+        y_span = max(ys) - min(ys)
+        z_span = max(zs) - min(zs)
+        horiz = max(x_span, z_span)
+        assert horiz > y_span, (
+            f"Crystal should spread horizontally ({horiz:.0f}) "
+            f"more than vertically ({y_span:.0f})"
+        )
+
+    def test_large_n_uses_three_y_levels(self):
+        """Dynamic expansion should use exactly 3 HCP y-levels."""
+        from generate import compute_positions
+
+        positions = compute_positions(50)
+        y_values = sorted(set(round(p[1], 1) for p in positions))
+        assert len(y_values) == 3, f"Expected 3 HCP y-levels, got {y_values}"
+
 
 class TestConnections(unittest.TestCase):
     """Test connection resolution from config."""
@@ -427,3 +452,45 @@ class TestHelpAndTour(unittest.TestCase):
         out = self._html()
         assert "keys['c']" in out
         assert "keys['z']" in out
+
+
+class TestNavGrid(unittest.TestCase):
+    """Test collapsible nav grid for many vaults."""
+
+    def _make_vaults(self, n):
+        return [{"id": f"v{i}", "name": f"Vault {i}", "html": f"<div>{i}</div>"}
+                for i in range(n)]
+
+    def _html(self, n):
+        from generate import generate_html
+        return generate_html({"title": "NG", "vaults": self._make_vaults(n)})
+
+    def test_few_vaults_no_expand_button(self):
+        """With <= 8 vaults (7 + Overview), no expand button in nav."""
+        out = self._html(7)
+        assert 'id="navExpand"' not in out
+
+    def test_many_vaults_expand_button(self):
+        """With >8 total buttons, the expand button should appear."""
+        out = self._html(20)
+        assert "navExpand" in out
+
+    def test_many_vaults_extra_hidden(self):
+        """Extra buttons beyond the inline limit get nav-x class."""
+        out = self._html(20)
+        assert "nav-x" in out
+
+    def test_n_key_toggle(self):
+        """N key should trigger toggleNavGrid."""
+        out = self._html(20)
+        assert "toggleNavGrid" in out
+
+    def test_nav_collapses_on_click(self):
+        """Clicking a nav button should collapse the expanded grid."""
+        out = self._html(20)
+        assert "remove('expanded')" in out
+
+    def test_nav_expanded_css(self):
+        """CSS should include expanded state styles."""
+        out = self._html(20)
+        assert ".nav.expanded" in out
