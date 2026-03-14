@@ -235,27 +235,27 @@ def _js_views(vaults: list[dict], positions: list[tuple]) -> str:
     return "{" + ",\n".join(lines) + "}"
 
 
-MAX_NAV_INLINE = 8  # Overview + first 7 vaults shown inline before collapse
+NAV_WINDOW = 7  # How many vault buttons visible at once (excluding Overview + expander)
 
 
 def _nav_buttons(vaults: list[dict]) -> str:
     """Build inline nav button HTML (bottom bar).
 
-    Shows up to MAX_NAV_INLINE buttons; if more exist, appends a grid
-    expander button ▦ that opens the full nav-grid overlay.
+    Emits ALL vault buttons.  When there are more vaults than NAV_WINDOW,
+    extra buttons get class 'nav-h' (hidden).  JS dynamically shows a
+    sliding window centered on the active vault.
     """
-    btns: list[str] = ['<button data-t="overview" class="active">Overview</button>']
-    for v in vaults:
+    need_scroll = len(vaults) > NAV_WINDOW
+    parts: list[str] = ['<button data-t="overview" class="active">Overview</button>']
+    for i, v in enumerate(vaults):
         name_safe = html.escape(v["name"], quote=True)
         id_safe = html.escape(v["id"], quote=True)
-        btns.append(f'<button data-t="{id_safe}">{name_safe}</button>')
+        cls = ' class="nav-h"' if need_scroll and i >= NAV_WINDOW else ''
+        parts.append(f'<button data-t="{id_safe}" data-vi="{i}"{cls}>{name_safe}</button>')
 
-    if len(btns) <= MAX_NAV_INLINE:
-        return "\n  ".join(btns)
-
-    inline = btns[:MAX_NAV_INLINE]
-    inline.append('<button id="navExpand" onclick="toggleNavGrid()">&#x25a6;</button>')
-    return "\n  ".join(inline)
+    if need_scroll:
+        parts.append('<button id="navExpand" onclick="toggleNavGrid()">&#x25a6;</button>')
+    return "\n  ".join(parts)
 
 
 def _nav_grid_overlay(vaults: list[dict]) -> str:
@@ -270,7 +270,7 @@ def _nav_grid_overlay(vaults: list[dict]) -> str:
         id_safe = html.escape(v["id"], quote=True)
         btns.append(f'<button data-t="{id_safe}">{name_safe}</button>')
 
-    if len(btns) <= MAX_NAV_INLINE:
+    if len(vaults) <= NAV_WINDOW:
         return ""  # no overlay needed
 
     inner = "\n    ".join(btns)
@@ -400,6 +400,7 @@ def generate_html(cfg: dict) -> str:
         HUD_STATS=hud_stats_html,
         NAV_BUTTONS=nav_html,
         NAV_GRID=nav_grid_html,
+        NAV_WINDOW=NAV_WINDOW,
         VAULT_DATA_JS=vault_data_js,
         VIEWS_JS=views_js,
         GLYPH_ARRAY_JS=glyph_js,
@@ -499,6 +500,7 @@ canvas{{display:block;position:fixed;top:0;left:0}}
 .nav button{{background:rgba(0,255,60,.03);border:1px solid rgba(0,255,60,.1);color:#0a6;
   font:bold 8px 'Courier New',monospace;padding:5px 10px;cursor:none;letter-spacing:.1em;text-transform:uppercase;transition:all .3s}}
 .nav button:hover,.nav button.active{{background:rgba(0,255,60,.12);border-color:#0f8;box-shadow:0 0 10px rgba(0,255,60,.15);color:#0f8}}
+.nav button.nav-h{{display:none}}
 #navExpand{{background:rgba(0,255,60,.06);border:1px solid rgba(0,255,60,.2);color:#0f8;
   font:bold 10px 'Courier New',monospace;padding:5px 10px;cursor:none;letter-spacing:.1em;transition:all .3s}}
 
@@ -988,6 +990,19 @@ canvas.addEventListener('click',e=>{{
 /* ═══ NAVIGATION ═══ */
 let flyTarget=null,flyLook=null,flyStart=null,flyLookStart=null,flyProg=0;
 const views={VIEWS_JS};
+const NAV_WIN={NAV_WINDOW};
+const navBtns=[...document.querySelectorAll('.nav button[data-vi]')];
+
+function refreshNavWindow(tid){{
+  if(navBtns.length<=NAV_WIN)return;
+  const ai=navBtns.findIndex(b=>b.dataset.t===tid);
+  const idx=ai<0?0:ai;
+  const half=Math.floor(NAV_WIN/2);
+  let lo=idx-half,hi=lo+NAV_WIN-1;
+  if(lo<0){{lo=0;hi=NAV_WIN-1;}}
+  if(hi>=navBtns.length){{hi=navBtns.length-1;lo=Math.max(0,hi-NAV_WIN+1);}}
+  navBtns.forEach((b,i)=>b.classList.toggle('nav-h',i<lo||i>hi));
+}}
 
 function syncActive(tid){{
   document.querySelectorAll('.nav button[data-t],#navGrid button[data-t]').forEach(x=>
@@ -1000,6 +1015,7 @@ function navFlyTo(tid){{
   flyTarget=new THREE.Vector3(...v.p);flyLook=new THREE.Vector3(...v.l);
   flyProg=0;
   syncActive(tid);
+  if(tid!=='overview')refreshNavWindow(tid);
 }}
 
 document.querySelectorAll('.nav button[data-t]').forEach(b=>b.addEventListener('click',()=>navFlyTo(b.dataset.t)));
