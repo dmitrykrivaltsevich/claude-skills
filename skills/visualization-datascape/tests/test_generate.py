@@ -673,11 +673,11 @@ class TestMedia(unittest.TestCase):
 
     def test_media_wired_in_panel(self):
         out = self._html()
-        assert "wireMedia(panelContent)" in out
+        assert "wireMedia(panelContent,vd.name)" in out
 
     def test_media_wired_in_float(self):
         out = self._html()
-        assert "wireMedia(fp)" in out
+        assert "wireMedia(fp,vd.name)" in out
 
     def test_lightbox_is_floating_panel(self):
         out = self._html()
@@ -695,3 +695,23 @@ class TestMedia(unittest.TestCase):
         assert "lb-err" in out
         assert "satellite link severed" in out
         assert "lb-rain" in out
+
+    def test_panel_crt_scanlines(self):
+        out = self._html()
+        assert "#panel::after" in out
+        assert ".fp::after" in out
+        assert "repeating-linear-gradient" in out
+
+    def test_close_button_green_hover(self):
+        out = self._html()
+        assert ".fp .fp-bar .fp-close:hover{color:#0f8" in out
+
+    def test_lightbox_vault_name_in_title(self):
+        out = self._html()
+        assert "openLightbox(src,isVideo,vaultName)" in out or "function openLightbox(src,isVideo,vaultName)" in out
+        assert "wireMedia(container,vaultName)" in out or "function wireMedia(container,vaultName)" in out
+
+    def test_lightbox_resize_handle(self):
+        out = self._html()
+        assert "fp-resize" in out
+        assert "nwse-resize" in out

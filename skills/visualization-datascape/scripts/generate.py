@@ -445,6 +445,8 @@ canvas{{display:block;position:fixed;top:0;left:0}}
   background:linear-gradient(90deg,transparent 0%,rgba(0,2,0,.85) 15%,rgba(0,3,0,.92) 100%);
   border-left:1px solid rgba(0,255,60,.08);transform:translateX(100%);transition:transform .6s cubic-bezier(.16,1,.3,1);
   padding:50px 22px 22px;overflow-y:auto;font-size:10px;line-height:1.7;letter-spacing:.04em;scrollbar-width:none}}
+#panel::after{{content:'';position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;
+  background:repeating-linear-gradient(transparent 0px,transparent 1px,rgba(0,15,2,.04) 1px,rgba(0,15,2,.04) 2px)}}
 #panel::-webkit-scrollbar{{display:none}}
 #panel.open{{transform:translateX(0);pointer-events:auto}}
 #panel .pt{{color:#0f8;font-size:13px;font-weight:bold;letter-spacing:.2em;margin-bottom:6px;text-transform:uppercase;text-shadow:0 0 10px #0f844}}
@@ -482,13 +484,15 @@ canvas{{display:block;position:fixed;top:0;left:0}}
   background:rgba(0,3,0,.92);border:1px solid rgba(0,255,60,.12);border-radius:2px;
   font:10px/1.7 'Courier New',monospace;letter-spacing:.04em;color:#8c8;
   box-shadow:0 0 20px rgba(0,255,60,.06),inset 0 0 30px rgba(0,0,0,.5);pointer-events:auto}}
+.fp::after{{content:'';position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;
+  background:repeating-linear-gradient(transparent 0px,transparent 1px,rgba(0,15,2,.04) 1px,rgba(0,15,2,.04) 2px);border-radius:2px}}
 .fp::-webkit-scrollbar{{display:none}}
 .fp .fp-bar{{padding:8px 12px;cursor:move;display:flex;justify-content:space-between;align-items:center;
   border-bottom:1px solid rgba(0,255,60,.08);user-select:none;-webkit-user-select:none}}
 .fp .fp-bar .fp-title{{color:#0f8;font-size:11px;font-weight:bold;letter-spacing:.15em;text-transform:uppercase;text-shadow:0 0 8px rgba(0,255,60,.3);
   overflow:hidden;white-space:nowrap;text-overflow:ellipsis;max-width:260px}}
 .fp .fp-bar .fp-close{{color:#063;font-size:16px;cursor:pointer;flex-shrink:0;margin-left:8px}}
-.fp .fp-bar .fp-close:hover{{color:#f44}}
+.fp .fp-bar .fp-close:hover{{color:#0f8;text-shadow:0 0 8px rgba(0,255,60,.4)}}
 .fp .fp-body{{padding:14px 16px}}
 .fp .pt,.fp .ps,.fp .ph,.fp .pd,.fp .pv,.fp .pw{{display:block}}
 .fp .pt{{color:#0f8;font-size:13px;font-weight:bold;letter-spacing:.2em;margin-bottom:6px;text-transform:uppercase;text-shadow:0 0 10px #0f844}}
@@ -518,12 +522,18 @@ video.pi{{max-height:200px}}
 #lightbox{{display:none}}
 #lightbox.open{{display:none}}
 /* floating image panel */
-.fp-lb{{width:min(72vw,820px);max-height:90vh}}
+.fp-lb{{width:min(72vw,820px);max-height:90vh;overflow:visible;resize:both;min-width:200px;min-height:120px}}
 .fp-lb .fp-bar{{padding:4px 10px}}
 .fp-lb .fp-title{{font-size:7px!important;color:#053!important;letter-spacing:.18em!important;text-shadow:none!important;opacity:.7}}
 .fp-lb .fp-body{{padding:0;position:relative}}
 .fp-lb .lb-frame{{position:relative;width:100%;overflow:hidden}}
-.fp-lb .lb-frame img,.fp-lb .lb-frame video{{display:block;width:100%;max-height:78vh;object-fit:contain}}
+.fp-lb .lb-frame img,.fp-lb .lb-frame video{{display:block;width:100%;object-fit:contain}}
+.fp-lb::-webkit-resizer{{display:none}}
+.fp-lb .fp-resize{{position:absolute;bottom:0;right:0;width:14px;height:14px;cursor:nwse-resize;z-index:2}}
+.fp-lb .fp-resize::before,.fp-lb .fp-resize::after{{content:'';position:absolute;bottom:3px;right:3px;border-style:solid;border-color:transparent rgba(0,255,60,.15) rgba(0,255,60,.15) transparent}}
+.fp-lb .fp-resize::before{{width:8px;height:8px;border-width:0 1px 1px 0}}
+.fp-lb .fp-resize::after{{width:4px;height:4px;border-width:0 1px 1px 0;bottom:3px;right:3px}}
+.fp-lb .fp-resize:hover::before,.fp-lb .fp-resize:hover::after{{border-color:transparent rgba(0,255,60,.4) rgba(0,255,60,.4) transparent}}
 .lb-scan{{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;
   background:repeating-linear-gradient(transparent 0px,transparent 2px,rgba(0,15,2,.12) 2px,rgba(0,15,2,.12) 4px)}}
 .lb-corners{{position:absolute;top:4px;left:4px;right:4px;bottom:4px;pointer-events:none}}
@@ -1116,7 +1126,7 @@ const lightboxEl=document.getElementById('lightbox');
 const lbContent=document.getElementById('lbContent');
 const lbPanels=new Set(); /* all open image floating panels */
 let lbCount=0; /* cascade offset counter for image panels */
-function openLightbox(src,isVideo){{
+function openLightbox(src,isVideo,vaultName){{
   const fp=document.createElement('div');
   fp.className='fp fp-lb';
   /* cascade so multiple image panels don't stack exactly */
@@ -1125,9 +1135,11 @@ function openLightbox(src,isVideo){{
   const oy=Math.max(20,Math.round(innerHeight*.05)+(lbCount%4)*24);
   lbCount++;
   fp.style.left=ox+'px';fp.style.top=oy+'px';
+  const tag=vaultName?vaultName.toLowerCase().replace(/\s+/g,'_'):'img';
   const media=isVideo?`<video src="${{src}}" controls autoplay></video>`:`<img src="${{src}}">`;
-  fp.innerHTML=`<div class="fp-bar"><span class="fp-title">img::analysis</span><span class="fp-close">&times;</span></div>`
-    +`<div class="fp-body"><div class="lb-frame">${{media}}<div class="lb-corners"></div><div class="lb-scan"></div><div class="lb-hud">// enhanced //</div></div></div>`;
+  fp.innerHTML=`<div class="fp-bar"><span class="fp-title">${{tag}}::visual</span><span class="fp-close">&times;</span></div>`
+    +`<div class="fp-body"><div class="lb-frame">${{media}}<div class="lb-corners"></div><div class="lb-scan"></div><div class="lb-hud">// enhanced //</div></div></div>`
+    +`<div class="fp-resize"></div>`;
   /* wire error handler — replace broken img with cyberpunk error state */
   const mediaEl=fp.querySelector('.lb-frame img, .lb-frame video');
   if(mediaEl&&mediaEl.tagName==='IMG')mediaEl.addEventListener('error',()=>{{
@@ -1139,12 +1151,24 @@ function openLightbox(src,isVideo){{
   const removeFp=()=>{{fp.remove();lbPanels.delete(fp);if(!lbPanels.size)lightboxEl.classList.remove('open');}};
   fp.querySelector('.fp-close').addEventListener('click',removeFp);
   fp.addEventListener('mousedown',()=>{{fp.style.zIndex=++fpZ;}});
-  /* dragging */
+  /* dragging via title bar */
   const bar=fp.querySelector('.fp-bar');
   let dragging=false,dx=0,dy=0;
   bar.addEventListener('mousedown',e=>{{dragging=true;dx=e.clientX-fp.offsetLeft;dy=e.clientY-fp.offsetTop;fp.style.zIndex=++fpZ;e.preventDefault();}});
   document.addEventListener('mousemove',e=>{{if(!dragging)return;fp.style.left=Math.max(0,Math.min(innerWidth-100,e.clientX-dx))+'px';fp.style.top=Math.max(0,Math.min(innerHeight-40,e.clientY-dy))+'px';}});
   document.addEventListener('mouseup',()=>{{dragging=false;}});
+  /* proportional resize via bottom-right handle */
+  const rh=fp.querySelector('.fp-resize');
+  let resizing=false,rw0=0,rh0=0,rx0=0,ry0=0,aspect=16/9;
+  if(mediaEl&&mediaEl.tagName==='IMG'){{mediaEl.addEventListener('load',()=>{{if(mediaEl.naturalWidth)aspect=mediaEl.naturalWidth/mediaEl.naturalHeight;}});}}
+  rh.addEventListener('mousedown',e=>{{resizing=true;rw0=fp.offsetWidth;rh0=fp.offsetHeight;rx0=e.clientX;ry0=e.clientY;fp.style.zIndex=++fpZ;e.preventDefault();e.stopPropagation();}});
+  document.addEventListener('mousemove',e=>{{if(!resizing)return;
+    const dw=e.clientX-rx0;
+    const nw=Math.max(200,Math.min(innerWidth-40,rw0+dw));
+    fp.style.width=nw+'px';
+    fp.style.maxHeight='none';
+  }});
+  document.addEventListener('mouseup',()=>{{resizing=false;}});
   fp.style.zIndex=++fpZ;
   lightboxEl.classList.add('open'); /* keep state flag for Escape key */
   lbPanels.add(fp);
@@ -1152,10 +1176,10 @@ function openLightbox(src,isVideo){{
 }}
 function closeLightbox(){{lightboxEl.classList.remove('open');lbPanels.forEach(fp=>fp.remove());lbPanels.clear();}}
 /* Wire click-to-lightbox on .pi images/videos and .pi-deck imgs */
-function wireMedia(container){{
+function wireMedia(container,vaultName){{
   container.querySelectorAll('img.pi, .pi-deck img').forEach(el=>{{
     el.style.cursor='pointer';
-    el.addEventListener('click',e=>{{e.stopPropagation();openLightbox(el.dataset.full||el.src,false);}});
+    el.addEventListener('click',e=>{{e.stopPropagation();openLightbox(el.dataset.full||el.src,false,vaultName);}});
     el.addEventListener('error',()=>{{
       const wrap=document.createElement('div');wrap.className='pi-err-wrap';
       wrap.innerHTML='<span>× link severed</span>';
@@ -1163,7 +1187,7 @@ function wireMedia(container){{
     }});
   }});
   container.querySelectorAll('video.pi').forEach(el=>{{
-    el.addEventListener('dblclick',e=>{{e.stopPropagation();openLightbox(el.dataset.full||el.src,true);}});
+    el.addEventListener('dblclick',e=>{{e.stopPropagation();openLightbox(el.dataset.full||el.src,true,vaultName);}});
   }});
 }}
 
@@ -1177,7 +1201,7 @@ function openPanel(id){{
     linksHtml=`<div class="pnl-links"><div class="pl-hd">// linked vaults //</div><div class="pl-list">${{items}}</div></div>`;}}
   panelContent.innerHTML=vd.html+linksHtml;
   panelContent.querySelectorAll('.pl-item').forEach(el=>el.addEventListener('click',()=>{{navFlyTo(el.dataset.lid);openPanel(el.dataset.lid);}}));
-  wireMedia(panelContent);
+  wireMedia(panelContent,vd.name);
   panelEl.classList.add('open');
   openVaultId=id;
 }}
@@ -1208,7 +1232,7 @@ function spawnFloat(vd,html){{
   fp.innerHTML=`<div class="fp-bar"><span class="fp-title">${{vd.name}}</span><span class="fp-close">&times;</span></div><div class="fp-body">${{html}}</div>`;
   /* wire linked-vault buttons inside floating panel */
   fp.querySelectorAll('.pl-item').forEach(el=>el.addEventListener('click',()=>{{navFlyTo(el.dataset.lid);openPanel(el.dataset.lid);}}));
-  wireMedia(fp);
+  wireMedia(fp,vd.name);
   /* bring to front on mousedown */
   fp.addEventListener('mousedown',()=>{{fp.style.zIndex=++fpZ}});
   /* close button */
