@@ -446,7 +446,8 @@ class TestHelpAndTour(unittest.TestCase):
     def test_tour_mode_present(self):
         out = self._html()
         assert "toggleTour" in out
-        assert "tourWaypoints" in out
+        assert "tourPath" in out
+        assert "buildTourPath" in out
 
     def test_z_c_keybindings(self):
         out = self._html()

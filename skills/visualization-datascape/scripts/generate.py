@@ -1032,29 +1032,31 @@ window.toggleNavGrid=function(){{const g=document.getElementById('navGrid');if(g
 /* ═══ AUTO-FLY TOUR ═══ */
 let touring=false;
 let tourT=0;
-const tourWaypoints=[];
-(function buildTour(){{
+let tourPath=[];
+function buildTourPath(){{
+  /* Build waypoints starting from current camera position */
+  tourPath=[cam.position.clone()];
   const R=65,hBase=25;
   for(let i=0;i<8;i++){{
     const a=i/8*Math.PI*2;
     const h=hBase+Math.sin(a*2)*20+Math.random()*15;
-    tourWaypoints.push(new THREE.Vector3(Math.cos(a)*R, h, Math.sin(a)*R));
+    tourPath.push(new THREE.Vector3(Math.cos(a)*R, h, Math.sin(a)*R));
   }}
-  tourWaypoints.push(new THREE.Vector3(0, 90, 0));
-  tourWaypoints.push(new THREE.Vector3(-40, 50, 60));
-  tourWaypoints.push(new THREE.Vector3(5, 12, 15));
-  tourWaypoints.push(new THREE.Vector3(-20, 18, -30));
-}})();
+  tourPath.push(new THREE.Vector3(0, 90, 0));
+  tourPath.push(new THREE.Vector3(-40, 50, 60));
+  tourPath.push(new THREE.Vector3(5, 12, 15));
+  tourPath.push(new THREE.Vector3(-20, 18, -30));
+}}
 
 function toggleTour(){{
   touring=!touring;
-  if(touring)tourT=0;
+  if(touring){{tourT=0;buildTourPath();}}
 }}
 
 function updateTour(dt){{
-  if(!touring)return;
-  tourT+=dt*0.018;
-  const n=tourWaypoints.length;
+  if(!touring||tourPath.length<2)return;
+  tourT+=dt*0.08;  /* tour speed — 0.08 segments/sec per dt unit */
+  const n=tourPath.length;
   const totalT=tourT%n;
   const i0=Math.floor(totalT)%n;
   const i1=(i0+1)%n;
@@ -1069,9 +1071,9 @@ function updateTour(dt){{
       0.5*((2*p1.z)+(-p0.z+p2.z)*t+(2*p0.z-5*p1.z+4*p2.z-p3.z)*t2+(-p0.z+3*p1.z-3*p2.z+p3.z)*t3)
     );
   }};
-  const pos=cr(tourWaypoints[iPrev],tourWaypoints[i0],tourWaypoints[i1],tourWaypoints[i2],frac);
+  const pos=cr(tourPath[iPrev],tourPath[i0],tourPath[i1],tourPath[i2],frac);
   const lookFrac=Math.min(frac+0.15,1);
-  const look=cr(tourWaypoints[iPrev],tourWaypoints[i0],tourWaypoints[i1],tourWaypoints[i2],lookFrac);
+  const look=cr(tourPath[iPrev],tourPath[i0],tourPath[i1],tourPath[i2],lookFrac);
   cam.position.copy(pos);
   ctrl.target.copy(look);
   if(Object.values(keys).some(v=>v))touring=false;
