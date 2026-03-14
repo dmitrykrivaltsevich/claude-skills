@@ -622,3 +622,59 @@ class TestLinkedVaults(unittest.TestCase):
         out = self._html()
         assert "navFlyTo(el.dataset.lid)" in out
         assert "openPanel(el.dataset.lid)" in out
+
+
+class TestMedia(unittest.TestCase):
+    """Test media support: inline images, deck, lightbox."""
+
+    def _make_vaults(self, n=3):
+        return [{"id": f"v{i}", "name": f"Vault {i}",
+                 "html": '<img class="pi" src="photo.jpg" data-full="photo-big.jpg">'
+                         '<div class="pi-deck"><img src="t1.jpg"><img src="t2.jpg"></div>'}
+                for i in range(n)]
+
+    def _html(self, n=3):
+        from generate import generate_html
+        return generate_html({"title": "M", "vaults": self._make_vaults(n)})
+
+    def test_lightbox_html_present(self):
+        out = self._html()
+        assert 'id="lightbox"' in out
+        assert 'id="lbContent"' in out
+        assert "lb-frame" in out
+
+    def test_lightbox_css(self):
+        out = self._html()
+        assert "#lightbox" in out
+        assert "#lightbox.open" in out
+        assert ".lb-frame" in out
+        assert ".lb-scan" in out
+
+    def test_media_css_classes(self):
+        out = self._html()
+        assert ".pi{" in out or ".pi{" in out.replace("{ ", "{")
+        assert ".pi-deck" in out
+        assert ".pv-wrap" in out
+
+    def test_wire_media_function(self):
+        out = self._html()
+        assert "wireMedia" in out
+
+    def test_open_close_lightbox(self):
+        out = self._html()
+        assert "openLightbox" in out
+        assert "closeLightbox" in out
+
+    def test_lightbox_escape_key(self):
+        out = self._html()
+        assert "closeLightbox" in out
+        # Escape should close lightbox before search
+        assert "lightboxEl.classList.contains('open')" in out
+
+    def test_media_wired_in_panel(self):
+        out = self._html()
+        assert "wireMedia(panelContent)" in out
+
+    def test_media_wired_in_float(self):
+        out = self._html()
+        assert "wireMedia(fp)" in out

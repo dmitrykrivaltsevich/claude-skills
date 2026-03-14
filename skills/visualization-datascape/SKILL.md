@@ -97,6 +97,33 @@ Use these classes in vault `html` for consistent styling:
 | `table`, `th`, `td` | Data tables |
 | `td.h` | Highlighted table cell |
 
+### Media Classes
+
+Images and videos in vault `html` get automatic click-to-lightbox behavior:
+
+| Class / Pattern | Purpose |
+|-----------------|---------|
+| `img.pi` | Inline image (full panel width, click opens lightbox) |
+| `video.pi` | Inline video (plays in panel, double-click opens lightbox) |
+| `div.pi-deck` | Horizontal thumbnail strip (scrollable, each `img` inside is clickable) |
+| `div.pv-wrap` | Side-by-side layout: image + text (image left, text right) |
+| `data-full="url"` | Optional attribute on any `img`/`video` — lightbox shows this URL instead of the thumbnail src |
+
+Example vault HTML with media:
+```html
+<div class="pt">Person Profile</div>
+<div class="pv-wrap">
+  <img class="pi" src="https://example.com/photo-thumb.jpg" data-full="https://example.com/photo-hires.jpg">
+  <div><div class="pd">Name: <span class="pv">Jane Doe</span></div><div class="pd">Role: Engineer</div></div>
+</div>
+<div class="ph">Gallery</div>
+<div class="pi-deck">
+  <img src="https://example.com/img1-thumb.jpg" data-full="https://example.com/img1.jpg">
+  <img src="https://example.com/img2-thumb.jpg" data-full="https://example.com/img2.jpg">
+  <img src="https://example.com/img3-thumb.jpg">
+</div>
+```
+
 ## Running the Script
 
 From workspace root:

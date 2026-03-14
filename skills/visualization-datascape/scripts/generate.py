@@ -502,6 +502,33 @@ canvas{{display:block;position:fixed;top:0;left:0}}
 .fp td{{color:#8c8;font-size:9px;padding:2px 4px;border-bottom:1px solid rgba(0,255,60,.03)}}
 .fp td.h{{color:#0f8;font-weight:bold}}
 
+/* ═══ MEDIA: inline images, deck, lightbox ═══ */
+.pi{{display:block;max-width:100%;border:1px solid rgba(0,255,60,.1);margin:8px 0;cursor:pointer;transition:all .3s;filter:saturate(.7) brightness(.85)}}
+.pi:hover{{border-color:rgba(0,255,60,.35);filter:saturate(1) brightness(1);box-shadow:0 0 12px rgba(0,255,60,.1)}}
+.pi-deck{{display:flex;gap:6px;overflow-x:auto;padding:6px 0;scrollbar-width:none;margin:8px 0}}
+.pi-deck::-webkit-scrollbar{{display:none}}
+.pi-deck img{{width:80px;height:80px;object-fit:cover;border:1px solid rgba(0,255,60,.1);cursor:pointer;flex-shrink:0;
+  transition:all .3s;filter:saturate(.7) brightness(.85)}}
+.pi-deck img:hover{{border-color:rgba(0,255,60,.35);filter:saturate(1) brightness(1);box-shadow:0 0 8px rgba(0,255,60,.15)}}
+.pv-wrap{{display:flex;gap:12px;align-items:flex-start;margin:8px 0}}
+.pv-wrap .pi{{max-width:120px;margin:0;flex-shrink:0}}
+video.pi{{max-height:200px}}
+#lightbox{{position:fixed;top:0;left:0;width:100%;height:100%;z-index:60;display:none;align-items:center;justify-content:center;
+  background:rgba(0,1,0,.92);pointer-events:auto}}
+#lightbox.open{{display:flex}}
+#lightbox .lb-frame{{position:relative;max-width:90vw;max-height:85vh;border:1px solid rgba(0,255,60,.2);
+  box-shadow:0 0 40px rgba(0,255,60,.08),0 0 120px rgba(0,255,60,.03);padding:2px}}
+#lightbox .lb-frame img,#lightbox .lb-frame video{{display:block;max-width:90vw;max-height:85vh;object-fit:contain}}
+#lightbox .lb-hud{{position:absolute;top:-22px;left:0;color:#063;font:7px/1 'Courier New',monospace;letter-spacing:.2em;text-transform:uppercase}}
+#lightbox .lb-close{{position:absolute;top:-22px;right:0;color:#063;font:14px/1 'Courier New',monospace;cursor:pointer;transition:color .2s}}
+#lightbox .lb-close:hover{{color:#0f8;text-shadow:0 0 8px rgba(0,255,60,.4)}}
+#lightbox .lb-corners{{position:absolute;top:-4px;left:-4px;right:-4px;bottom:-4px;pointer-events:none}}
+#lightbox .lb-corners::before,#lightbox .lb-corners::after{{content:'';position:absolute;width:20px;height:20px;border-color:rgba(0,255,60,.2);border-style:solid}}
+#lightbox .lb-corners::before{{top:0;left:0;border-width:1px 0 0 1px}}
+#lightbox .lb-corners::after{{bottom:0;right:0;border-width:0 1px 1px 0}}
+#lightbox .lb-scan{{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;
+  background:repeating-linear-gradient(transparent 0px,transparent 2px,rgba(0,15,2,.12) 2px,rgba(0,15,2,.12) 4px)}}
+
 .nav{{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);display:flex;gap:2px;pointer-events:auto;z-index:20}}
 .nav button{{background:rgba(0,255,60,.03);border:1px solid rgba(0,255,60,.1);color:#0a6;
   font:bold 8px 'Courier New',monospace;padding:5px 10px;cursor:none;letter-spacing:.1em;text-transform:uppercase;transition:all .3s}}
@@ -589,6 +616,16 @@ canvas{{display:block;position:fixed;top:0;left:0}}
   <div id="panelContent"></div>
 </div>
 <div id="floats"></div>
+
+<div id="lightbox" onclick="if(event.target===this)closeLightbox()">
+  <div class="lb-frame">
+    <div class="lb-corners"></div>
+    <div class="lb-hud">// image analysis //</div>
+    <span class="lb-close" onclick="closeLightbox()">&times;</span>
+    <div id="lbContent"></div>
+    <div class="lb-scan"></div>
+  </div>
+</div>
 
 <div id="help" onclick="if(event.target===this)toggleHelp()">
   <div class="hbox">
@@ -778,8 +815,9 @@ srchIn.addEventListener('blur',()=>{{
   setTimeout(()=>{{srchR.classList.remove('open');srchR.innerHTML='';}},200);
 }});
 document.addEventListener('keydown',e=>{{
-  if(document.activeElement===srchIn&&e.key==='Escape'){{
-    srchIn.value='';srchIn.blur();srchR.classList.remove('open');srchR.innerHTML='';updateCursorPos();
+  if(e.key==='Escape'){{
+    if(lightboxEl.classList.contains('open')){{closeLightbox();return;}}
+    if(document.activeElement===srchIn){{srchIn.value='';srchIn.blur();srchR.classList.remove('open');srchR.innerHTML='';updateCursorPos();}}
   }}
 }});
 
@@ -1054,6 +1092,25 @@ const floatsEl=document.getElementById('floats');
 let openVaultId=null;
 let fpCount=0;  /* offset counter for cascading new floating panels */
 
+/* ═══ MEDIA LIGHTBOX ═══ */
+const lightboxEl=document.getElementById('lightbox');
+const lbContent=document.getElementById('lbContent');
+function openLightbox(src,isVideo){{
+  if(isVideo){{lbContent.innerHTML=`<video src="${{src}}" controls autoplay></video>`;}}else{{lbContent.innerHTML=`<img src="${{src}}">`;}}
+  lightboxEl.classList.add('open');
+}}
+function closeLightbox(){{lightboxEl.classList.remove('open');lbContent.innerHTML='';}}
+/* Wire click-to-lightbox on .pi images/videos and .pi-deck imgs */
+function wireMedia(container){{
+  container.querySelectorAll('img.pi, .pi-deck img').forEach(el=>{{
+    el.style.cursor='pointer';
+    el.addEventListener('click',e=>{{e.stopPropagation();openLightbox(el.dataset.full||el.src,false);}});
+  }});
+  container.querySelectorAll('video.pi').forEach(el=>{{
+    el.addEventListener('dblclick',e=>{{e.stopPropagation();openLightbox(el.dataset.full||el.src,true);}});
+  }});
+}}
+
 function openPanel(id){{
   const vd=VAULT_DATA.find(v=>v.id===id);
   if(!vd)return;
@@ -1064,6 +1121,7 @@ function openPanel(id){{
     linksHtml=`<div class="pnl-links"><div class="pl-hd">// linked vaults //</div><div class="pl-list">${{items}}</div></div>`;}}
   panelContent.innerHTML=vd.html+linksHtml;
   panelContent.querySelectorAll('.pl-item').forEach(el=>el.addEventListener('click',()=>{{navFlyTo(el.dataset.lid);openPanel(el.dataset.lid);}}));
+  wireMedia(panelContent);
   panelEl.classList.add('open');
   openVaultId=id;
 }}
@@ -1094,6 +1152,7 @@ function spawnFloat(vd,html){{
   fp.innerHTML=`<div class="fp-bar"><span class="fp-title">${{vd.name}}</span><span class="fp-close">&times;</span></div><div class="fp-body">${{html}}</div>`;
   /* wire linked-vault buttons inside floating panel */
   fp.querySelectorAll('.pl-item').forEach(el=>el.addEventListener('click',()=>{{navFlyTo(el.dataset.lid);openPanel(el.dataset.lid);}}));
+  wireMedia(fp);
   /* bring to front on mousedown */
   fp.addEventListener('mousedown',()=>{{fp.style.zIndex=++fpZ}});
   /* close button */
