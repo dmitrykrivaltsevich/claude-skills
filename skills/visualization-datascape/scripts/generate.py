@@ -521,13 +521,13 @@ video.pi{{max-height:200px}}
 /* lightbox element kept for API compat; the visual is a floating panel */
 #lightbox{{display:none}}
 #lightbox.open{{display:none}}
-/* floating image panel */
-.fp-lb{{width:min(72vw,820px);max-height:90vh;overflow:visible;resize:both;min-width:200px;min-height:120px}}
+/* floating image panel — initial size leaves margin for resize grip */
+.fp-lb{{width:min(60vw,720px);max-height:85vh;overflow:visible;resize:both;min-width:200px;min-height:120px}}
 .fp-lb .fp-bar{{padding:4px 10px}}
 .fp-lb .fp-title{{font-size:7px!important;color:#053!important;letter-spacing:.18em!important;text-shadow:none!important;opacity:.7}}
 .fp-lb .fp-body{{padding:0;position:relative}}
 .fp-lb .lb-frame{{position:relative;width:100%;overflow:hidden}}
-.fp-lb .lb-frame img,.fp-lb .lb-frame video{{display:block;width:100%;object-fit:contain}}
+.fp-lb .lb-frame img,.fp-lb .lb-frame video{{display:block;width:100%;max-height:75vh;object-fit:contain}}
 .fp-lb::-webkit-resizer{{display:none}}
 .fp-lb .fp-resize{{position:absolute;bottom:0;right:0;width:14px;height:14px;cursor:nwse-resize;z-index:2}}
 .fp-lb .fp-resize::before,.fp-lb .fp-resize::after{{content:'';position:absolute;bottom:3px;right:3px;border-style:solid;border-color:transparent rgba(0,255,60,.15) rgba(0,255,60,.15) transparent}}
@@ -1130,7 +1130,7 @@ function openLightbox(src,isVideo,vaultName){{
   const fp=document.createElement('div');
   fp.className='fp fp-lb';
   /* cascade so multiple image panels don't stack exactly */
-  const base=Math.round((innerWidth-Math.min(innerWidth*.72,820))/2);
+  const base=Math.round((innerWidth-Math.min(innerWidth*.60,720))/2);
   const ox=Math.max(40,base+(lbCount%4)*28);
   const oy=Math.max(20,Math.round(innerHeight*.05)+(lbCount%4)*24);
   lbCount++;
@@ -1167,6 +1167,7 @@ function openLightbox(src,isVideo,vaultName){{
     const nw=Math.max(200,Math.min(innerWidth-40,rw0+dw));
     fp.style.width=nw+'px';
     fp.style.maxHeight='none';
+    const mi=fp.querySelector('.lb-frame img, .lb-frame video');if(mi)mi.style.maxHeight='none';
   }});
   document.addEventListener('mouseup',()=>{{resizing=false;}});
   fp.style.zIndex=++fpZ;
