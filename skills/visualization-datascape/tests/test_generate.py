@@ -455,7 +455,7 @@ class TestHelpAndTour(unittest.TestCase):
 
 
 class TestNavGrid(unittest.TestCase):
-    """Test collapsible nav grid for many vaults."""
+    """Test collapsible nav-grid overlay for many vaults."""
 
     def _make_vaults(self, n):
         return [{"id": f"v{i}", "name": f"Vault {i}", "html": f"<div>{i}</div>"}
@@ -466,31 +466,60 @@ class TestNavGrid(unittest.TestCase):
         return generate_html({"title": "NG", "vaults": self._make_vaults(n)})
 
     def test_few_vaults_no_expand_button(self):
-        """With <= 8 vaults (7 + Overview), no expand button in nav."""
+        """With <= 8 buttons (Overview + 7), no expand button or overlay."""
         out = self._html(7)
         assert 'id="navExpand"' not in out
+        assert 'id="navGrid"' not in out
 
     def test_many_vaults_expand_button(self):
         """With >8 total buttons, the expand button should appear."""
         out = self._html(20)
         assert "navExpand" in out
 
-    def test_many_vaults_extra_hidden(self):
-        """Extra buttons beyond the inline limit get nav-x class."""
+    def test_many_vaults_grid_overlay(self):
+        """Overlay should contain ALL vault buttons in a grid."""
         out = self._html(20)
-        assert "nav-x" in out
+        assert 'id="navGrid"' in out
+        assert "ng-box" in out
+        # All 20 vaults should appear in the grid
+        for i in range(20):
+            assert f'data-t="v{i}"' in out
+
+    def test_inline_nav_limited(self):
+        """Inline nav should only have first 7 vaults + Overview + expander."""
+        from generate import _nav_buttons
+        vaults = self._make_vaults(20)
+        html = _nav_buttons(vaults)
+        # Should NOT contain vault v7..v19 (those are only in the grid)
+        assert 'data-t="v7"' not in html
+        assert 'data-t="v19"' not in html
+        # Should contain Overview + first 7
+        assert 'data-t="overview"' in html
+        assert 'data-t="v6"' in html
 
     def test_n_key_toggle(self):
         """N key should trigger toggleNavGrid."""
         out = self._html(20)
         assert "toggleNavGrid" in out
 
-    def test_nav_collapses_on_click(self):
-        """Clicking a nav button should collapse the expanded grid."""
+    def test_grid_closes_on_button_click(self):
+        """Clicking a grid button should close the overlay."""
         out = self._html(20)
-        assert "remove('expanded')" in out
+        assert "remove('open')" in out
 
-    def test_nav_expanded_css(self):
-        """CSS should include expanded state styles."""
+    def test_grid_overlay_css(self):
+        """CSS should include #navGrid overlay and .ng-box grid styles."""
         out = self._html(20)
-        assert ".nav.expanded" in out
+        assert "#navGrid" in out
+        assert "ng-box" in out
+        assert "grid-template-columns" in out
+
+    def test_active_sync_function(self):
+        """Active state should sync across inline and grid buttons."""
+        out = self._html(20)
+        assert "syncActive" in out
+
+    def test_nav_fly_to_function(self):
+        """navFlyTo should exist for unified navigation."""
+        out = self._html(20)
+        assert "navFlyTo" in out

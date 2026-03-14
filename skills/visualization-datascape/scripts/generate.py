@@ -235,30 +235,52 @@ def _js_views(vaults: list[dict], positions: list[tuple]) -> str:
     return "{" + ",\n".join(lines) + "}"
 
 
+MAX_NAV_INLINE = 8  # Overview + first 7 vaults shown inline before collapse
+
+
 def _nav_buttons(vaults: list[dict]) -> str:
-    """Build nav button HTML.  Shows up to MAX_INLINE buttons inline;
-    extra buttons get class 'nav-x' (hidden until grid expanded via N key).
+    """Build inline nav button HTML (bottom bar).
+
+    Shows up to MAX_NAV_INLINE buttons; if more exist, appends a grid
+    expander button ▦ that opens the full nav-grid overlay.
     """
-    MAX_INLINE = 8  # Overview + first 7 vaults shown inline
-    all_btns: list[str] = ['<button data-t="overview" class="active">Overview</button>']
+    btns: list[str] = ['<button data-t="overview" class="active">Overview</button>']
     for v in vaults:
         name_safe = html.escape(v["name"], quote=True)
         id_safe = html.escape(v["id"], quote=True)
-        all_btns.append(f'<button data-t="{id_safe}">{name_safe}</button>')
+        btns.append(f'<button data-t="{id_safe}">{name_safe}</button>')
 
-    if len(all_btns) <= MAX_INLINE:
-        return "\n  ".join(all_btns)
+    if len(btns) <= MAX_NAV_INLINE:
+        return "\n  ".join(btns)
 
-    # Inline portion: first MAX_INLINE buttons + expand toggle
-    inline = all_btns[:MAX_INLINE]
+    inline = btns[:MAX_NAV_INLINE]
     inline.append('<button id="navExpand" onclick="toggleNavGrid()">&#x25a6;</button>')
+    return "\n  ".join(inline)
 
-    # Extra buttons (hidden in collapsed state)
-    extra = [
-        b.replace("<button ", '<button class="nav-x" ', 1)
-        for b in all_btns[MAX_INLINE:]
-    ]
-    return "\n  ".join(inline + extra)
+
+def _nav_grid_overlay(vaults: list[dict]) -> str:
+    """Build the full-screen nav-grid overlay with ALL vault buttons.
+
+    Only emitted when vault count exceeds inline limit.
+    Layout: centered overlay similar to help, buttons in a CSS grid.
+    """
+    btns: list[str] = ['<button data-t="overview">Overview</button>']
+    for v in vaults:
+        name_safe = html.escape(v["name"], quote=True)
+        id_safe = html.escape(v["id"], quote=True)
+        btns.append(f'<button data-t="{id_safe}">{name_safe}</button>')
+
+    if len(btns) <= MAX_NAV_INLINE:
+        return ""  # no overlay needed
+
+    inner = "\n    ".join(btns)
+    return (
+        '<div id="navGrid" onclick="if(event.target===this)toggleNavGrid()">\n'
+        '  <div class="ng-box">\n'
+        f'    {inner}\n'
+        '  </div>\n'
+        '</div>'
+    )
 
 
 def _hud_stats(stats: list[dict]) -> str:
@@ -362,6 +384,7 @@ def generate_html(cfg: dict) -> str:
     vault_data_js = _js_vault_array(vaults, positions)
     views_js = _js_views(vaults, positions)
     nav_html = _nav_buttons(vaults)
+    nav_grid_html = _nav_grid_overlay(vaults)
     hud_stats_html = _hud_stats(stats)
     glyph_js = _glyph_array(glyphs_list, vaults)
     node_pos_js = _node_positions_array(vaults, positions)
@@ -376,6 +399,7 @@ def generate_html(cfg: dict) -> str:
         SUBTITLE=subtitle_safe,
         HUD_STATS=hud_stats_html,
         NAV_BUTTONS=nav_html,
+        NAV_GRID=nav_grid_html,
         VAULT_DATA_JS=vault_data_js,
         VIEWS_JS=views_js,
         GLYPH_ARRAY_JS=glyph_js,
@@ -475,13 +499,20 @@ canvas{{display:block;position:fixed;top:0;left:0}}
 .nav button{{background:rgba(0,255,60,.03);border:1px solid rgba(0,255,60,.1);color:#0a6;
   font:bold 8px 'Courier New',monospace;padding:5px 10px;cursor:none;letter-spacing:.1em;text-transform:uppercase;transition:all .3s}}
 .nav button:hover,.nav button.active{{background:rgba(0,255,60,.12);border-color:#0f8;box-shadow:0 0 10px rgba(0,255,60,.15);color:#0f8}}
-.nav .nav-x{{display:none}}
-.nav.expanded{{flex-wrap:wrap;max-width:80vw;max-height:60vh;overflow-y:auto;scrollbar-width:none;
-  background:rgba(0,3,0,.92);border:1px solid rgba(0,255,60,.1);border-radius:4px;padding:6px;bottom:10px}}
-.nav.expanded::-webkit-scrollbar{{display:none}}
-.nav.expanded .nav-x{{display:inline-block}}
 #navExpand{{background:rgba(0,255,60,.06);border:1px solid rgba(0,255,60,.2);color:#0f8;
   font:bold 10px 'Courier New',monospace;padding:5px 10px;cursor:none;letter-spacing:.1em;transition:all .3s}}
+
+#navGrid{{position:fixed;inset:0;background:rgba(0,2,0,.88);z-index:50;display:none;align-items:center;justify-content:center;
+  pointer-events:auto;backdrop-filter:blur(2px)}}
+#navGrid.open{{display:flex}}
+.ng-box{{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;max-width:85vw;max-height:80vh;overflow-y:auto;scrollbar-width:none;
+  padding:20px;border:1px solid rgba(0,255,60,.08);border-radius:4px;background:rgba(0,3,0,.6);
+  box-shadow:0 0 40px rgba(0,255,60,.05),inset 0 0 60px rgba(0,0,0,.4)}}
+.ng-box::-webkit-scrollbar{{display:none}}
+#navGrid button{{background:rgba(0,255,60,.03);border:1px solid rgba(0,255,60,.1);color:#0a6;
+  font:bold 8px 'Courier New',monospace;padding:8px 14px;cursor:none;letter-spacing:.1em;
+  text-transform:uppercase;transition:all .3s;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}}
+#navGrid button:hover,#navGrid button.active{{background:rgba(0,255,60,.12);border-color:#0f8;box-shadow:0 0 10px rgba(0,255,60,.15);color:#0f8}}
 
 #nodeInfo{{position:fixed;bottom:48px;left:50%;transform:translateX(-50%);text-align:center;
   font-size:12px;letter-spacing:.2em;color:#0f8;text-transform:uppercase;text-shadow:0 0 10px rgba(0,255,60,.35);
@@ -546,6 +577,8 @@ canvas{{display:block;position:fixed;top:0;left:0}}
 <div class="nav">
   {NAV_BUTTONS}
 </div>
+
+{NAV_GRID}
 
 <script type="importmap">
 {{"imports":{{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.min.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}}}
@@ -948,28 +981,38 @@ canvas.addEventListener('click',e=>{{
   if(hits.length){{
     const id=hits[0].object.userData.vaultId;
     openPanel(id);
-    const btn=document.querySelector(`.nav button[data-t="${{id}}"]`);
-    if(btn)btn.click();
+    navFlyTo(id);
   }}
 }});
 
 /* ═══ NAVIGATION ═══ */
 let flyTarget=null,flyLook=null,flyStart=null,flyLookStart=null,flyProg=0;
 const views={VIEWS_JS};
-document.querySelectorAll('.nav button').forEach(b=>b.addEventListener('click',()=>{{
-  const v=views[b.dataset.t];if(!v)return;
+
+function syncActive(tid){{
+  document.querySelectorAll('.nav button[data-t],#navGrid button[data-t]').forEach(x=>
+    x.classList.toggle('active',x.dataset.t===tid));
+}}
+
+function navFlyTo(tid){{
+  const v=views[tid];if(!v)return;
   flyStart=cam.position.clone();flyLookStart=ctrl.target.clone();
   flyTarget=new THREE.Vector3(...v.p);flyLook=new THREE.Vector3(...v.l);
   flyProg=0;
-  document.querySelectorAll('.nav button').forEach(x=>x.classList.toggle('active',x===b));
-  document.querySelector('.nav').classList.remove('expanded');
+  syncActive(tid);
+}}
+
+document.querySelectorAll('.nav button[data-t]').forEach(b=>b.addEventListener('click',()=>navFlyTo(b.dataset.t)));
+document.querySelectorAll('#navGrid button[data-t]').forEach(b=>b.addEventListener('click',()=>{{
+  navFlyTo(b.dataset.t);
+  document.getElementById('navGrid').classList.remove('open');
 }}));
 
 /* ═══ HELP OVERLAY ═══ */
 window.toggleHelp=function(){{document.getElementById('help').classList.toggle('open')}};
 
 /* ═══ NAV GRID (expand/collapse) ═══ */
-window.toggleNavGrid=function(){{document.querySelector('.nav').classList.toggle('expanded')}};
+window.toggleNavGrid=function(){{const g=document.getElementById('navGrid');if(g)g.classList.toggle('open')}};
 /* ═══ AUTO-FLY TOUR ═══ */
 let touring=false;
 let tourT=0;
