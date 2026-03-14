@@ -688,13 +688,18 @@ const srchCur=document.querySelector('#srch .cur');
 /* Strip HTML tags for indexable text — inject spaces before tags so adjacent elements don't merge words */
 const _tmp=document.createElement('div');
 function stripHtml(h){{_tmp.innerHTML=h.replace(/</g,' <');return _tmp.textContent||'';}}
-/* Build corpus: each vault → name + full panel text */
+/* Build corpus: each vault → name + full panel text + character 3-grams */
+function ngrams(w,n){{const g=[];for(let i=0;i<=w.length-n;i++)g.push(w.slice(i,i+n));return g;}}
 const corpus=VAULT_DATA.map(v=>{{
   const txt=(v.name+' '+stripHtml(v.html)).toLowerCase();
   const words=txt.split(/\W+/).filter(w=>w.length>1);
+  /* Add character trigrams for each word — enables partial-word matching */
+  const grams=[];
+  words.forEach(w=>{{ngrams(w,3).forEach(g=>grams.push(g));}});
+  const allTokens=words.concat(grams);
   const tf={{}};
-  words.forEach(w=>{{tf[w]=(tf[w]||0)+1;}});
-  return {{id:v.id,name:v.name,words,tf,len:words.length,txt}};
+  allTokens.forEach(w=>{{tf[w]=(tf[w]||0)+1;}});
+  return {{id:v.id,name:v.name,words:allTokens,tf,len:allTokens.length,txt}};
 }});
 const avgDL=corpus.reduce((s,d)=>s+d.len,0)/Math.max(corpus.length,1);
 /* Document frequency */
@@ -706,7 +711,9 @@ corpus.forEach(d=>{{
 const N=corpus.length;
 const K1=1.5,B=0.75;  /* BM25 parameters — standard defaults */
 function bm25(query){{
-  const qTerms=query.toLowerCase().split(/\W+/).filter(w=>w.length>1);
+  const qWords=query.toLowerCase().split(/\W+/).filter(w=>w.length>1);
+  /* For each query token, also generate its trigrams so partial input matches */
+  const qTerms=[...new Set(qWords.concat(qWords.flatMap(w=>ngrams(w,3))))];
   if(!qTerms.length)return[];
   const scores=corpus.map((d,idx)=>{{
     let score=0;
