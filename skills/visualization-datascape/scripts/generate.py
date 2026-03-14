@@ -1085,6 +1085,8 @@ function spawnFloat(vd,html){{
   fp.style.borderColor=hex.replace('#','rgba(')? `rgba(${{Math.round(vc.r*255)}},${{Math.round(vc.g*255)}},${{Math.round(vc.b*255)}},.25)` : fp.style.borderColor;
   fp.style.boxShadow=`0 0 20px rgba(${{Math.round(vc.r*255)}},${{Math.round(vc.g*255)}},${{Math.round(vc.b*255)}},.1), inset 0 0 30px rgba(0,0,0,.5)`;
   fp.innerHTML=`<div class="fp-bar"><span class="fp-title">${{vd.name}}</span><span class="fp-close">&times;</span></div><div class="fp-body">${{html}}</div>`;
+  /* wire linked-vault buttons inside floating panel */
+  fp.querySelectorAll('.pl-item').forEach(el=>el.addEventListener('click',()=>{{navFlyTo(el.dataset.lid);openPanel(el.dataset.lid);}}));
   /* bring to front on mousedown */
   fp.addEventListener('mousedown',()=>{{fp.style.zIndex=++fpZ}});
   /* close button */
