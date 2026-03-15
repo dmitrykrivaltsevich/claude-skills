@@ -1,0 +1,282 @@
+# /// script
+# requires-python = ">=3.11"
+# dependencies = ["pytest"]
+# ///
+"""Tests for obsidian_to_datascape.py — Obsidian vault parser."""
+from __future__ import annotations
+
+import json
+import os
+import sys
+import tempfile
+import textwrap
+import unittest
+from pathlib import Path
+
+# Insert scripts dir so we can import the module
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
+
+import obsidian_to_datascape as otd
+
+
+class TestParseNote(unittest.TestCase):
+    """Test individual note parsing."""
+
+    def _make_vault(self, files: dict[str, str]) -> Path:
+        """Create a temp Obsidian vault with given files.
+
+        files: {relative_path: content}
+        """
+        d = tempfile.mkdtemp()
+        root = Path(d)
+        for rel, content in files.items():
+            p = root / rel
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text(content, encoding="utf-8")
+        return root
+
+    def test_basic_note_becomes_vault(self):
+        root = self._make_vault({"Hello.md": "# Hello\nWorld"})
+        config = otd.parse_vault(str(root))
+        assert len(config["vaults"]) == 1
+        assert config["vaults"][0]["name"] == "HELLO"
+        assert "World" in config["vaults"][0]["html"]
+
+    def test_wikilinks_create_connections(self):
+        root = self._make_vault({
+            "A.md": "Link to [[B]]",
+            "B.md": "Link to [[A]]",
+        })
+        config = otd.parse_vault(str(root))
+        assert len(config["vaults"]) == 2
+        assert len(config["connections"]) == 1  # deduplicated
+
+    def test_external_urls_in_html(self):
+        root = self._make_vault({
+            "Links.md": "See https://example.com for more",
+        })
+        config = otd.parse_vault(str(root))
+        assert "https://example.com" in config["vaults"][0]["html"]
+
+    def test_obsidian_dir_excluded(self):
+        root = self._make_vault({
+            ".obsidian/config.json": "{}",
+            "Note.md": "Real note",
+        })
+        config = otd.parse_vault(str(root))
+        assert len(config["vaults"]) == 1
+        assert config["vaults"][0]["name"] == "NOTE"
+
+    def test_tags_extracted(self):
+        root = self._make_vault({
+            "Tagged.md": "Some text #project #idea",
+        })
+        config = otd.parse_vault(str(root))
+        html_out = config["vaults"][0]["html"]
+        assert "#project" in html_out or "#idea" in html_out
+
+    def test_embedded_image_referenced(self):
+        root = self._make_vault({
+            "Note.md": "![[photo.png]]",
+            "photo.png": b"\x89PNG".decode("latin-1"),  # fake PNG header
+        })
+        config = otd.parse_vault(str(root))
+        # Should reference image somehow (data URI or mention)
+        html_out = config["vaults"][0]["html"]
+        assert "photo.png" in html_out or "pi" in html_out
+
+    def test_pdf_referenced(self):
+        root = self._make_vault({
+            "Research.md": "See ![[paper.pdf]]",
+        })
+        config = otd.parse_vault(str(root))
+        assert "paper.pdf" in config["vaults"][0]["html"]
+
+    def test_headings_in_structure(self):
+        root = self._make_vault({
+            "Doc.md": "# Title\n## Section A\n## Section B\nContent here",
+        })
+        config = otd.parse_vault(str(root))
+        html_out = config["vaults"][0]["html"]
+        assert "Section A" in html_out
+        assert "Section B" in html_out
+
+    def test_folder_coloring(self):
+        root = self._make_vault({
+            "FolderA/X.md": "Note X",
+            "FolderA/Y.md": "Note Y",
+            "FolderB/Z.md": "Note Z",
+        })
+        config = otd.parse_vault(str(root))
+        colors = {v["name"]: v["color"] for v in config["vaults"]}
+        # Same folder → same color
+        assert colors["X"] == colors["Y"]
+        # Different folder → different color
+        assert colors["X"] != colors["Z"]
+
+
+class TestTemporalInference(unittest.TestCase):
+    """Test automatic year/month vault creation and temporal connections."""
+
+    def _make_vault(self, files: dict[str, str]) -> Path:
+        d = tempfile.mkdtemp()
+        root = Path(d)
+        for rel, content in files.items():
+            p = root / rel
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text(content, encoding="utf-8")
+        return root
+
+    def test_dated_notes_get_month_vaults(self):
+        root = self._make_vault({
+            "diary/2025-01-01.md": "New year",
+            "diary/2025-01-15.md": "Mid month",
+        })
+        config = otd.parse_vault(str(root))
+        names = [v["name"] for v in config["vaults"]]
+        # Should have the 2 real notes + a January 2025 month vault + a 2025 year vault
+        assert any("JAN" in n and "2025" in n for n in names), f"No Jan 2025 month vault in {names}"
+        assert any(n == "2025" for n in names), f"No 2025 year vault in {names}"
+
+    def test_dated_notes_linked_to_month(self):
+        root = self._make_vault({
+            "2025-01-01.md": "Day one",
+            "2025-01-15.md": "Day fifteen",
+        })
+        config = otd.parse_vault(str(root))
+        ids = {v["name"]: v["id"] for v in config["vaults"]}
+        conn_pairs = {(c["from"], c["to"]) for c in config["connections"]}
+        conn_pairs |= {(c["to"], c["from"]) for c in config["connections"]}
+
+        month_id = ids.get("JAN 2025")
+        assert month_id is not None, f"No JAN 2025 vault, ids={ids}"
+        # Both dated notes should connect to their month
+        day1_id = ids.get("2025-01-01")
+        day15_id = ids.get("2025-01-15")
+        assert (day1_id, month_id) in conn_pairs or (month_id, day1_id) in conn_pairs
+        assert (day15_id, month_id) in conn_pairs or (month_id, day15_id) in conn_pairs
+
+    def test_month_linked_to_year(self):
+        root = self._make_vault({
+            "2025-03-10.md": "Spring note",
+        })
+        config = otd.parse_vault(str(root))
+        ids = {v["name"]: v["id"] for v in config["vaults"]}
+        conn_pairs = {(c["from"], c["to"]) for c in config["connections"]}
+        conn_pairs |= {(c["to"], c["from"]) for c in config["connections"]}
+
+        month_id = ids.get("MAR 2025")
+        year_id = ids.get("2025")
+        assert month_id is not None
+        assert year_id is not None
+        assert (month_id, year_id) in conn_pairs
+
+    def test_chronological_prev_next(self):
+        """Adjacent dated notes get prev/next connections."""
+        root = self._make_vault({
+            "2025-01-01.md": "Day 1",
+            "2025-01-03.md": "Day 3",
+            "2025-02-10.md": "Feb note",
+        })
+        config = otd.parse_vault(str(root))
+        ids = {v["name"]: v["id"] for v in config["vaults"]}
+        conn_pairs = {(c["from"], c["to"]) for c in config["connections"]}
+        conn_pairs |= {(c["to"], c["from"]) for c in config["connections"]}
+
+        # 01-01 → 01-03 → 02-10 chronologically
+        id1 = ids["2025-01-01"]
+        id3 = ids["2025-01-03"]
+        id_feb = ids["2025-02-10"]
+        assert (id1, id3) in conn_pairs, "Jan 1 → Jan 3 not connected"
+        assert (id3, id_feb) in conn_pairs, "Jan 3 → Feb 10 not connected"
+
+    def test_non_dated_notes_unaffected(self):
+        root = self._make_vault({
+            "2025-01-01.md": "Dated",
+            "Random Note.md": "Not dated",
+        })
+        config = otd.parse_vault(str(root))
+        names = [v["name"] for v in config["vaults"]]
+        # Random Note should exist but not get temporal links
+        assert "RANDOM NOTE" in names
+        ids = {v["name"]: v["id"] for v in config["vaults"]}
+        conn_pairs = {(c["from"], c["to"]) for c in config["connections"]}
+        conn_pairs |= {(c["to"], c["from"]) for c in config["connections"]}
+        random_id = ids["RANDOM NOTE"]
+        month_id = ids.get("JAN 2025")
+        if month_id:
+            assert (random_id, month_id) not in conn_pairs
+
+    def test_multiple_years(self):
+        root = self._make_vault({
+            "2024-12-31.md": "NYE",
+            "2025-01-01.md": "New year",
+        })
+        config = otd.parse_vault(str(root))
+        names = [v["name"] for v in config["vaults"]]
+        assert any(n == "2024" for n in names)
+        assert any(n == "2025" for n in names)
+        assert any("DEC" in n and "2024" in n for n in names)
+        assert any("JAN" in n and "2025" in n for n in names)
+
+    def test_year_vaults_connected_chronologically(self):
+        """Adjacent year vaults get prev/next connections."""
+        root = self._make_vault({
+            "2024-06-15.md": "Mid 2024",
+            "2025-03-10.md": "Spring 2025",
+        })
+        config = otd.parse_vault(str(root))
+        ids = {v["name"]: v["id"] for v in config["vaults"]}
+        conn_pairs = {(c["from"], c["to"]) for c in config["connections"]}
+        conn_pairs |= {(c["to"], c["from"]) for c in config["connections"]}
+        assert (ids["2024"], ids["2025"]) in conn_pairs
+
+    def test_month_vaults_connected_chronologically(self):
+        """Adjacent month vaults get prev/next connections."""
+        root = self._make_vault({
+            "2025-01-05.md": "Jan note",
+            "2025-03-10.md": "Mar note",
+        })
+        config = otd.parse_vault(str(root))
+        ids = {v["name"]: v["id"] for v in config["vaults"]}
+        conn_pairs = {(c["from"], c["to"]) for c in config["connections"]}
+        conn_pairs |= {(c["to"], c["from"]) for c in config["connections"]}
+        # Jan 2025 → Mar 2025 (adjacent in this dataset, even though Feb is missing)
+        assert (ids["JAN 2025"], ids["MAR 2025"]) in conn_pairs
+
+
+class TestCLI(unittest.TestCase):
+    """Test command-line interface."""
+
+    def _make_vault(self, files: dict[str, str]) -> Path:
+        d = tempfile.mkdtemp()
+        root = Path(d)
+        for rel, content in files.items():
+            p = root / rel
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text(content, encoding="utf-8")
+        return root
+
+    def test_parse_vault_returns_valid_json(self):
+        root = self._make_vault({"test.md": "# Test"})
+        config = otd.parse_vault(str(root))
+        # Must be JSON-serializable
+        json.dumps(config)
+        assert "title" in config
+        assert "vaults" in config
+        assert "connections" in config
+        assert "stats" in config
+        assert "glyphs" in config
+
+    def test_invalid_path_raises(self):
+        with self.assertRaises(otd.contracts.ContractViolationError):
+            otd.parse_vault("/nonexistent/path")
+
+    def test_empty_vault_raises(self):
+        root = self._make_vault({".obsidian/config.json": "{}"})
+        with self.assertRaises(otd.contracts.ContractViolationError):
+            otd.parse_vault(str(root))
+
+
+if __name__ == "__main__":
+    unittest.main()

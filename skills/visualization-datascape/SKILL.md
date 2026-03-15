@@ -1,6 +1,6 @@
 ---
 name: visualization-datascape
-description: Generates immersive 3D cyberspace point-cloud visualizations from structured data. Produces a self-contained HTML file with Three.js that renders an interactive cyberpunk cityscape with explorable data vaults, WASD movement, and orbit controls. Use when the user asks to visualize data as an immersive 3D scene, wants a cyberspace or cyberpunk datascape, asks for an interactive 3D dashboard, or wants to explore data in a Blackwall-style environment.
+description: Generates immersive 3D cyberspace point-cloud visualizations from structured data. Produces a self-contained HTML file with Three.js that renders an interactive cyberpunk cityscape with explorable data vaults, WASD movement, and orbit controls. Use when the user asks to visualize data as an immersive 3D scene, wants a cyberspace or cyberpunk datascape, asks for an interactive 3D dashboard, wants to explore data in a Blackwall-style environment, or wants to visualize an Obsidian vault as a 3D knowledge graph.
 allowed-tools:
   - Bash(uv run *)
 user-invocable: true
@@ -12,11 +12,12 @@ user-invocable: true
 
 1. [Architecture](#architecture)
 2. [Workflow](#workflow)
-3. [JSON Config Format](#json-config-format)
-4. [Running the Script](#running-the-script)
-5. [LLM Responsibilities](#llm-responsibilities)
-6. [Visual Design](#visual-design)
-7. [Known Bugs to Avoid](#known-bugs-to-avoid)
+3. [Obsidian Vault Workflow](#obsidian-vault-workflow)
+4. [JSON Config Format](#json-config-format)
+5. [Running the Script](#running-the-script)
+6. [LLM Responsibilities](#llm-responsibilities)
+7. [Visual Design](#visual-design)
+8. [Known Bugs to Avoid](#known-bugs-to-avoid)
 
 ## Architecture
 
@@ -34,6 +35,33 @@ user-invocable: true
 5. Run: uv run --no-config skills/visualization-datascape/scripts/generate.py -i /tmp/config.json -o ~/Downloads/Datascape.html
 6. Open the HTML file in a browser
 ```
+
+## Obsidian Vault Workflow
+
+When the user asks to visualize an Obsidian vault, use `obsidian_to_datascape.py` instead of manually building JSON:
+
+```bash
+# Step 1: Parse vault → JSON config
+uv run --no-config skills/visualization-datascape/scripts/obsidian_to_datascape.py \
+  "/path/to/obsidian/vault" \
+  -o /tmp/obsidian-config.json
+
+# Step 2: Generate HTML from config
+uv run --no-config skills/visualization-datascape/scripts/generate.py \
+  -i /tmp/obsidian-config.json \
+  -o ~/Downloads/Obsidian-Knowledge-Graph.html
+```
+
+The parser automatically:
+- Creates one vault per `.md` note (excludes `.obsidian/` directory)
+- Extracts `[[wikilinks]]` as connections between vaults
+- Embeds images from `![[image.png]]` and `![](path)` as base64 data URIs (up to 512KB each)
+- Shows PDF references, external URLs, tags, headings, and content previews
+- Colors vaults by folder
+- **Temporal inference**: notes with `YYYY-MM-DD` in the filename automatically get:
+  - Synthetic month vaults (e.g. "JAN 2025") and year vaults (e.g. "2025")
+  - Connections: dated note → month → year
+  - Chronological prev/next connections between adjacent dated notes, months, and years
 
 ## JSON Config Format
 
