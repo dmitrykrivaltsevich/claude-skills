@@ -1332,10 +1332,13 @@ let tourCurve=null;
 let tourPts=[];
 const TOUR_WIN=16;        /* sliding window size — enough for smooth Catmull-Rom */
 const TOUR_SPEED=0.003;   /* normalized units/sec along current curve segment */
-const TOUR_LOOK_AHEAD=0.012;
+const TOUR_LOOK_AHEAD=0.025; /* how far ahead on curve to aim — higher = smoother anticipation */
 const TOUR_ADVANCE=0.85;  /* rebuild curve when tourT passes this threshold */
+const TOUR_TURN_DAMP=0.02; /* look-direction inertia — lower = more plane-like (0.01–0.05 range) */
 let tourAngle=0;           /* running angle for orbit drift */
 let tourVisited=new Set(); /* track recently visited vault indices to avoid repeats */
+let tourLookSmooth=new THREE.Vector3(); /* damped look target for inertia */
+let tourLookInit=false; /* whether tourLookSmooth has been seeded */
 
 function tourGenPoint(){{
   /* Generate next waypoint — attracted toward a vault or scenic orbit point */
@@ -1381,7 +1384,7 @@ function advanceTour(){{
 
 function toggleTour(){{
   touring=!touring;
-  if(touring){{tourT=0;buildTourPath();}}
+  if(touring){{tourT=0;tourLookInit=false;buildTourPath();}}
 }}
 
 function updateTour(dt){{
@@ -1392,7 +1395,12 @@ function updateTour(dt){{
   const pos=tourCurve.getPointAt(t);
   const look=tourCurve.getPointAt(Math.min(t+TOUR_LOOK_AHEAD,0.999));
   cam.position.copy(pos);
-  ctrl.target.copy(look);
+  /* Smooth look-direction with inertia — plane-like turning */
+  if(!tourLookInit){{tourLookSmooth.copy(look);tourLookInit=true;}}
+  /* Frame-rate-independent damping: factor = 1-(1-k)^(dt*60) */
+  const lf=1-Math.pow(1-TOUR_TURN_DAMP,dt*60);
+  tourLookSmooth.lerp(look,lf);
+  ctrl.target.copy(tourLookSmooth);
   if(Object.values(keys).some(v=>v))touring=false;
 }}
 

@@ -454,6 +454,15 @@ class TestHelpAndTour(unittest.TestCase):
         assert "tourGenPoint" in out
         assert "TOUR_WIN" in out
 
+    def test_tour_look_inertia(self):
+        """Tour camera uses damped look-direction for plane-like turning."""
+        out = self._html()
+        assert "TOUR_TURN_DAMP" in out
+        assert "tourLookSmooth" in out
+        assert "tourLookInit" in out
+        # Smooth lerp instead of direct copy
+        assert "tourLookSmooth.lerp" in out
+
     def test_z_c_keybindings(self):
         out = self._html()
         assert "keys['c']" in out
