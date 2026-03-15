@@ -333,6 +333,80 @@ class TestFolderVaults(unittest.TestCase):
         assert ".OBSIDIAN" not in names
 
 
+class TestMarkdownRendering(unittest.TestCase):
+    """Test that markdown formatting is preserved in vault panel HTML."""
+
+    def _make_vault(self, files: dict[str, str]) -> Path:
+        d = tempfile.mkdtemp()
+        root = Path(d)
+        for rel, content in files.items():
+            p = root / rel
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text(content, encoding="utf-8")
+        return root
+
+    def _get_html(self, content: str) -> str:
+        root = self._make_vault({"Note.md": content})
+        config = otd.parse_vault(str(root))
+        return config["vaults"][0]["html"]
+
+    def test_bold_rendered(self):
+        html = self._get_html("Some **bold text** here")
+        assert "<strong>bold text</strong>" in html
+
+    def test_italic_rendered(self):
+        html = self._get_html("Some *italic text* here")
+        assert "<em>italic text</em>" in html
+
+    def test_inline_code_rendered(self):
+        html = self._get_html("Use `print()` to debug")
+        assert "<code" in html
+        assert "print()" in html
+
+    def test_unordered_list_gets_bullet(self):
+        html = self._get_html("- First item\n- Second item")
+        assert "\u2022" in html  # bullet character
+        assert "First item" in html
+        assert "Second item" in html
+
+    def test_ordered_list_preserves_number(self):
+        html = self._get_html("1. First step\n2. Second step")
+        assert "1." in html
+        assert "First step" in html
+        assert "2." in html
+
+    def test_blockquote_styled(self):
+        html = self._get_html("> This is a quote")
+        assert "border-left" in html
+        assert "This is a quote" in html
+
+    def test_markdown_link_rendered(self):
+        html = self._get_html("See [example](https://example.com) page")
+        assert 'href="https://example.com"' in html
+        assert "example" in html
+
+    def test_html_entities_escaped(self):
+        """Ensure XSS-safe: HTML tags in content are escaped."""
+        html = self._get_html("Try <script>alert(1)</script> here")
+        assert "<script>" not in html
+        assert "&lt;script&gt;" in html
+
+    def test_bold_and_italic_combined(self):
+        html = self._get_html("Both **bold** and *italic* work")
+        assert "<strong>bold</strong>" in html
+        assert "<em>italic</em>" in html
+
+    def test_asterisk_list_gets_bullet(self):
+        html = self._get_html("* Item with asterisk")
+        assert "\u2022" in html
+        assert "Item with asterisk" in html
+
+    def test_code_fence_lines_monospace(self):
+        content = "Before\n```python\ndef hello():\n    pass\n```\nAfter"
+        html = self._get_html(content)
+        assert "monospace" in html or "def hello():" in html
+
+
 class TestFullContent(unittest.TestCase):
     """Test that full note content is shown, not truncated."""
 

@@ -56,6 +56,16 @@ TEMPORAL_YEAR_COLOR = "0xffffff"   # white — years are structural anchors
 TEMPORAL_MONTH_COLOR = "0x99ccff"  # light blue — months are time containers
 FOLDER_VAULT_COLOR = "0x88ff88"    # bright green — folder containers
 
+# Inline markdown patterns (applied after HTML-escaping for XSS safety)
+_MD_CODE_RE = re.compile(r"`([^`]+)`")
+_MD_BOLD_RE = re.compile(r"\*\*(.+?)\*\*")
+_MD_ITALIC_RE = re.compile(r"(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)")
+_MD_LINK_RE2 = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
+_MD_UL_RE = re.compile(r"^[-*]\s+(.+)")
+_MD_OL_RE = re.compile(r"^(\d+)\.\s+(.+)")
+_MD_BQ_RE = re.compile(r"^&gt;\s*(.*)")
+_MD_FENCE_RE = re.compile(r"^```")
+
 # Max image size for base64 embedding (512KB — keeps HTML under control)
 MAX_IMAGE_BYTES = 512_000
 
@@ -126,6 +136,41 @@ def _image_to_data_uri(img_path: Path) -> str | None:
         return None
 
 
+def _apply_inline_md(text: str) -> str:
+    """Apply inline markdown formatting to already-HTML-escaped text."""
+    # Inline code first (protect contents from further matching)
+    text = _MD_CODE_RE.sub(
+        r'<code style="color:#0f8;background:#111;padding:0 3px">\1</code>', text)
+    text = _MD_BOLD_RE.sub(r"<strong>\1</strong>", text)
+    text = _MD_ITALIC_RE.sub(r"<em>\1</em>", text)
+    text = _MD_LINK_RE2.sub(
+        r'<a href="\2" target="_blank" style="color:#0cf">\1</a>', text)
+    return text
+
+
+def _md_line_to_html(line: str) -> str:
+    """Convert a single markdown content line to a styled HTML div."""
+    escaped = html_mod.escape(line)
+    # Blockquote (> becomes &gt; after escape)
+    bq = _MD_BQ_RE.match(escaped)
+    if bq:
+        inner = _apply_inline_md(bq.group(1))
+        return f'<div class="pd" style="border-left:2px solid #0f8;padding-left:8px;color:#aaa">{inner}</div>'
+    # Unordered list: - item or * item
+    ul = _MD_UL_RE.match(escaped)
+    if ul:
+        inner = _apply_inline_md(ul.group(1))
+        return f'<div class="pd" style="padding-left:8px">\u2022 {inner}</div>'
+    # Ordered list: 1. item
+    ol = _MD_OL_RE.match(escaped)
+    if ol:
+        num = ol.group(1)
+        inner = _apply_inline_md(ol.group(2))
+        return f'<div class="pd" style="padding-left:8px">{num}. {inner}</div>'
+    # Regular line with inline formatting
+    return f'<div class="pd">{_apply_inline_md(escaped)}</div>'
+
+
 def _extract_date(stem: str) -> date | None:
     """Extract a YYYY-MM-DD date from a note stem, or None."""
     m = DATE_RE.search(stem)
@@ -174,20 +219,28 @@ def _build_note_html(
             indent = "&nbsp;" * (len(level) - 1) * 2
             h.append(f'<div class="pd">{indent}{html_mod.escape(text.strip())}</div>')
 
-    # Full content (all lines, no truncation)
+    # Full content (all lines, no truncation) with markdown rendering
     lines = [
         l.strip() for l in content.split("\n")
         if l.strip() and not l.strip().startswith("#") and not l.strip().startswith("---")
     ]
     content_lines = []
+    in_code_fence = False
     for l in lines:
+        # Track code fences (``` blocks)
+        if _MD_FENCE_RE.match(l):
+            in_code_fence = not in_code_fence
+            continue
         clean = WIKILINK_RE.sub("", EMBED_RE.sub("", l)).strip()
         if clean and len(clean) > 3:
-            content_lines.append(clean)
+            content_lines.append((clean, in_code_fence))
     if content_lines:
         h.append('<div class="ph">Content</div>')
-        for l in content_lines:
-            h.append(f'<div class="pd">{html_mod.escape(l)}</div>')
+        for l, is_code in content_lines:
+            if is_code:
+                h.append(f'<div class="pd" style="font-family:monospace;font-size:0.85em;color:#0f8">{html_mod.escape(l)}</div>')
+            else:
+                h.append(_md_line_to_html(l))
 
     # Embedded images
     data_uris: list[str] = []
