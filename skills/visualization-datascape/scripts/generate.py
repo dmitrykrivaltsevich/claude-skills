@@ -1380,7 +1380,8 @@ const clock=new THREE.Clock();
 
 (function animate(){{
   requestAnimationFrame(animate);
-  const t=clock.getElapsedTime();
+  const dt=clock.getDelta()||0.016;  /* real frame delta — grab ONCE before anything else */
+  const t=clock.elapsedTime;          /* already accumulated by getDelta() above */
 
   for(let s=0;s<STREAMS;s++){{
     const sd=streamData[s];
@@ -1484,7 +1485,7 @@ const clock=new THREE.Clock();
   }}
 
   ctrl.update();
-  updateTour(clock.getDelta()||0.016);
+  updateTour(dt);
   renderer.render(scene,cam);
 }})();
 
