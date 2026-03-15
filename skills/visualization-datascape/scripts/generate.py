@@ -41,7 +41,7 @@ def validate_and_parse(raw_json: str) -> dict:
     Enforces:
     - Valid JSON
     - 'title' string present and non-empty
-    - 'vaults' list with 1-16 entries
+    - 'vaults' list with 1–32768 entries (3–8 recommended for readability)
     - Each vault has 'id', 'name', 'html' (all non-empty strings)
     - Vault ids are unique
     """

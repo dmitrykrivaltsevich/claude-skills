@@ -22,7 +22,7 @@ user-invocable: true
 
 **Script = data pipe.** `generate.py` reads a JSON config from stdin, produces a self-contained HTML file to stdout. It handles templating, vault positioning, color assignment, and JS code generation.
 
-**LLM = brain.** The LLM analyzes the user's data, decides how to partition it into 1–16 vaults, writes HTML content for each vault's info panel, picks stats/glyphs, and structures the JSON config.
+**LLM = brain.** The LLM analyzes the user's data, decides how to partition it into vaults (up to 32,768; 3–8 recommended for readability), writes HTML content for each vault's info panel, picks stats/glyphs, and structures the JSON config.
 
 ## Workflow
 
@@ -66,7 +66,7 @@ user-invocable: true
 | Field | Type | Constraint |
 |-------|------|------------|
 | `title` | string | Non-empty |
-| `vaults` | array | 1–16 entries |
+| `vaults` | array | 1–32,768 entries (3–8 recommended) |
 | `vaults[].id` | string | Unique, non-empty |
 | `vaults[].name` | string | Non-empty, shown as label |
 | `vaults[].html` | string | HTML for the side panel |
