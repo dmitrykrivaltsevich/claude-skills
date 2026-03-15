@@ -699,6 +699,11 @@ class TestMedia(unittest.TestCase):
         out = self._html()
         assert "wireMedia(fp,vd.name)" in out
 
+    def test_image_deck_is_grid(self):
+        """Image deck should be a wrapping grid, not a single horizontal row."""
+        out = self._html()
+        assert "grid-template-columns:repeat(4" in out
+
     def test_lightbox_is_floating_panel(self):
         out = self._html()
         assert "fp-lb" in out

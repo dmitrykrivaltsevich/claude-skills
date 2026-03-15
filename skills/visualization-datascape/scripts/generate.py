@@ -510,9 +510,9 @@ canvas{{display:block;position:fixed;top:0;left:0}}
 .pi{{display:block;max-width:100%;border:1px solid rgba(0,255,60,.1);margin:8px 0;cursor:pointer;transition:all .3s;filter:saturate(.7) brightness(.85)}}
 .pi:hover{{border-color:rgba(0,255,60,.35);filter:saturate(1) brightness(1);box-shadow:0 0 12px rgba(0,255,60,.1)}}
 img.pi-err{{display:none}}
-.pi-deck{{display:flex;gap:6px;overflow-x:auto;padding:6px 0;scrollbar-width:none;margin:8px 0}}
+.pi-deck{{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:6px 0;margin:8px 0}}
 .pi-deck::-webkit-scrollbar{{display:none}}
-.pi-deck img{{width:80px;height:80px;object-fit:cover;border:1px solid rgba(0,255,60,.1);cursor:pointer;flex-shrink:0;
+.pi-deck img{{width:100%;aspect-ratio:1;object-fit:cover;border:1px solid rgba(0,255,60,.1);cursor:pointer;
   transition:all .3s;filter:saturate(.7) brightness(.85)}}
 .pi-deck img:hover{{border-color:rgba(0,255,60,.35);filter:saturate(1) brightness(1);box-shadow:0 0 8px rgba(0,255,60,.15)}}
 .pv-wrap{{display:flex;gap:12px;align-items:flex-start;margin:8px 0}}

@@ -90,7 +90,9 @@ class TestParseNote(unittest.TestCase):
             "Research.md": "See ![[paper.pdf]]",
         })
         config = otd.parse_vault(str(root))
-        assert "paper.pdf" in config["vaults"][0]["html"]
+        html = config["vaults"][0]["html"]
+        assert "paper.pdf" in html
+        assert "[pdf]" in html
 
     def test_headings_in_structure(self):
         root = self._make_vault({
@@ -405,6 +407,115 @@ class TestMarkdownRendering(unittest.TestCase):
         content = "Before\n```python\ndef hello():\n    pass\n```\nAfter"
         html = self._get_html(content)
         assert "monospace" in html or "def hello():" in html
+
+
+class TestNoCaps(unittest.TestCase):
+    """All content from Obsidian must be accessible — no artificial limits."""
+
+    def _make_vault(self, files: dict[str, str]) -> Path:
+        d = tempfile.mkdtemp()
+        root = Path(d)
+        for rel, content in files.items():
+            p = root / rel
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text(content, encoding="utf-8")
+        return root
+
+    def _get_html(self, content: str) -> str:
+        root = self._make_vault({"Note.md": content})
+        config = otd.parse_vault(str(root))
+        return config["vaults"][0]["html"]
+
+    def test_all_tags_shown(self):
+        tags = " ".join(f"#tag{i}" for i in range(15))
+        html = self._get_html(f"Text with {tags}")
+        for i in range(15):
+            assert f"#tag{i}" in html, f"#tag{i} missing"
+
+    def test_all_headings_shown(self):
+        headings = "\n".join(f"## Section {i}" for i in range(20))
+        html = self._get_html(headings + "\nContent here.")
+        for i in range(20):
+            assert f"Section {i}" in html, f"Section {i} missing"
+
+    def test_linked_notes_not_in_parser_html(self):
+        """Linked notes are handled by generate.py at runtime, not the parser."""
+        root = self._make_vault({
+            "Hub.md": "Links: [[Note0]] [[Note1]]",
+            "Note0.md": "Note 0",
+            "Note1.md": "Note 1",
+        })
+        config = otd.parse_vault(str(root))
+        hub = next(v for v in config["vaults"] if v["name"] == "HUB")
+        assert "Linked Notes" not in hub["html"]
+        # But connections must still be created
+        assert len(config["connections"]) >= 1
+
+    def test_all_external_urls_shown(self):
+        urls = "\n".join(f"https://example.com/page{i}" for i in range(15))
+        html = self._get_html(urls)
+        for i in range(15):
+            assert f"page{i}" in html, f"URL page{i} missing"
+
+    def test_all_pdfs_shown(self):
+        embeds = "\n".join(f"![[doc{i}.pdf]]" for i in range(10))
+        html = self._get_html(embeds)
+        for i in range(10):
+            assert f"doc{i}.pdf" in html, f"doc{i}.pdf missing"
+
+    def test_no_emoji_in_html(self):
+        """No emoji characters — they break the cyberpunk aesthetic."""
+        root = self._make_vault({
+            "Note.md": "See ![[paper.pdf]] and [[Other]]",
+            "Other.md": "Other note",
+        })
+        config = otd.parse_vault(str(root))
+        for v in config["vaults"]:
+            assert "\U0001f517" not in v["html"], f"Link emoji in {v['name']}"
+            assert "\U0001f4c4" not in v["html"], f"PDF emoji in {v['name']}"
+
+    def test_all_images_referenced(self):
+        """All image embeds must produce img tags, not just first 6."""
+        files = {"Note.md": "\n".join(f"![[img{i}.png]]" for i in range(10))}
+        for i in range(10):
+            # Create tiny valid-enough files
+            files[f"img{i}.png"] = "FAKEPNG"
+        root = self._make_vault(files)
+        config = otd.parse_vault(str(root))
+        html = config["vaults"][0]["html"]
+        img_count = html.count("<img ")
+        assert img_count >= 10, f"Only {img_count} img tags, expected 10+"
+
+    def test_images_use_file_paths_for_large(self):
+        """Large images should use file:// paths instead of base64."""
+        root = self._make_vault({
+            "Note.md": "![[big.png]]",
+            "big.png": "X" * 600_000,  # over 512KB
+        })
+        config = otd.parse_vault(str(root))
+        html = config["vaults"][0]["html"]
+        assert "file://" in html, "Large image should use file:// URI"
+        assert "data:" not in html, "Large image should not use base64"
+
+    def test_small_images_use_base64(self):
+        """Small images should still embed as base64 for portability."""
+        root = self._make_vault({
+            "Note.md": "![[photo.png]]",
+            "photo.png": "FAKEPNG",
+        })
+        config = otd.parse_vault(str(root))
+        html = config["vaults"][0]["html"]
+        assert "data:" in html, "Small image should use base64"
+
+    def test_large_image_not_skipped(self):
+        """Images over 512KB must still appear (via file:// path)."""
+        root = self._make_vault({
+            "Note.md": "![[big.png]]",
+            "big.png": "X" * 600_000,  # over 512KB
+        })
+        config = otd.parse_vault(str(root))
+        html = config["vaults"][0]["html"]
+        assert "big.png" in html or "file://" in html, "Large image was skipped"
 
 
 class TestFullContent(unittest.TestCase):

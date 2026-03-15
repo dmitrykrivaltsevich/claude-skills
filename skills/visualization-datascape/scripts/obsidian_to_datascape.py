@@ -66,7 +66,7 @@ _MD_OL_RE = re.compile(r"^(\d+)\.\s+(.+)")
 _MD_BQ_RE = re.compile(r"^&gt;\s*(.*)")
 _MD_FENCE_RE = re.compile(r"^```")
 
-# Max image size for base64 embedding (512KB — keeps HTML under control)
+# Max image size for base64 embedding — images above this use file:// paths
 MAX_IMAGE_BYTES = 512_000
 
 IMAGE_EXTS = frozenset({".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp"})
@@ -121,19 +121,24 @@ def _find_image(ref: str, note_dir: Path, vault_root: Path) -> Path | None:
     return None
 
 
-def _image_to_data_uri(img_path: Path) -> str | None:
-    """Convert a local image to a data: URI, or None if too large/unsupported."""
+def _image_to_src(img_path: Path) -> str | None:
+    """Return an img src for a local image: data URI for small, file:// for large."""
     mime = MIME_MAP.get(img_path.suffix.lower())
     if not mime:
         return None
     try:
-        data = img_path.read_bytes()
-        if len(data) > MAX_IMAGE_BYTES:
-            return None
-        b64 = base64.b64encode(data).decode("ascii")
-        return f"data:{mime};base64,{b64}"
-    except Exception:
+        size = img_path.stat().st_size
+    except OSError:
         return None
+    if size <= MAX_IMAGE_BYTES:
+        try:
+            data = img_path.read_bytes()
+            b64 = base64.b64encode(data).decode("ascii")
+            return f"data:{mime};base64,{b64}"
+        except Exception:
+            return None
+    # Large image — use file:// path so browser loads it directly
+    return img_path.resolve().as_uri()
 
 
 def _apply_inline_md(text: str) -> str:
@@ -209,13 +214,13 @@ def _build_note_html(
 
     # Tags
     if tags:
-        tag_str = " ".join(f"#{t}" for t in sorted(tags)[:8])
+        tag_str = " ".join(f"#{t}" for t in sorted(tags))
         h.append(f'<div class="ps" style="color:#0f8">{html_mod.escape(tag_str)}</div>')
 
     # Structure (headings)
     if headings:
         h.append('<div class="ph">Structure</div>')
-        for level, text in headings[:12]:
+        for level, text in headings:
             indent = "&nbsp;" * (len(level) - 1) * 2
             h.append(f'<div class="pd">{indent}{html_mod.escape(text.strip())}</div>')
 
@@ -242,57 +247,46 @@ def _build_note_html(
             else:
                 h.append(_md_line_to_html(l))
 
-    # Embedded images
-    data_uris: list[str] = []
+    # Embedded images — all images shown, small ones as base64, large as file://
+    img_srcs: list[str] = []
     for embed in embeds:
         embed_name = embed.split("|")[0].strip()
         img_path = _find_image(embed_name, note_dir, vault_root)
         if img_path and img_path.suffix.lower() in IMAGE_EXTS:
-            uri = _image_to_data_uri(img_path)
-            if uri:
-                data_uris.append(uri)
-    for _, src in md_images:
-        if not src.startswith("http"):
-            img_path = _find_image(src, note_dir, vault_root)
-            if img_path:
-                uri = _image_to_data_uri(img_path)
-                if uri:
-                    data_uris.append(uri)
-    if data_uris:
+            src = _image_to_src(img_path)
+            if src:
+                img_srcs.append(src)
+    for _, md_src in md_images:
+        if not md_src.startswith("http"):
+            img_path = _find_image(md_src, note_dir, vault_root)
+            if img_path and img_path.suffix.lower() in IMAGE_EXTS:
+                src = _image_to_src(img_path)
+                if src:
+                    img_srcs.append(src)
+    if img_srcs:
         h.append('<div class="ph">Images</div>')
-        if len(data_uris) > 1:
+        if len(img_srcs) > 1:
             h.append('<div class="pi-deck">')
-            for uri in data_uris[:6]:
-                h.append(f'<img src="{uri}">')
+            for src in img_srcs:
+                h.append(f'<img src="{src}">')
             h.append('</div>')
         else:
-            h.append(f'<img class="pi" src="{data_uris[0]}">')
+            h.append(f'<img class="pi" src="{img_srcs[0]}">')
 
     # PDF references
     pdf_refs = [e.split("|")[0].strip() for e in embeds if e.lower().endswith(".pdf")]
     if pdf_refs:
         h.append('<div class="ph">PDFs</div>')
-        for pdf_name in pdf_refs[:4]:
-            h.append(f'<div class="pd">\U0001f4c4 {html_mod.escape(pdf_name)}</div>')
-
-    # Internal links (display names)
-    link_names = []
-    for wl in wikilinks:
-        display = wl.split("|")[-1].strip()
-        if display:
-            link_names.append(display)
-    if link_names:
-        h.append('<div class="ph">Linked Notes</div>')
-        for ln in sorted(set(link_names))[:12]:
-            h.append(f'<div class="pd">\U0001f517 {html_mod.escape(ln)}</div>')
+        for pdf_name in pdf_refs:
+            h.append(f'<div class="pd" style="color:#0a6;font-family:monospace;font-size:0.85em">[pdf] {html_mod.escape(pdf_name)}</div>')
 
     # External links
     if ext_urls:
         h.append('<div class="ph">External Links</div>')
-        for url in ext_urls[:8]:
+        for url in ext_urls:
             display = url[:60] + ("\u2026" if len(url) > 60 else "")
             safe_url = html_mod.escape(url)
-            h.append(f'<div class="pd"><a href="{safe_url}" target="_blank" style="color:#0cf">{html_mod.escape(display)}</a></div>')
+            h.append(f'<div class="pd"><a href="{safe_url}" target="_blank" style="color:#0cf;font-family:monospace;font-size:0.85em">[link] {html_mod.escape(display)}</a></div>')
 
     # Stats footer
     word_count = len(content.split())
