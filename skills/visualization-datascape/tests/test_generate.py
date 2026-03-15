@@ -446,8 +446,13 @@ class TestHelpAndTour(unittest.TestCase):
     def test_tour_mode_present(self):
         out = self._html()
         assert "toggleTour" in out
-        assert "tourPath" in out
+        assert "tourCurve" in out
         assert "buildTourPath" in out
+        assert "CatmullRomCurve3" in out
+        assert "getPointAt" in out
+        assert "advanceTour" in out
+        assert "tourGenPoint" in out
+        assert "TOUR_WIN" in out
 
     def test_z_c_keybindings(self):
         out = self._html()

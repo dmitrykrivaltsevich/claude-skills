@@ -1325,23 +1325,58 @@ window.toggleHelp=function(){{document.getElementById('help').classList.toggle('
 
 /* ═══ NAV GRID (expand/collapse) ═══ */
 window.toggleNavGrid=function(){{const g=document.getElementById('navGrid');if(g)g.classList.toggle('open')}};
-/* ═══ AUTO-FLY TOUR ═══ */
+/* ═══ AUTO-FLY TOUR (infinite, sliding window) ═══ */
 let touring=false;
 let tourT=0;
-let tourPath=[];
-function buildTourPath(){{
-  /* Build waypoints starting from current camera position */
-  tourPath=[cam.position.clone()];
-  const R=65,hBase=25;
-  for(let i=0;i<8;i++){{
-    const a=i/8*Math.PI*2;
-    const h=hBase+Math.sin(a*2)*20+Math.random()*15;
-    tourPath.push(new THREE.Vector3(Math.cos(a)*R, h, Math.sin(a)*R));
+let tourCurve=null;
+let tourPts=[];
+const TOUR_WIN=16;        /* sliding window size — enough for smooth Catmull-Rom */
+const TOUR_SPEED=0.003;   /* normalized units/sec along current curve segment */
+const TOUR_LOOK_AHEAD=0.012;
+const TOUR_ADVANCE=0.85;  /* rebuild curve when tourT passes this threshold */
+let tourAngle=0;           /* running angle for orbit drift */
+let tourVisited=new Set(); /* track recently visited vault indices to avoid repeats */
+
+function tourGenPoint(){{
+  /* Generate next waypoint — attracted toward a vault or scenic orbit point */
+  const vp=VAULT_DATA.map(v=>v.pos);
+  /* pick a vault we haven't visited recently, or random if all visited */
+  let vi=-1;
+  const unvisited=[...Array(vp.length).keys()].filter(i=>!tourVisited.has(i));
+  if(unvisited.length>0)vi=unvisited[Math.floor(Math.random()*unvisited.length)];
+  else{{ tourVisited.clear(); vi=Math.floor(Math.random()*vp.length); }}
+  tourVisited.add(vi);
+  if(tourVisited.size>Math.max(3,Math.floor(vp.length*0.6))){{
+    /* forget oldest — just clear and re-add recent */
+    const arr=[...tourVisited];tourVisited=new Set(arr.slice(-3));
   }}
-  tourPath.push(new THREE.Vector3(0, 90, 0));
-  tourPath.push(new THREE.Vector3(-40, 50, 60));
-  tourPath.push(new THREE.Vector3(5, 12, 15));
-  tourPath.push(new THREE.Vector3(-20, 18, -30));
+  const target=vp[vi];
+  /* approach from a random offset so we don't fly straight at center */
+  tourAngle+=0.8+Math.random()*1.5;
+  const oR=12+Math.random()*25;  /* orbit radius around vault */
+  const oH=8+Math.random()*30;   /* height variation */
+  return new THREE.Vector3(
+    target[0]+Math.cos(tourAngle)*oR,
+    target[1]+oH,
+    target[2]+Math.sin(tourAngle)*oR
+  );
+}}
+
+function buildTourPath(){{
+  tourPts=[cam.position.clone()];
+  tourAngle=Math.atan2(cam.position.z,cam.position.x);
+  tourVisited.clear();
+  for(let i=1;i<TOUR_WIN;i++)tourPts.push(tourGenPoint());
+  tourCurve=new THREE.CatmullRomCurve3(tourPts,false);
+}}
+
+function advanceTour(){{
+  /* Drop oldest points, append new ones, rebuild curve */
+  const keep=Math.floor(TOUR_WIN*0.4);  /* keep tail 40% of window */
+  tourPts=tourPts.slice(-keep);
+  while(tourPts.length<TOUR_WIN)tourPts.push(tourGenPoint());
+  tourCurve=new THREE.CatmullRomCurve3(tourPts,false);
+  tourT=0.05;  /* start slightly in so Catmull-Rom has a previous point */
 }}
 
 function toggleTour(){{
@@ -1350,26 +1385,12 @@ function toggleTour(){{
 }}
 
 function updateTour(dt){{
-  if(!touring||tourPath.length<2)return;
-  tourT+=dt*0.08;  /* tour speed — 0.08 segments/sec per dt unit */
-  const n=tourPath.length;
-  const totalT=tourT%n;
-  const i0=Math.floor(totalT)%n;
-  const i1=(i0+1)%n;
-  const i2=(i0+2)%n;
-  const iPrev=(i0-1+n)%n;
-  const frac=totalT-Math.floor(totalT);
-  const cr=(p0,p1,p2,p3,t)=>{{
-    const t2=t*t,t3=t2*t;
-    return new THREE.Vector3(
-      0.5*((2*p1.x)+(-p0.x+p2.x)*t+(2*p0.x-5*p1.x+4*p2.x-p3.x)*t2+(-p0.x+3*p1.x-3*p2.x+p3.x)*t3),
-      0.5*((2*p1.y)+(-p0.y+p2.y)*t+(2*p0.y-5*p1.y+4*p2.y-p3.y)*t2+(-p0.y+3*p1.y-3*p2.y+p3.y)*t3),
-      0.5*((2*p1.z)+(-p0.z+p2.z)*t+(2*p0.z-5*p1.z+4*p2.z-p3.z)*t2+(-p0.z+3*p1.z-3*p2.z+p3.z)*t3)
-    );
-  }};
-  const pos=cr(tourPath[iPrev],tourPath[i0],tourPath[i1],tourPath[i2],frac);
-  const lookFrac=Math.min(frac+0.15,1);
-  const look=cr(tourPath[iPrev],tourPath[i0],tourPath[i1],tourPath[i2],lookFrac);
+  if(!touring||!tourCurve)return;
+  tourT+=dt*TOUR_SPEED;
+  if(tourT>=TOUR_ADVANCE)advanceTour();
+  const t=Math.min(tourT,0.999);
+  const pos=tourCurve.getPointAt(t);
+  const look=tourCurve.getPointAt(Math.min(t+TOUR_LOOK_AHEAD,0.999));
   cam.position.copy(pos);
   ctrl.target.copy(look);
   if(Object.values(keys).some(v=>v))touring=false;
