@@ -427,11 +427,11 @@ def parse_vault(vault_path: str) -> dict:
         if child_notes:
             fh.append('<div class="ph">Notes</div>')
             for cn in sorted(child_notes):
-                fh.append(f'<div class="pd">\U0001f4c4 {html_mod.escape(cn)}</div>')
+                fh.append(f'<div class="pd" style="color:#0a6;font-family:monospace;font-size:0.85em">[note] {html_mod.escape(cn)}</div>')
         if child_folders:
             fh.append('<div class="ph">Subfolders</div>')
             for cf in sorted(child_folders):
-                fh.append(f'<div class="pd">\U0001f4c1 {html_mod.escape(cf)}</div>')
+                fh.append(f'<div class="pd" style="color:#0a6;font-family:monospace;font-size:0.85em">[dir] {html_mod.escape(cf)}</div>')
         vaults.append({
             "id": fid,
             "name": folder_name.upper()[:30],

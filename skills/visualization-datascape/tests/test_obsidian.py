@@ -466,13 +466,14 @@ class TestNoCaps(unittest.TestCase):
     def test_no_emoji_in_html(self):
         """No emoji characters — they break the cyberpunk aesthetic."""
         root = self._make_vault({
-            "Note.md": "See ![[paper.pdf]] and [[Other]]",
-            "Other.md": "Other note",
+            "Folder/Note.md": "See ![[paper.pdf]] and [[Other]]",
+            "Folder/Other.md": "Other note",
         })
         config = otd.parse_vault(str(root))
         for v in config["vaults"]:
             assert "\U0001f517" not in v["html"], f"Link emoji in {v['name']}"
-            assert "\U0001f4c4" not in v["html"], f"PDF emoji in {v['name']}"
+            assert "\U0001f4c4" not in v["html"], f"Doc emoji in {v['name']}"
+            assert "\U0001f4c1" not in v["html"], f"Folder emoji in {v['name']}"
 
     def test_all_images_referenced(self):
         """All image embeds must produce img tags, not just first 6."""
