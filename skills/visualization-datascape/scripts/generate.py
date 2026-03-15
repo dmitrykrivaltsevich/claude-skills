@@ -731,6 +731,7 @@ const MOVE_SPEED=0.45;
 const _fwd=new THREE.Vector3(),_right=new THREE.Vector3(),_move=new THREE.Vector3();
 document.addEventListener('keydown',e=>{{
   if(document.activeElement===document.getElementById('srchIn'))return;
+  if(e.metaKey||e.ctrlKey)return;
   const k=e.key.toLowerCase();
   if(['w','a','s','d','z','c','arrowup','arrowdown','arrowleft','arrowright'].includes(k)){{
     keys[k]=true;e.preventDefault();

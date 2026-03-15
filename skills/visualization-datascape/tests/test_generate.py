@@ -468,6 +468,12 @@ class TestHelpAndTour(unittest.TestCase):
         assert "keys['c']" in out
         assert "keys['z']" in out
 
+    def test_modifier_keys_bypass_movement(self):
+        """Cmd+C / Ctrl+C must not be captured by movement handler."""
+        out = self._html()
+        assert "e.metaKey" in out
+        assert "e.ctrlKey" in out
+
 
 class TestNavGrid(unittest.TestCase):
     """Test collapsible nav-grid overlay and sliding nav window."""
