@@ -54,6 +54,7 @@ FOLDER_COLORS = [
 # Temporal vaults get a distinctive color
 TEMPORAL_YEAR_COLOR = "0xffffff"   # white — years are structural anchors
 TEMPORAL_MONTH_COLOR = "0x99ccff"  # light blue — months are time containers
+FOLDER_VAULT_COLOR = "0x88ff88"    # bright green — folder containers
 
 # Max image size for base64 embedding (512KB — keeps HTML under control)
 MAX_IMAGE_BYTES = 512_000
@@ -173,20 +174,20 @@ def _build_note_html(
             indent = "&nbsp;" * (len(level) - 1) * 2
             h.append(f'<div class="pd">{indent}{html_mod.escape(text.strip())}</div>')
 
-    # Content preview
+    # Full content (all lines, no truncation)
     lines = [
         l.strip() for l in content.split("\n")
         if l.strip() and not l.strip().startswith("#") and not l.strip().startswith("---")
     ]
-    preview = []
+    content_lines = []
     for l in lines:
         clean = WIKILINK_RE.sub("", EMBED_RE.sub("", l)).strip()
         if clean and len(clean) > 3:
-            preview.append(clean)
-    if preview:
-        h.append('<div class="ph">Content Preview</div>')
-        for l in preview[:8]:
-            h.append(f'<div class="pd">{html_mod.escape(l[:200])}</div>')
+            content_lines.append(clean)
+    if content_lines:
+        h.append('<div class="ph">Content</div>')
+        for l in content_lines:
+            h.append(f'<div class="pd">{html_mod.escape(l)}</div>')
 
     # Embedded images
     data_uris: list[str] = []
@@ -344,6 +345,67 @@ def parse_vault(vault_path: str) -> dict:
         d = _extract_date(name)
         if d:
             dated_notes.append((d, vid))
+
+    # ── Folder vaults ───────────────────────────────────────────────
+    # Collect all unique folders (excluding root and .obsidian)
+    folder_set: set[Path] = set()
+    for p in md_files:
+        rel = p.relative_to(vault_root)
+        # Walk up from parent to root, adding each folder
+        current = rel.parent
+        while str(current) != ".":
+            if ".obsidian" not in current.parts:
+                folder_set.add(current)
+            current = current.parent
+
+    # Create a vault for each folder
+    folder_ids: dict[str, str] = {}  # str(relative folder path) → vault ID
+    for folder_rel in sorted(folder_set):
+        fid = _stable_id(f"__folder__{folder_rel}")
+        folder_ids[str(folder_rel)] = fid
+        folder_name = folder_rel.name
+        # List children: notes and subfolders in this folder
+        child_notes = [
+            p.stem for p in md_files
+            if p.relative_to(vault_root).parent == folder_rel
+        ]
+        child_folders = [
+            f.name for f in sorted(folder_set)
+            if f.parent == folder_rel
+        ]
+        # Build HTML panel showing contents
+        fh: list[str] = []
+        fh.append(f'<div class="pt">{html_mod.escape(folder_name)}</div>')
+        fh.append(f'<div class="ps">Folder · {len(child_notes)} notes · {len(child_folders)} subfolders</div>')
+        if child_notes:
+            fh.append('<div class="ph">Notes</div>')
+            for cn in sorted(child_notes):
+                fh.append(f'<div class="pd">\U0001f4c4 {html_mod.escape(cn)}</div>')
+        if child_folders:
+            fh.append('<div class="ph">Subfolders</div>')
+            for cf in sorted(child_folders):
+                fh.append(f'<div class="pd">\U0001f4c1 {html_mod.escape(cf)}</div>')
+        vaults.append({
+            "id": fid,
+            "name": folder_name.upper()[:30],
+            "html": "\n".join(fh),
+            "color": FOLDER_VAULT_COLOR,
+        })
+
+    # Connect notes → their immediate parent folder
+    for p in md_files:
+        vid = id_map[str(p)]
+        rel = p.relative_to(vault_root)
+        parent_rel = str(rel.parent)
+        if parent_rel != "." and parent_rel in folder_ids:
+            add_conn(vid, folder_ids[parent_rel])
+
+    # Connect subfolders → parent folders
+    for folder_rel in folder_set:
+        fid = folder_ids[str(folder_rel)]
+        parent_rel = str(folder_rel.parent)
+        if parent_rel != "." and parent_rel in folder_ids:
+            add_conn(fid, folder_ids[parent_rel])
 
     # ── Temporal inference ──────────────────────────────────────────
     # Group dated notes by (year, month)

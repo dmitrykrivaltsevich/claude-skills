@@ -245,6 +245,125 @@ class TestTemporalInference(unittest.TestCase):
         assert (ids["JAN 2025"], ids["MAR 2025"]) in conn_pairs
 
 
+class TestFolderVaults(unittest.TestCase):
+    """Test folders becoming vaults with hierarchical connections."""
+
+    def _make_vault(self, files: dict[str, str]) -> Path:
+        d = tempfile.mkdtemp()
+        root = Path(d)
+        for rel, content in files.items():
+            p = root / rel
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text(content, encoding="utf-8")
+        return root
+
+    def test_folder_becomes_vault(self):
+        root = self._make_vault({
+            "FolderA/Note1.md": "Content 1",
+            "FolderA/Note2.md": "Content 2",
+        })
+        config = otd.parse_vault(str(root))
+        names = [v["name"] for v in config["vaults"]]
+        assert "FOLDERA" in names, f"No folder vault in {names}"
+
+    def test_folder_connected_to_children(self):
+        root = self._make_vault({
+            "FolderA/Note1.md": "Content 1",
+            "FolderA/Note2.md": "Content 2",
+        })
+        config = otd.parse_vault(str(root))
+        ids = {v["name"]: v["id"] for v in config["vaults"]}
+        conn_pairs = {(c["from"], c["to"]) for c in config["connections"]}
+        conn_pairs |= {(c["to"], c["from"]) for c in config["connections"]}
+        folder_id = ids["FOLDERA"]
+        # Both notes connected to folder
+        assert (ids["NOTE1"], folder_id) in conn_pairs
+        assert (ids["NOTE2"], folder_id) in conn_pairs
+
+    def test_nested_folders_connected(self):
+        root = self._make_vault({
+            "Parent/Child/Note.md": "Deep note",
+        })
+        config = otd.parse_vault(str(root))
+        ids = {v["name"]: v["id"] for v in config["vaults"]}
+        conn_pairs = {(c["from"], c["to"]) for c in config["connections"]}
+        conn_pairs |= {(c["to"], c["from"]) for c in config["connections"]}
+        assert "PARENT" in ids
+        assert "CHILD" in ids
+        # Child folder → Parent folder
+        assert (ids["CHILD"], ids["PARENT"]) in conn_pairs
+        # Note → Child folder
+        assert (ids["NOTE"], ids["CHILD"]) in conn_pairs
+
+    def test_folder_vault_lists_children(self):
+        root = self._make_vault({
+            "MyFolder/A.md": "Alpha",
+            "MyFolder/B.md": "Beta",
+        })
+        config = otd.parse_vault(str(root))
+        folder_vault = next(v for v in config["vaults"] if v["name"] == "MYFOLDER")
+        assert "A" in folder_vault["html"]
+        assert "B" in folder_vault["html"]
+
+    def test_folder_has_distinct_color(self):
+        root = self._make_vault({
+            "Stuff/Note.md": "Content",
+        })
+        config = otd.parse_vault(str(root))
+        colors = {v["name"]: v["color"] for v in config["vaults"]}
+        # Folder vault uses FOLDER_COLOR constant, not the same as child note color
+        assert "STUFF" in colors
+
+    def test_root_notes_no_folder_vault(self):
+        """Notes at vault root don't create a folder vault."""
+        root = self._make_vault({
+            "RootNote.md": "At root level",
+        })
+        config = otd.parse_vault(str(root))
+        names = [v["name"] for v in config["vaults"]]
+        assert names == ["ROOTNOTE"]
+
+    def test_obsidian_folder_not_a_vault(self):
+        root = self._make_vault({
+            ".obsidian/config.json": "{}",
+            "Note.md": "Real",
+        })
+        config = otd.parse_vault(str(root))
+        names = [v["name"] for v in config["vaults"]]
+        assert ".OBSIDIAN" not in names
+
+
+class TestFullContent(unittest.TestCase):
+    """Test that full note content is shown, not truncated."""
+
+    def _make_vault(self, files: dict[str, str]) -> Path:
+        d = tempfile.mkdtemp()
+        root = Path(d)
+        for rel, content in files.items():
+            p = root / rel
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text(content, encoding="utf-8")
+        return root
+
+    def test_all_content_lines_present(self):
+        lines = [f"Line number {i} with some content here" for i in range(20)]
+        content = "\n".join(lines)
+        root = self._make_vault({"Long.md": content})
+        config = otd.parse_vault(str(root))
+        html_out = config["vaults"][0]["html"]
+        # All lines should be present, not just first 8
+        assert "Line number 0" in html_out
+        assert "Line number 19" in html_out
+
+    def test_long_lines_not_truncated(self):
+        long_line = "A" * 500
+        root = self._make_vault({"Wide.md": long_line})
+        config = otd.parse_vault(str(root))
+        html_out = config["vaults"][0]["html"]
+        # Full 500 chars should be present
+        assert "A" * 500 in html_out
+
+
 class TestCLI(unittest.TestCase):
     """Test command-line interface."""
 
