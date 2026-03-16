@@ -164,11 +164,10 @@ def compute_positions(n: int) -> list[tuple[float, float, float]]:
         top_needed = min(n - 12, 6)
         return ring0 + ring1 + ring2[:top_needed]
 
-    # n>18: grow crystal by adding concentric hex shells at all 3 HCP
-    # y-levels before expanding vertically.  Each shell k (k>=2) places
-    # 6*k evenly-spaced vertices per y-level, so the crystal spreads
-    # horizontally first and remains roughly equiaxial.
-    SHELL_GAP = 25.0  # radial gap between concentric shells
+    # n>18: grow crystal by adding hex shells at all 3 HCP y-levels.
+    # Each shell k places 6*k vertices along hexagon EDGES (not circular),
+    # preserving the crystal lattice structure at any scale.
+    SHELL_GAP = 25.0  # radial gap between concentric hex shells
     hcp_layers = [(Y0, 0.0), (Y1, 30.0), (Y2, 0.0)]
 
     pool = list(ring0 + ring1 + ring2)  # 18 base positions (shell k=1)
@@ -176,17 +175,19 @@ def compute_positions(n: int) -> list[tuple[float, float, float]]:
     while len(pool) < n:
         r = R + (shell - 1) * SHELL_GAP
         for y, offset in hcp_layers:
-            pts = 6 * shell  # more points at larger radii for density
-            pool.extend(
-                [
-                    (
-                        round(r * math.cos(math.radians(i * 360 / pts + offset)), 1),
+            # Walk 6 hex edges, placing `shell` vertices per edge
+            for side in range(6):
+                a0 = math.radians(side * 60 + offset)
+                a1 = math.radians((side + 1) * 60 + offset)
+                cx, cz = r * math.cos(a0), r * math.sin(a0)
+                nx, nz = r * math.cos(a1), r * math.sin(a1)
+                for j in range(shell):
+                    t = j / shell
+                    pool.append((
+                        round(cx + t * (nx - cx), 1),
                         y,
-                        round(r * math.sin(math.radians(i * 360 / pts + offset)), 1),
-                    )
-                    for i in range(pts)
-                ]
-            )
+                        round(cz + t * (nz - cz), 1),
+                    ))
             if len(pool) >= n:
                 break
         shell += 1
@@ -201,11 +202,8 @@ def _js_vault_array(vaults: list[dict], positions: list[tuple]) -> str:
         vname = v["name"]
         vhtml = v["html"]
         color = v.get("color", DEFAULT_COLORS[i % len(DEFAULT_COLORS)])
-        pos = v.get("pos", list(positions[i]))
-        if isinstance(pos, (list, tuple)) and len(pos) == 3:
-            pos_js = f"[{pos[0]},{pos[1]},{pos[2]}]"
-        else:
-            pos_js = f"[{positions[i][0]},{positions[i][1]},{positions[i][2]}]"
+        px, py, pz = positions[i]
+        pos_js = f"[{px},{py},{pz}]"
 
         # Escape backticks and backslashes in HTML for JS template literal
         safe_html = vhtml.replace("\\", "\\\\").replace("`", "\\`").replace("${", "\\${")
@@ -225,11 +223,7 @@ def _js_views(vaults: list[dict], positions: list[tuple]) -> str:
     """Build the views object for camera navigation."""
     lines = ["overview:{p:[10,35,45],l:[0,6,-5]}"]
     for i, v in enumerate(vaults):
-        pos = v.get("pos", list(positions[i]))
-        if isinstance(pos, (list, tuple)) and len(pos) == 3:
-            px, py, pz = pos
-        else:
-            px, py, pz = positions[i]
+        px, py, pz = positions[i]
         # Camera offset: slightly in front and above
         cx = px * 0.7
         cz = pz * 0.7 + 8

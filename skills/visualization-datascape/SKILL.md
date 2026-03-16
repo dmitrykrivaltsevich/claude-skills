@@ -78,8 +78,7 @@ The parser automatically:
       "id": "unique-id",
       "name": "DISPLAY NAME",
       "html": "<div class=\"pt\">Title</div><div class=\"pd\">Content</div>",
-      "color": "0x00ff66",
-      "pos": [40, 5, 0]
+      "color": "0x00ff66"
     }
   ],
   "glyphs": ["TERM_1", "code::ref", "data_key"],
@@ -106,7 +105,6 @@ The parser automatically:
 | `subtitle` | empty |
 | `stats` | none shown |
 | `vaults[].color` | auto-assigned from green palette |
-| `vaults[].pos` | auto-positioned in a circle |
 | `glyphs` | auto-generated from vault names |
 | `connections` | auto nearest-neighbor; array of `{from, to}` vault IDs for animated particle exchange |
 
