@@ -876,6 +876,10 @@ srchIn.addEventListener('blur',()=>{{
 document.addEventListener('keydown',e=>{{
   if(e.key==='Escape'){{
     if(lightboxEl.classList.contains('open')){{closeLightbox();return;}}
+    const helpEl=document.getElementById('help');
+    if(helpEl&&helpEl.classList.contains('open')){{helpEl.classList.remove('open');return;}}
+    const navEl=document.getElementById('navGrid');
+    if(navEl&&navEl.classList.contains('open')){{navEl.classList.remove('open');return;}}
     if(document.activeElement===srchIn){{srchIn.value='';srchIn.blur();srchR.classList.remove('open');srchR.innerHTML='';updateCursorPos();}}
   }}
 }});

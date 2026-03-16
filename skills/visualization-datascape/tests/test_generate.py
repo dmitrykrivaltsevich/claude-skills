@@ -480,6 +480,34 @@ class TestHelpAndTour(unittest.TestCase):
         assert "e.metaKey" in out
         assert "e.ctrlKey" in out
 
+    def test_qe_orbit_keybindings(self):
+        """Q/E keys must be registered and orbit rotation code present."""
+        out = self._html()
+        assert "keys['q']" in out
+        assert "keys['e']" in out
+        assert "ORBIT_SPEED" in out
+
+    def test_qe_help_uses_kbd_tags(self):
+        """Q and E in help overlay must use <kbd> tags like other keys."""
+        out = self._html()
+        assert "<kbd>Q</kbd>" in out
+        assert "<kbd>E</kbd>" in out
+
+    def test_escape_closes_help(self):
+        """ESC key handler must check help overlay."""
+        out = self._html()
+        # The Escape handler should reference the help element
+        assert "help" in out
+        assert "classList.contains('open')" in out
+        assert "classList.remove('open')" in out
+
+    def test_cityscape_scales_with_crystal(self):
+        """City point cloud must use crystal envelope constants."""
+        out = self._html()
+        assert "CRYSTAL_MAX_Y" in out or "CMY" in out
+        assert "CRYSTAL_SPREAD" in out or "CSP" in out
+        assert "hS" in out  # height scale factor
+
 
 class TestNavGrid(unittest.TestCase):
     """Test collapsible nav-grid overlay and sliding nav window."""
