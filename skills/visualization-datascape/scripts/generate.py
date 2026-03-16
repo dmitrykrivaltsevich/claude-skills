@@ -689,6 +689,7 @@ video.pi{{max-height:200px}}
     <div class="row"><span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / Arrows</span><span>Fly forward / left / back / right</span></div>
     <div class="row"><span><kbd>C</kbd></span><span>Fly up</span></div>
     <div class="row"><span><kbd>Z</kbd></span><span>Fly down</span></div>
+    <div class="row"><span>Q / E</span><span>Orbit left / right</span></div>
     <div class="row"><span>Drag</span><span>Orbit camera</span></div>
     <div class="row"><span>Scroll</span><span>Zoom in / out</span></div>
     <h2 style="margin-top:18px">// actions //</h2>
@@ -755,12 +756,13 @@ document.addEventListener('mousemove',e=>{{mx=e.clientX;my=e.clientY;
 /* ═══ WASD / ARROW KEY MOVEMENT ═══ */
 const keys={{}};
 const MOVE_SPEED=0.45;
+const ORBIT_SPEED=0.02;  /* radians per frame for Q/E orbit rotation */
 const _fwd=new THREE.Vector3(),_right=new THREE.Vector3(),_move=new THREE.Vector3();
 document.addEventListener('keydown',e=>{{
   if(document.activeElement===document.getElementById('srchIn'))return;
   if(e.metaKey||e.ctrlKey)return;
   const k=e.key.toLowerCase();
-  if(['w','a','s','d','z','c','arrowup','arrowdown','arrowleft','arrowright'].includes(k)){{
+  if(['w','a','s','d','z','c','q','e','arrowup','arrowdown','arrowleft','arrowright'].includes(k)){{
     keys[k]=true;e.preventDefault();
   }}
   if(k==='t')toggleTour();
@@ -1552,6 +1554,17 @@ const clock=new THREE.Clock();
     _move.normalize().multiplyScalar(MOVE_SPEED);
     cam.position.add(_move);
     ctrl.target.add(_move);
+  }}
+
+  /* Q/E orbit: rotate camera around its current target (spherical coords) */
+  if(keys['q']||keys['e']){{
+    const ang=(keys['q']?1:-1)*ORBIT_SPEED;
+    const off=cam.position.clone().sub(ctrl.target);
+    const cosA=Math.cos(ang),sinA=Math.sin(ang);
+    const nx=off.x*cosA+off.z*sinA;
+    const nz=-off.x*sinA+off.z*cosA;
+    off.x=nx;off.z=nz;
+    cam.position.copy(ctrl.target).add(off);
   }}
 
   ctrl.update();
