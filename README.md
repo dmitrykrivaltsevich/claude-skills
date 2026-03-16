@@ -35,9 +35,12 @@ See the [Claude Code plugin docs](https://code.claude.com/docs/en/discover-plugi
 
 | Skill | Description |
 |-------|-------------|
-| [duckduckgo](skills/duckduckgo/) | Internet search via DuckDuckGo - text, image, and news search. No auth required. |
+| [deep-research](skills/deep-research/) | Multi-phase autonomous research across all available skills. Discovers skill capabilities, manages persistent research state, and guides through scope → sweep → deep-read → cross-reference → synthesise phases. |
+| [duckduckgo](skills/duckduckgo/) | Internet search via DuckDuckGo — text, image, and news search. No auth required. |
 | [google-drive](skills/drive/) | Search, list, download/export, upload, create, update, share, and comment on Google Drive files. Supports My Drive and Shared Drives. |
 | [google-drive-trash](skills/drive-trash/) | Move files to trash or restore them. Requires explicit user confirmation (`disable-model-invocation: true`). |
+| [review-consistency](skills/review-consistency/) | Reviews internal consistency of code, documents, diffs, or any structured content. Catches contradictions, forgotten propagation, semantic drift, stale references, and convention breaks. |
+| [visualization-datascape](skills/visualization-datascape/) | Generates immersive 3D cyberspace point-cloud visualizations from structured data. Interactive cyberpunk cityscape with explorable data vaults, WASD+QE movement, and orbit controls. |
 
 See each skill's README for setup, architecture, and test instructions.
 
