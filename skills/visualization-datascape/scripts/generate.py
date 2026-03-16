@@ -409,6 +409,13 @@ def generate_html(cfg: dict) -> str:
     conn_js = _resolve_connections(cfg, n, positions)
     vault_count = str(n)
 
+    # Crystal envelope — used to scale the cityscape around the crystal
+    crystal_max_y = round(max(p[1] for p in positions), 1)
+    crystal_spread = round(max(
+        max(abs(p[0]) for p in positions),
+        max(abs(p[2]) for p in positions),
+    ), 1)
+
     title_safe = html.escape(title)
     subtitle_safe = html.escape(subtitle) if subtitle else ""
 
@@ -425,6 +432,8 @@ def generate_html(cfg: dict) -> str:
         NODE_POSITIONS_JS=node_pos_js,
         CONN_PAIRS_JS=conn_js,
         VAULT_COUNT=vault_count,
+        CRYSTAL_MAX_Y=crystal_max_y,
+        CRYSTAL_SPREAD=crystal_spread,
     )
 
 
@@ -874,6 +883,14 @@ const nearNode=(x,z,r)=>NP.some(p=>Math.hypot(x-p[0],z-p[2])<r);
 const onPath=(x,z)=>Math.abs(x)<4||Math.abs(z)<4||Math.abs(x-z)<5||Math.abs(x+z)<5;
 
 /* ═══ POINT CLOUD CITY ═══ */
+/* Crystal envelope — scales the cityscape around the vault crystal */
+const CMY={CRYSTAL_MAX_Y};  /* crystal max Y */
+const CSP={CRYSTAL_SPREAD}; /* crystal max horizontal extent */
+const hS=Math.max(1,CMY/50);  /* height scale: 1.0 at base, grows with crystal */
+const sS=Math.max(1,CSP/80);  /* spread scale: widens inner city with crystal */
+const iR=Math.round(80*sS);   /* inner city radius */
+const oR=Math.round(Math.max(250,iR*3)); /* outer city radius */
+
 const cityPts=[],cityCol=[],cityAlpha=[];
 function addBlock(cx,cy,cz,w,h,d,brightness){{
   const density=Math.max(3,Math.round(w*h*d*0.8));
@@ -889,45 +906,50 @@ function addBlock(cx,cy,cz,w,h,d,brightness){{
   }}
 }}
 
-for(let gx=-80;gx<=80;gx+=3.5){{
-  for(let gz=-80;gz<=80;gz+=3.5){{
+/* Inner city — downtown surrounding the crystal */
+for(let gx=-iR;gx<=iR;gx+=3.5){{
+  for(let gz=-iR;gz<=iR;gz+=3.5){{
     const x=gx+(Math.random()-.5)*1.5,z=gz+(Math.random()-.5)*1.5;
     if(nearNode(x,z,10)||onPath(x,z))continue;
     if(Math.random()<.15)continue;
     const dist=Math.hypot(x,z);
-    const fade=Math.max(.1,1-dist/85);
+    const fade=Math.max(.1,1-dist/(iR+5));
     const rr=Math.random();
-    const h=rr<.08?40+Math.random()*35:rr<.25?16+Math.random()*18:2+Math.random()*12;
+    const h=rr<.08?(40+Math.random()*35)*hS:rr<.25?(16+Math.random()*18)*hS:(2+Math.random()*12)*hS;
     const w=1+Math.random()*2.2,d=1+Math.random()*2.2;
     addBlock(x,h/2,z,w,h,d,fade);
   }}
 }}
-for(let gx=-250;gx<=250;gx+=6){{
-  for(let gz=-250;gz<=250;gz+=6){{
+/* Outer city — suburban sprawl */
+for(let gx=-oR;gx<=oR;gx+=6){{
+  for(let gz=-oR;gz<=oR;gz+=6){{
     const x=gx+(Math.random()-.5)*2.5,z=gz+(Math.random()-.5)*2.5;
     const dist=Math.hypot(x,z);
-    if(dist<75||dist>250)continue;
-    if(Math.random()<.3+dist/500)continue;
-    const fade=Math.max(.02,1-dist/260);
+    if(dist<iR-5||dist>oR)continue;
+    if(Math.random()<.3+dist/(oR*2))continue;
+    const fade=Math.max(.02,1-dist/(oR+10));
     const rr=Math.random();
-    const h=rr<.06?30+Math.random()*25:rr<.2?10+Math.random()*15:1.5+Math.random()*8;
+    const h=rr<.06?(30+Math.random()*25)*hS*.6:rr<.2?(10+Math.random()*15)*hS*.5:(1.5+Math.random()*8)*hS*.4;
     const w=.8+Math.random()*1.8,d=.8+Math.random()*1.8;
     addBlock(x,h/2,z,w,h,d,fade);
   }}
 }}
+/* Sky debris — floating blocks above the city */
 for(let i=0;i<600;i++){{
-  const x=(Math.random()-.5)*400,z=(Math.random()-.5)*400;
+  const x=(Math.random()-.5)*400*sS,z=(Math.random()-.5)*400*sS;
   const dist=Math.hypot(x,z);
-  const y=40+Math.random()*350;
-  const fade=Math.max(.01,(1-dist/250)*(1-y/420))*.35;
+  const skyH=CMY*7;  /* debris ceiling scales with crystal */
+  const y=(40*hS)+Math.random()*skyH;
+  const fade=Math.max(.01,(1-dist/(250*sS))*(1-y/(skyH+60)))*.35;
   if(fade<.01)continue;
   const h=2+Math.random()*12,w=.5+Math.random()*1.5;
   addBlock(x,y,z,w,h,w,fade);
 }}
+/* Ambient dust */
 for(let i=0;i<500;i++){{
-  const x=(Math.random()-.5)*400,y=5+Math.random()*300,z=(Math.random()-.5)*400;
+  const x=(Math.random()-.5)*400*sS,y=5+Math.random()*CMY*5,z=(Math.random()-.5)*400*sS;
   const dist=Math.hypot(x,z);
-  const s=.3+Math.random()*1.5,fade=Math.max(.02,1-dist/220)*.4;
+  const s=.3+Math.random()*1.5,fade=Math.max(.02,1-dist/(220*sS))*.4;
   addBlock(x,y,z,s,s,s,fade);
 }}
 
