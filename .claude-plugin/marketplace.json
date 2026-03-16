@@ -15,7 +15,6 @@
       "strict": false,
       "skills": [
         "./skills/drive",
-        "./skills/drive-trash",
         "./skills/duckduckgo",
         "./skills/deep-research",
         "./skills/visualization-datascape",
