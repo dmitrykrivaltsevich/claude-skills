@@ -164,11 +164,12 @@ def compute_positions(n: int) -> list[tuple[float, float, float]]:
         top_needed = min(n - 12, 6)
         return ring0 + ring1 + ring2[:top_needed]
 
-    # n>18: HCP crystal growth — proportional in all directions.
+    # n>18: HCP crystal growth — upward and outward.
     # Generates lattice sites across shells AND layers, sorted by
     # 3D distance from crystal center. The crystal grows outward
-    # maintaining its shape: adding layers vertically AND shells
+    # maintaining its shape: adding layers upward AND shells
     # horizontally as vault count increases.
+    # Only grows UPWARD (pair >= 0) so no vault sinks below the ground plane.
     # Layers use paired A/B HCP stacking: A at offset 0°, B at 30°.
     # Each pair spans PAIR_HEIGHT = Y2 - Y0 = 45 units.
     SHELL_GAP = 25.0  # radial gap between concentric hex shells
@@ -181,7 +182,7 @@ def compute_positions(n: int) -> list[tuple[float, float, float]]:
     reach = 2  # grows until enough unique sites are generated
     while len(pool) < n:
         candidates: list[tuple[float, float, float]] = []
-        for pair in range(-reach, reach + 1):
+        for pair in range(0, reach + 1):
             for y_base, offset in [(Y0, 0.0), (Y1, 30.0)]:
                 y = y_base + pair * PAIR_HEIGHT
                 for sk in range(1, reach + 1):
