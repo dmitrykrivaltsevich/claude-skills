@@ -164,33 +164,54 @@ def compute_positions(n: int) -> list[tuple[float, float, float]]:
         top_needed = min(n - 12, 6)
         return ring0 + ring1 + ring2[:top_needed]
 
-    # n>18: grow crystal by adding hex shells at all 3 HCP y-levels.
-    # Each shell k places 6*k vertices along hexagon EDGES (not circular),
-    # preserving the crystal lattice structure at any scale.
+    # n>18: HCP crystal growth — proportional in all directions.
+    # Generates lattice sites across shells AND layers, sorted by
+    # 3D distance from crystal center. The crystal grows outward
+    # maintaining its shape: adding layers vertically AND shells
+    # horizontally as vault count increases.
+    # Layers use paired A/B HCP stacking: A at offset 0°, B at 30°.
+    # Each pair spans PAIR_HEIGHT = Y2 - Y0 = 45 units.
     SHELL_GAP = 25.0  # radial gap between concentric hex shells
-    hcp_layers = [(Y0, 0.0), (Y1, 30.0), (Y2, 0.0)]
+    PAIR_HEIGHT = Y2 - Y0  # 45 units — height of one A+B layer pair
+    CENTER_Y = (Y0 + Y2) / 2  # crystal vertical center
 
-    pool = list(ring0 + ring1 + ring2)  # 18 base positions (shell k=1)
-    shell = 2
+    pool = list(ring0 + ring1 + ring2)  # 18 base positions (seed)
+    pool_set: set[tuple[float, float, float]] = set(pool)
+
+    reach = 2  # grows until enough unique sites are generated
     while len(pool) < n:
-        r = R + (shell - 1) * SHELL_GAP
-        for y, offset in hcp_layers:
-            # Walk 6 hex edges, placing `shell` vertices per edge
-            for side in range(6):
-                a0 = math.radians(side * 60 + offset)
-                a1 = math.radians((side + 1) * 60 + offset)
-                cx, cz = r * math.cos(a0), r * math.sin(a0)
-                nx, nz = r * math.cos(a1), r * math.sin(a1)
-                for j in range(shell):
-                    t = j / shell
-                    pool.append((
-                        round(cx + t * (nx - cx), 1),
-                        y,
-                        round(cz + t * (nz - cz), 1),
-                    ))
-            if len(pool) >= n:
-                break
-        shell += 1
+        candidates: list[tuple[float, float, float]] = []
+        for pair in range(-reach, reach + 1):
+            for y_base, offset in [(Y0, 0.0), (Y1, 30.0)]:
+                y = y_base + pair * PAIR_HEIGHT
+                for sk in range(1, reach + 1):
+                    r = R + (sk - 1) * SHELL_GAP
+                    for side in range(6):
+                        a0 = math.radians(side * 60 + offset)
+                        a1 = math.radians((side + 1) * 60 + offset)
+                        c0x, c0z = r * math.cos(a0), r * math.sin(a0)
+                        c1x, c1z = r * math.cos(a1), r * math.sin(a1)
+                        for j in range(sk):
+                            t = j / sk
+                            pt = (
+                                round(c0x + t * (c1x - c0x), 1),
+                                y,
+                                round(c0z + t * (c1z - c0z), 1),
+                            )
+                            if pt not in pool_set:
+                                candidates.append(pt)
+        # Sort by 3D distance from crystal center — nearest first
+        candidates.sort(
+            key=lambda p: p[0] ** 2 + (p[1] - CENTER_Y) ** 2 + p[2] ** 2
+        )
+        for c in candidates:
+            if c not in pool_set:
+                pool_set.add(c)
+                pool.append(c)
+                if len(pool) >= n:
+                    break
+        reach += 1
+
     return pool[:n]
 
 

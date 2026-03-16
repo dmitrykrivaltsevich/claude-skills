@@ -308,13 +308,14 @@ class TestVaultPositioning(unittest.TestCase):
             f"more than vertically ({y_span:.0f})",
         )
 
-    def test_large_n_uses_three_y_levels(self):
-        """Dynamic expansion should use exactly 3 HCP y-levels."""
+    def test_large_n_grows_vertically(self):
+        """Dynamic expansion should add Y layers as vault count grows."""
         from generate import compute_positions
 
-        positions = compute_positions(50)
-        y_values = sorted(set(round(p[1], 1) for p in positions))
-        self.assertEqual(len(y_values), 3, f"Expected 3 HCP y-levels, got {y_values}")
+        y_20 = len(set(round(p[1], 1) for p in compute_positions(20)))
+        y_100 = len(set(round(p[1], 1) for p in compute_positions(100)))
+        self.assertGreater(y_100, y_20, "More vaults should use more Y levels")
+        self.assertGreater(y_100, 3, "100 vaults should exceed 3 Y levels")
 
 
 class TestConnections(unittest.TestCase):
