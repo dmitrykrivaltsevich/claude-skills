@@ -27,7 +27,7 @@ from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(__file__))
-import contracts
+from contracts import ContractViolationError, precondition
 
 # ── Regex patterns ──────────────────────────────────────────────────
 WIKILINK_RE = re.compile(r"\[\[([^\]]+)\]\]")
@@ -66,7 +66,9 @@ _MD_OL_RE = re.compile(r"^(\d+)\.\s+(.+)")
 _MD_BQ_RE = re.compile(r"^&gt;\s*(.*)")
 _MD_FENCE_RE = re.compile(r"^```")
 
-# Max image size for base64 embedding — images above this use file:// paths
+# Max image size for base64 embedding — images above this use file:// paths.
+# 512KB balances HTML size (keeps total under ~50MB for vaults with 100+ images)
+# vs. visual quality (covers most web-resolution screenshots and photos).
 MAX_IMAGE_BYTES = 512_000
 
 IMAGE_EXTS = frozenset({".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp"})
@@ -248,30 +250,40 @@ def _build_note_html(
                 h.append(_md_line_to_html(l))
 
     # Embedded images — all images shown, small ones as base64, large as file://
-    img_srcs: list[str] = []
+    # Unresolvable refs get a cyberpunk-styled placeholder (same .pi-err-wrap class
+    # that generate.py uses for runtime-broken images).
+    img_items: list[tuple[str | None, str | None]] = []  # (src, ref_name) — src=None means unresolved
     for embed in embeds:
         embed_name = embed.split("|")[0].strip()
         img_path = _find_image(embed_name, note_dir, vault_root)
         if img_path and img_path.suffix.lower() in IMAGE_EXTS:
             src = _image_to_src(img_path)
-            if src:
-                img_srcs.append(src)
+            img_items.append((src, embed_name))
+        elif any(embed_name.lower().endswith(ext) for ext in IMAGE_EXTS):
+            img_items.append((None, embed_name))
     for _, md_src in md_images:
         if not md_src.startswith("http"):
             img_path = _find_image(md_src, note_dir, vault_root)
             if img_path and img_path.suffix.lower() in IMAGE_EXTS:
                 src = _image_to_src(img_path)
-                if src:
-                    img_srcs.append(src)
-    if img_srcs:
+                img_items.append((src, md_src))
+            elif any(md_src.lower().endswith(ext) for ext in IMAGE_EXTS):
+                img_items.append((None, md_src))
+    if img_items:
         h.append('<div class="ph">Images</div>')
-        if len(img_srcs) > 1:
-            h.append('<div class="pi-deck">')
-            for src in img_srcs:
-                h.append(f'<img src="{src}">')
-            h.append('</div>')
-        else:
-            h.append(f'<img class="pi" src="{img_srcs[0]}">')
+        resolved = [(src, ref) for src, ref in img_items if src]
+        unresolved = [(src, ref) for src, ref in img_items if not src]
+        if resolved:
+            if len(resolved) > 1:
+                h.append('<div class="pi-deck">')
+                for src, _ in resolved:
+                    h.append(f'<img src="{src}">')
+                h.append('</div>')
+            else:
+                h.append(f'<img class="pi" src="{resolved[0][0]}">')
+        for _, ref in unresolved:
+            safe = html_mod.escape(ref)
+            h.append(f'<div class="pi-err-wrap"><span>\u00d7 {safe}</span></div>')
 
     # PDF references
     pdf_refs = [e.split("|")[0].strip() for e in embeds if e.lower().endswith(".pdf")]
@@ -297,7 +309,7 @@ def _build_note_html(
 
 # ── Main entry point ─────────────────────────────────────────────────
 
-@contracts.precondition(
+@precondition(
     lambda vault_path: Path(vault_path).is_dir(),
     "vault_path must be an existing directory",
 )
@@ -315,7 +327,7 @@ def parse_vault(vault_path: str) -> dict:
     )
 
     if not md_files:
-        raise contracts.ContractViolationError(
+        raise ContractViolationError(
             f"No .md files found in {vault_path} (excluding .obsidian)",
             kind="precondition",
         )

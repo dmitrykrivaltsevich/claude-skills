@@ -23,7 +23,7 @@ import sys
 import argparse
 
 sys.path.insert(0, os.path.dirname(__file__))
-from contracts import ContractViolationError, precondition
+from contracts import ContractViolationError, precondition, invariant
 
 # ── Default color palette (cyberpunk greens) ──────────────────────
 # 16 distinct hues so vaults are visually distinguishable; palette wraps for >16
@@ -35,27 +35,29 @@ DEFAULT_COLORS = [
 ]
 
 
+def _is_valid_json_string(raw_json: str) -> bool:
+    """Check that raw_json is a string containing a JSON object."""
+    if not isinstance(raw_json, str):
+        return False
+    try:
+        obj = json.loads(raw_json)
+        return isinstance(obj, dict)
+    except (json.JSONDecodeError, TypeError):
+        return False
+
+
+@precondition(_is_valid_json_string, "Input must be a valid JSON object string")
 def validate_and_parse(raw_json: str) -> dict:
     """Validate JSON config and return parsed dict.
 
     Enforces:
-    - Valid JSON
+    - Valid JSON (via @precondition)
     - 'title' string present and non-empty
     - 'vaults' list with 1–32768 entries (3–8 recommended for readability)
     - Each vault has 'id', 'name', 'html' (all non-empty strings)
     - Vault ids are unique
     """
-    try:
-        cfg = json.loads(raw_json)
-    except (json.JSONDecodeError, TypeError) as exc:
-        raise ContractViolationError(
-            f"Input must be valid JSON: {exc}", kind="precondition"
-        )
-
-    if not isinstance(cfg, dict):
-        raise ContractViolationError(
-            "Config must be a JSON object", kind="precondition"
-        )
+    cfg = json.loads(raw_json)
 
     title = cfg.get("title")
     if not title or not isinstance(title, str) or not title.strip():

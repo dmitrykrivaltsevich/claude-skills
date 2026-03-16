@@ -60,3 +60,25 @@ def postcondition(
         return wrapper
 
     return decorator
+
+
+def invariant(
+    check: Callable[[Any], bool], message: str
+) -> Callable:
+    """Decorator for methods that validates an object invariant after execution.
+
+    The check function receives `self` (the first argument) after the method
+    has executed. If it returns False, ContractViolationError is raised.
+    """
+
+    def decorator(func: Callable) -> Callable:
+        @functools.wraps(func)
+        def wrapper(self_arg: Any, *args: Any, **kwargs: Any) -> Any:
+            result = func(self_arg, *args, **kwargs)
+            if not check(self_arg):
+                raise ContractViolationError(message, kind="invariant")
+            return result
+
+        return wrapper
+
+    return decorator

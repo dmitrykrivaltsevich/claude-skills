@@ -1,6 +1,6 @@
 ---
 name: visualization-datascape
-description: Generates immersive 3D cyberspace point-cloud visualizations from structured data. Produces a self-contained HTML file with Three.js that renders an interactive cyberpunk cityscape with explorable data vaults, WASD movement, and orbit controls. Use when the user asks to visualize data as an immersive 3D scene, wants a cyberspace or cyberpunk datascape, asks for an interactive 3D dashboard, wants to explore data in a Blackwall-style environment, or wants to visualize an Obsidian vault as a 3D knowledge graph.
+description: Generates immersive 3D cyberspace point-cloud visualizations from structured data. Renders an interactive cyberpunk cityscape with explorable data vaults, WASD movement, and orbit controls. Use when the user asks to visualize data as an immersive 3D scene, wants a cyberspace or cyberpunk datascape, asks for an interactive 3D dashboard, wants to explore data in a Blackwall-style environment, or wants to visualize an Obsidian vault as a 3D knowledge graph.
 allowed-tools:
   - Bash(uv run *)
 user-invocable: true

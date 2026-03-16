@@ -518,6 +518,17 @@ class TestNoCaps(unittest.TestCase):
         html = config["vaults"][0]["html"]
         assert "big.png" in html or "file://" in html, "Large image was skipped"
 
+    def test_unresolvable_image_gets_placeholder(self):
+        """Image refs that can't be found on disk get a pi-err-wrap placeholder."""
+        root = self._make_vault({
+            "Note.md": "![[missing-screenshot.png]]\n![[also-gone.jpg]]",
+        })
+        config = otd.parse_vault(str(root))
+        html = config["vaults"][0]["html"]
+        assert "pi-err-wrap" in html, "Missing images should get error placeholder"
+        assert "missing-screenshot.png" in html, "Placeholder should show the ref name"
+        assert "also-gone.jpg" in html
+
 
 class TestFullContent(unittest.TestCase):
     """Test that full note content is shown, not truncated."""
@@ -574,12 +585,12 @@ class TestCLI(unittest.TestCase):
         assert "glyphs" in config
 
     def test_invalid_path_raises(self):
-        with self.assertRaises(otd.contracts.ContractViolationError):
+        with self.assertRaises(otd.ContractViolationError):
             otd.parse_vault("/nonexistent/path")
 
     def test_empty_vault_raises(self):
         root = self._make_vault({".obsidian/config.json": "{}"})
-        with self.assertRaises(otd.contracts.ContractViolationError):
+        with self.assertRaises(otd.ContractViolationError):
             otd.parse_vault(str(root))
 
 

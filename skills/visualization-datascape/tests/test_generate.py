@@ -1,3 +1,7 @@
+# /// script
+# requires-python = ">=3.11"
+# dependencies = []
+# ///
 """Tests for visualization-datascape generate.py — TDD red phase."""
 
 import json
@@ -6,28 +10,26 @@ import sys
 import unittest
 from unittest.mock import patch
 
-import pytest
-
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
 
 from contracts import ContractViolationError
 
 
-class TestValidateConfig:
+class TestValidateConfig(unittest.TestCase):
     """Test config validation via @precondition."""
 
     def test_missing_title_raises(self):
         from generate import validate_and_parse
 
         bad = {"vaults": [{"id": "a", "name": "A", "html": "<p>hi</p>"}]}
-        with pytest.raises(ContractViolationError, match="title"):
+        with self.assertRaisesRegex(ContractViolationError, "title"):
             validate_and_parse(json.dumps(bad))
 
     def test_empty_vaults_raises(self):
         from generate import validate_and_parse
 
         bad = {"title": "Test", "vaults": []}
-        with pytest.raises(ContractViolationError, match="at least 1 vault"):
+        with self.assertRaisesRegex(ContractViolationError, "at least 1 vault"):
             validate_and_parse(json.dumps(bad))
 
     def test_too_many_vaults_raises(self):
@@ -35,28 +37,28 @@ class TestValidateConfig:
 
         vaults = [{"id": f"v{i}", "name": f"V{i}", "html": f"<p>{i}</p>"} for i in range(32769)]
         bad = {"title": "Test", "vaults": vaults}
-        with pytest.raises(ContractViolationError, match="at most 32768"):
+        with self.assertRaisesRegex(ContractViolationError, "at most 32768"):
             validate_and_parse(json.dumps(bad))
 
     def test_vault_missing_id_raises(self):
         from generate import validate_and_parse
 
         bad = {"title": "Test", "vaults": [{"name": "A", "html": "<p>hi</p>"}]}
-        with pytest.raises(ContractViolationError, match="id"):
+        with self.assertRaisesRegex(ContractViolationError, "id"):
             validate_and_parse(json.dumps(bad))
 
     def test_vault_missing_name_raises(self):
         from generate import validate_and_parse
 
         bad = {"title": "Test", "vaults": [{"id": "a", "html": "<p>hi</p>"}]}
-        with pytest.raises(ContractViolationError, match="name"):
+        with self.assertRaisesRegex(ContractViolationError, "name"):
             validate_and_parse(json.dumps(bad))
 
     def test_vault_missing_html_raises(self):
         from generate import validate_and_parse
 
         bad = {"title": "Test", "vaults": [{"id": "a", "name": "A"}]}
-        with pytest.raises(ContractViolationError, match="html"):
+        with self.assertRaisesRegex(ContractViolationError, "html"):
             validate_and_parse(json.dumps(bad))
 
     def test_duplicate_ids_raises(self):
@@ -69,13 +71,13 @@ class TestValidateConfig:
                 {"id": "a", "name": "B", "html": "<p>2</p>"},
             ],
         }
-        with pytest.raises(ContractViolationError, match="unique"):
+        with self.assertRaisesRegex(ContractViolationError, "unique"):
             validate_and_parse(json.dumps(bad))
 
     def test_invalid_json_raises(self):
         from generate import validate_and_parse
 
-        with pytest.raises(ContractViolationError, match="valid JSON"):
+        with self.assertRaisesRegex(ContractViolationError, "valid JSON"):
             validate_and_parse("not json {{{")
 
     def test_valid_minimal_config(self):
@@ -86,11 +88,11 @@ class TestValidateConfig:
             "vaults": [{"id": "alpha", "name": "Alpha", "html": "<p>Data</p>"}],
         }
         result = validate_and_parse(json.dumps(good))
-        assert result["title"] == "Test Dashboard"
-        assert len(result["vaults"]) == 1
+        self.assertEqual(result["title"], "Test Dashboard")
+        self.assertEqual(len(result["vaults"]), 1)
 
 
-class TestGenerateHtml:
+class TestGenerateHtml(unittest.TestCase):
     """Test HTML generation output."""
 
     def _minimal_config(self, n_vaults=3):
@@ -109,30 +111,30 @@ class TestGenerateHtml:
 
         cfg = validate_and_parse(json.dumps(self._minimal_config()))
         html = generate_html(cfg)
-        assert html.startswith("<!DOCTYPE html>")
-        assert "</html>" in html
+        self.assertTrue(html.startswith("<!DOCTYPE html>"))
+        self.assertIn("</html>", html)
 
     def test_title_appears_in_output(self):
         from generate import generate_html, validate_and_parse
 
         cfg = validate_and_parse(json.dumps(self._minimal_config()))
         html = generate_html(cfg)
-        assert "Test Vis" in html
+        self.assertIn("Test Vis", html)
 
     def test_subtitle_appears(self):
         from generate import generate_html, validate_and_parse
 
         cfg = validate_and_parse(json.dumps(self._minimal_config()))
         html = generate_html(cfg)
-        assert "A subtitle" in html
+        self.assertIn("A subtitle", html)
 
     def test_stats_appear_in_hud(self):
         from generate import generate_html, validate_and_parse
 
         cfg = validate_and_parse(json.dumps(self._minimal_config()))
         html = generate_html(cfg)
-        assert "42" in html
-        assert "items" in html
+        self.assertIn("42", html)
+        self.assertIn("items", html)
 
     def test_vault_names_in_nav(self):
         from generate import generate_html, validate_and_parse
@@ -140,7 +142,7 @@ class TestGenerateHtml:
         cfg = validate_and_parse(json.dumps(self._minimal_config()))
         html = generate_html(cfg)
         for i in range(3):
-            assert f"Vault {i}" in html
+            self.assertIn(f"Vault {i}", html)
 
     def test_vault_html_content_embedded(self):
         from generate import generate_html, validate_and_parse
@@ -148,7 +150,7 @@ class TestGenerateHtml:
         cfg = validate_and_parse(json.dumps(self._minimal_config()))
         html = generate_html(cfg)
         for i in range(3):
-            assert f"Content {i}" in html
+            self.assertIn(f"Content {i}", html)
 
     def test_vault_ids_in_data(self):
         from generate import generate_html, validate_and_parse
@@ -156,21 +158,21 @@ class TestGenerateHtml:
         cfg = validate_and_parse(json.dumps(self._minimal_config()))
         html = generate_html(cfg)
         for i in range(3):
-            assert f"'v{i}'" in html or f'"v{i}"' in html
+            self.assertTrue(f"'v{i}'" in html or f'"v{i}"' in html)
 
     def test_three_js_import(self):
         from generate import generate_html, validate_and_parse
 
         cfg = validate_and_parse(json.dumps(self._minimal_config()))
         html = generate_html(cfg)
-        assert "three@0.170.0" in html
+        self.assertIn("three@0.170.0", html)
 
     def test_wasd_controls_present(self):
         from generate import generate_html, validate_and_parse
 
         cfg = validate_and_parse(json.dumps(self._minimal_config()))
         html = generate_html(cfg)
-        assert "WASD" in html or "wasd" in html.lower()
+        self.assertTrue("WASD" in html or "wasd" in html.lower())
 
     def test_custom_glyphs(self):
         from generate import generate_html, validate_and_parse
@@ -179,8 +181,8 @@ class TestGenerateHtml:
         conf["glyphs"] = ["HELLO", "WORLD"]
         cfg = validate_and_parse(json.dumps(conf))
         html = generate_html(cfg)
-        assert "HELLO" in html
-        assert "WORLD" in html
+        self.assertIn("HELLO", html)
+        self.assertIn("WORLD", html)
 
     def test_custom_color(self):
         from generate import generate_html, validate_and_parse
@@ -189,20 +191,20 @@ class TestGenerateHtml:
         conf["vaults"][0]["color"] = "0xff0000"
         cfg = validate_and_parse(json.dumps(conf))
         html = generate_html(cfg)
-        assert "0xff0000" in html
+        self.assertIn("0xff0000", html)
 
 
-class TestVaultPositioning:
+class TestVaultPositioning(unittest.TestCase):
     """Test vault positions on 3D hexagonal crystal lattice."""
 
     def test_single_vault_on_edge(self):
         from generate import compute_positions
 
         positions = compute_positions(1)
-        assert len(positions) == 1
+        self.assertEqual(len(positions), 1)
         # Single vault should be on a ring vertex, not at center
-        assert abs(positions[0][0]) < 50
-        assert abs(positions[0][2]) < 50
+        self.assertLess(abs(positions[0][0]), 50)
+        self.assertLess(abs(positions[0][2]), 50)
 
     def test_positions_are_spread_out_3d(self):
         from generate import compute_positions
@@ -216,13 +218,13 @@ class TestVaultPositioning:
                 dy = positions[i][1] - positions[j][1]
                 dz = positions[i][2] - positions[j][2]
                 dist = math.sqrt(dx * dx + dy * dy + dz * dz)
-                assert dist > 15, f"Vaults {i} and {j} too close: {dist:.1f}"
+                self.assertGreater(dist, 15, f"Vaults {i} and {j} too close: {dist:.1f}")
 
     def test_positions_count_matches(self):
         from generate import compute_positions
 
         for n in [1, 3, 5, 8, 12, 16, 24, 50]:
-            assert len(compute_positions(n)) == n
+            self.assertEqual(len(compute_positions(n)), n)
 
     def test_lattice_has_3d_spread(self):
         """For n>=4, positions should span multiple Y levels (crystal layers)."""
@@ -230,7 +232,7 @@ class TestVaultPositioning:
 
         positions = compute_positions(8)
         y_values = set(round(p[1], 1) for p in positions)
-        assert len(y_values) >= 2, "Crystal lattice should use multiple Y levels"
+        self.assertGreaterEqual(len(y_values), 2, "Crystal lattice should use multiple Y levels")
 
     def test_lattice_hex_symmetry(self):
         """Layer 0 ring should have ~60-degree angular spacing."""
@@ -251,8 +253,9 @@ class TestVaultPositioning:
             angles = sorted(math.atan2(z, x) for x, z in ring)
             diffs = [angles[i + 1] - angles[i] for i in range(len(angles) - 1)]
             for d in diffs:
-                assert abs(d - math.radians(60)) < 0.15, (
-                    f"Hex angle diff {math.degrees(d):.1f} deg, expected ~60"
+                self.assertAlmostEqual(
+                    d, math.radians(60), delta=0.15,
+                    msg=f"Hex angle diff {math.degrees(d):.1f} deg, expected ~60",
                 )
 
     def test_tetrahedron_for_four_vaults(self):
@@ -261,7 +264,7 @@ class TestVaultPositioning:
 
         positions = compute_positions(4)
         y_values = set(round(p[1], 1) for p in positions)
-        assert len(y_values) >= 2, "4 vaults should span at least 2 Y levels"
+        self.assertGreaterEqual(len(y_values), 2, "4 vaults should span at least 2 Y levels")
 
     def test_no_center_positions(self):
         """No vault should be at a hexagon center (0, y, 0) for n >= 2."""
@@ -271,8 +274,9 @@ class TestVaultPositioning:
             positions = compute_positions(n)
             for i, p in enumerate(positions):
                 at_center = abs(p[0]) < 0.5 and abs(p[2]) < 0.5
-                assert not at_center, (
-                    f"n={n}: vault {i} at center ({p[0]}, {p[1]}, {p[2]})"
+                self.assertFalse(
+                    at_center,
+                    f"n={n}: vault {i} at center ({p[0]}, {p[1]}, {p[2]})",
                 )
 
     def test_dynamic_scaling_beyond_18(self):
@@ -281,10 +285,10 @@ class TestVaultPositioning:
 
         for n in [20, 50, 100]:
             positions = compute_positions(n)
-            assert len(positions) == n
+            self.assertEqual(len(positions), n)
             # All positions should be unique
             unique = set(positions)
-            assert len(unique) == n, f"n={n}: expected {n} unique positions, got {len(unique)}"
+            self.assertEqual(len(unique), n, f"n={n}: expected {n} unique positions, got {len(unique)}")
 
     def test_large_n_spreads_horizontally(self):
         """For 50+ vaults the crystal must be wider than it is tall."""
@@ -298,9 +302,10 @@ class TestVaultPositioning:
         y_span = max(ys) - min(ys)
         z_span = max(zs) - min(zs)
         horiz = max(x_span, z_span)
-        assert horiz > y_span, (
+        self.assertGreater(
+            horiz, y_span,
             f"Crystal should spread horizontally ({horiz:.0f}) "
-            f"more than vertically ({y_span:.0f})"
+            f"more than vertically ({y_span:.0f})",
         )
 
     def test_large_n_uses_three_y_levels(self):
@@ -309,7 +314,7 @@ class TestVaultPositioning:
 
         positions = compute_positions(50)
         y_values = sorted(set(round(p[1], 1) for p in positions))
-        assert len(y_values) == 3, f"Expected 3 HCP y-levels, got {y_values}"
+        self.assertEqual(len(y_values), 3, f"Expected 3 HCP y-levels, got {y_values}")
 
 
 class TestConnections(unittest.TestCase):
