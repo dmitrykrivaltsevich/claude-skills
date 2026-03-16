@@ -689,7 +689,7 @@ video.pi{{max-height:200px}}
     <div class="row"><span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / Arrows</span><span>Fly forward / left / back / right</span></div>
     <div class="row"><span><kbd>C</kbd></span><span>Fly up</span></div>
     <div class="row"><span><kbd>Z</kbd></span><span>Fly down</span></div>
-    <div class="row"><span>Q / E</span><span>Orbit left / right</span></div>
+    <div class="row"><span><kbd>Q</kbd> / <kbd>E</kbd></span><span>Orbit left / right</span></div>
     <div class="row"><span>Drag</span><span>Orbit camera</span></div>
     <div class="row"><span>Scroll</span><span>Zoom in / out</span></div>
     <h2 style="margin-top:18px">// actions //</h2>
