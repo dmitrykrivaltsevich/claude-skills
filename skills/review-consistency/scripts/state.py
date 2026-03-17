@@ -193,6 +193,13 @@ def update_chunk(
     lambda review_id, claims, **_: len(claims) > 0,
     "At least one claim is required",
 )
+@precondition(
+    lambda review_id, claims, **_: all(
+        claim.get("category", "assertion") in VALID_CLAIM_CATEGORIES
+        for claim in claims
+    ),
+    f"claim category must be one of {VALID_CLAIM_CATEGORIES}",
+)
 def add_claims(
     review_id: str,
     claims: list[dict],

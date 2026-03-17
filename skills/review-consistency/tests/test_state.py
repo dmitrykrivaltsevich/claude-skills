@@ -216,6 +216,15 @@ class TestAddClaims:
         with pytest.raises(ContractViolationError, match="(?i)claim"):
             state.add_claims("test-review", [], state_dir=review_file.parent)
 
+    def test_rejects_invalid_category(self, review_file: Path):
+        _init(review_file.parent)
+        with pytest.raises(ContractViolationError, match="(?i)category"):
+            state.add_claims(
+                "test-review",
+                [{"chunk_id": "c1", "text": "x", "category": "banana", "location": "line 1"}],
+                state_dir=review_file.parent,
+            )
+
 
 # ---------------------------------------------------------------------------
 # add_findings tests
