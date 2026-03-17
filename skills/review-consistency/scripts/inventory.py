@@ -19,8 +19,12 @@ import argparse
 import fnmatch
 import hashlib
 import json
+import os
 import sys
 from pathlib import Path
+
+sys.path.insert(0, os.path.dirname(__file__))
+from contracts import precondition
 
 # Directories excluded by default — not worth reviewing.
 _DEFAULT_EXCLUDES = frozenset({
@@ -59,6 +63,10 @@ def _should_exclude(path: Path, exclude_set: frozenset[str]) -> bool:
     return False
 
 
+@precondition(
+    lambda paths, **_: len(paths) > 0,
+    "At least one path is required",
+)
 def scan_paths(
     paths: list[str],
     *,

@@ -49,7 +49,7 @@ The core insight: inconsistency is **relational** — it exists between two or m
 | Mark chunk status | `state.py update-chunk` | Sets chunk to `extracted` or `reviewed` |
 | Record extracted claims | `state.py add-claims` | Persists claims with chunk attribution |
 | Record findings | `state.py add-findings` | Adds findings, deduped by fingerprint |
-| Update finding status | `state.py update-finding` | Marks finding as `fixed`/`wont-fix`/`false-positive` |
+| Update finding status | `state.py update-finding` | Marks finding as `open`/`fixed`/`wont-fix`/`false-positive` |
 | Show pending work | `state.py pending` | Lists chunks still needing extraction/review |
 | Advance phase | `state.py update-phase` | Moves to next review phase |
 | Purge stale claims | `state.py purge-stale-claims` | Removes claims from changed files |

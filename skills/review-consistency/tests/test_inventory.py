@@ -12,6 +12,7 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
 
 import inventory
+from contracts import ContractViolationError
 
 
 # ---------------------------------------------------------------------------
@@ -114,6 +115,10 @@ class TestScanPaths:
     def test_nonexistent_path_error(self, tmp_path: Path):
         with pytest.raises(FileNotFoundError):
             inventory.scan_paths([str(tmp_path / "nonexistent")])
+
+    def test_rejects_empty_paths(self):
+        with pytest.raises(ContractViolationError, match="(?i)path"):
+            inventory.scan_paths([])
 
     def test_hash_deterministic(self, tmp_path: Path):
         f = tmp_path / "test.txt"

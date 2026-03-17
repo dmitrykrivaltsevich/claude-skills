@@ -26,7 +26,7 @@ from pathlib import Path
 sys.path.insert(0, os.path.dirname(__file__))
 from contracts import ContractViolationError, precondition
 
-# Default state directory — user-scoped cache.
+# ~/.cache follows XDG base dir spec — non-essential data that can be regenerated.
 _DEFAULT_STATE_DIR = Path.home() / ".cache" / "review-consistency"
 
 # Valid review phases — ordered progression.
