@@ -110,28 +110,20 @@ uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/discover.py [--skills-dir PATH]
 # Initialize a research session:
 uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/state.py init --research-id "my-topic" --goal "Understand X in depth"
 
-# Add questions (write JSON to a file, then pass with --file):
-cat > /tmp/questions.json << 'HEREDOC'
-["What is X?", "How does Y relate to Z?"]
-HEREDOC
+# Add questions — use Write tool to create the JSON file, then pass --file:
+#   Write /tmp/questions.json with: ["What is X?", "How does Y relate to Z?"]
 uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/state.py add-questions --research-id "my-topic" --file /tmp/questions.json
 
-# Update a question's status (write JSON to a file, then pass with --file):
-cat > /tmp/update_q.json << 'HEREDOC'
-{"question": "What is X?", "status": "covered"}
-HEREDOC
-uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/state.py update-question --research-id "my-topic" --file /tmp/update_q.json --status covered
+# Update a question's status:
+#   Write /tmp/uq.json with: {"question": "What is X?", "status": "covered"}
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/state.py update-question --research-id "my-topic" --file /tmp/uq.json --status covered
 
-# Record sources found (write JSON to a file, then pass with --file):
-cat > /tmp/sources.json << 'HEREDOC'
-[{"url": "https://...", "title": "Article", "skill": "duckduckgo"}]
-HEREDOC
+# Record sources found:
+#   Write /tmp/sources.json with: [{"url": "https://...", "title": "Article", "skill": "duckduckgo"}]
 uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/state.py add-sources --research-id "my-topic" --file /tmp/sources.json
 
-# Record extracted facts (write JSON to a file, then pass with --file):
-cat > /tmp/facts.json << 'HEREDOC'
-[{"claim": "X causes Y", "source_ids": ["s1", "s2"], "confidence": "high"}]
-HEREDOC
+# Record extracted facts:
+#   Write /tmp/facts.json with: [{"claim": "X causes Y", "source_ids": ["s1", "s2"], "confidence": "high"}]
 uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/state.py add-facts --research-id "my-topic" --file /tmp/facts.json
 
 # Advance to next phase:
@@ -273,7 +265,11 @@ For large research tasks, the context window can fill up. The LLM should:
 
 ## Large Data — MUST Use `--file`
 
-When adding questions, sources, or facts, **always write data to a temp file first**, then pass `--file /path/to/file.json`. NEVER pass multi-line text or large JSON as inline CLI arguments — shell quoting mangles them.
+When adding questions, sources, or facts, **always use your Write tool** to create a temp JSON file, then pass `--file /path/to/file.json`. NEVER use heredoc (`<< 'EOF'`) or `cat >` in the terminal — these garble output and cause retries. NEVER pass large JSON as inline CLI arguments — shell quoting mangles them.
+
+**Pattern** (repeat for every state update):
+1. Use **Write tool** to create `/tmp/<name>.json` with the JSON content
+2. Run `uv run --no-config ... --file /tmp/<name>.json`
 
 Affected commands:
 - `add-questions --file /tmp/questions.json` — JSON array of question strings
@@ -282,26 +278,15 @@ Affected commands:
 - `update-question --file /tmp/uq.json` — JSON object `{"question": "...", "status": "..."}`
 
 ```bash
-# Questions — write array to file:
-cat > /tmp/questions.json << 'HEREDOC'
-[
-  "What are the key factors influencing X?",
-  "How does Y compare to Z in the context of W?"
-]
-HEREDOC
+# Step 1: Write tool → /tmp/questions.json with content:
+#   ["What are the key factors?", "How does Y compare to Z?"]
+# Step 2: run the script:
 uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/state.py add-questions --research-id "my-topic" --file /tmp/questions.json
 
-# Facts — write array to file:
-cat > /tmp/facts.json << 'HEREDOC'
-[
-  {"claim": "fact 1", "source_ids": ["s1"], "confidence": "high"},
-  {"claim": "fact 2", "source_ids": ["s2"], "confidence": "medium"}
-]
-HEREDOC
+# Step 1: Write tool → /tmp/facts.json with content:
+#   [{"claim": "fact 1", "source_ids": ["s1"], "confidence": "high"}]
+# Step 2: run the script:
 uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/state.py add-facts --research-id "my-topic" --file /tmp/facts.json
-
-# Also works — pipe via stdin:
-cat /tmp/facts.json | uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/state.py add-facts --research-id "my-topic" --file -
 ```
 
 Inline `--questions`/`--facts`/`--sources` are only safe for 1–2 very short items. For any batch from a research round, use `--file`.
