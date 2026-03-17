@@ -290,12 +290,14 @@ def pending(
     data = _load(review_id, state_dir)
     chunks = data.get("chunks", [])
 
-    unreviewed = [c for c in chunks if c["status"] == "unreviewed"]
+    # unreviewed = all chunks not yet fully reviewed (need extraction or cross-check).
+    unreviewed = [c for c in chunks if c["status"] in ("unreviewed", "extracted")]
+    # unextracted = chunks with no claims extracted yet.
     unextracted = [c for c in chunks if c["status"] == "unreviewed"]
     extracted_not_reviewed = [c for c in chunks if c["status"] == "extracted"]
 
-    # next_chunks = only unextracted — those need immediate attention.
-    next_chunks = unextracted
+    # Priority: unextracted first (need claim extraction), then extracted (need cross-check).
+    next_chunks = unextracted + extracted_not_reviewed
     if limit is not None:
         next_chunks = next_chunks[:limit]
 

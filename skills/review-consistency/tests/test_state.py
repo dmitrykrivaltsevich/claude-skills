@@ -347,14 +347,46 @@ class TestPending:
         assert result["unextracted_chunks"] == 3
         assert len(result["next_chunks"]) == 3
 
-    def test_excludes_extracted_chunks(self, review_file: Path):
+    def test_unreviewed_includes_extracted(self, review_file: Path):
+        """unreviewed_chunks counts both unextracted AND extracted (not yet cross-checked)."""
         _init(review_file.parent)
         state.add_chunks("test-review", _sample_chunks(), state_dir=review_file.parent)
         state.update_chunk("test-review", "c1", "extracted", state_dir=review_file.parent)
         result = state.pending("test-review", state_dir=review_file.parent)
+        # c1 is extracted but not reviewed — still counts as unreviewed
+        assert result["unreviewed_chunks"] == 3
+        # only c2 and c3 need extraction
         assert result["unextracted_chunks"] == 2
+
+    def test_unextracted_and_unreviewed_differ(self, review_file: Path):
+        """After extracting some chunks, unextracted < unreviewed."""
+        _init(review_file.parent)
+        state.add_chunks("test-review", _sample_chunks(), state_dir=review_file.parent)
+        state.update_chunk("test-review", "c1", "extracted", state_dir=review_file.parent)
+        state.update_chunk("test-review", "c2", "extracted", state_dir=review_file.parent)
+        result = state.pending("test-review", state_dir=review_file.parent)
+        assert result["unextracted_chunks"] == 1
+        assert result["unreviewed_chunks"] == 3
+        assert result["extracted_not_reviewed"] == 2
+
+    def test_next_chunks_prioritizes_unextracted(self, review_file: Path):
+        """next_chunks lists unextracted first, then extracted-not-reviewed."""
+        _init(review_file.parent)
+        state.add_chunks("test-review", _sample_chunks(), state_dir=review_file.parent)
+        state.update_chunk("test-review", "c1", "extracted", state_dir=review_file.parent)
+        result = state.pending("test-review", state_dir=review_file.parent)
+        next_ids = [c["id"] for c in result["next_chunks"]]
+        # c2, c3 (unextracted) come before c1 (extracted)
+        assert next_ids == ["c2", "c3", "c1"]
+
+    def test_reviewed_chunks_excluded_from_next(self, review_file: Path):
+        _init(review_file.parent)
+        state.add_chunks("test-review", _sample_chunks(), state_dir=review_file.parent)
+        state.update_chunk("test-review", "c1", "reviewed", state_dir=review_file.parent)
+        result = state.pending("test-review", state_dir=review_file.parent)
         next_ids = [c["id"] for c in result["next_chunks"]]
         assert "c1" not in next_ids
+        assert result["unreviewed_chunks"] == 2
 
     def test_limit_parameter(self, review_file: Path):
         _init(review_file.parent)
