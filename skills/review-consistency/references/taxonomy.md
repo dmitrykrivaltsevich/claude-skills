@@ -27,7 +27,7 @@ Same concept referred to by different names, or same name used for different con
 - `timeout` means "connection timeout" in one config, "request timeout" in another
 - Doc section calls it "workspace", code calls it "project", API calls it "repository"
 
-## 4. Stale References
+## 4. Stale Reference
 
 Pointers to things that moved, were renamed, or no longer exist.
 

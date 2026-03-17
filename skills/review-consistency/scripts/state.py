@@ -252,7 +252,7 @@ def add_claims(
 )
 @precondition(
     lambda review_id, findings, **_: all(
-        finding.get("class", "") in VALID_FINDING_CLASSES
+        finding["class"] in VALID_FINDING_CLASSES
         for finding in findings
     ),
     f"finding class must be one of {VALID_FINDING_CLASSES}",
@@ -274,7 +274,7 @@ def add_findings(
         data["findings"].append({
             "id": f"f{next_id}",
             "fingerprint": fp,
-            "class": finding.get("class", ""),
+            "class": finding["class"],
             "severity": finding.get("severity", "major"),
             "title": finding.get("title", ""),
             "where": finding.get("where", ""),
