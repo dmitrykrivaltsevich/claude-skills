@@ -10,10 +10,10 @@ A collection of skills (plugins) for [Claude Code](https://code.claude.com/docs/
 /plugin marketplace add dmitrykrivaltsevich/claude-skills
 ```
 
-Then install individual plugins:
+Then install the plugin (includes all skills):
 
 ```
-/plugin install google-drive@dmitrykrivaltsevich-claude-skills
+/plugin install claude-skills@dmitrykrivaltsevich-claude-skills
 ```
 
 ### From a local clone
