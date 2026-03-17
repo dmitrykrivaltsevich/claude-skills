@@ -44,6 +44,18 @@ VALID_CLAIM_CATEGORIES = ("contract", "convention", "assertion", "reference")
 # Valid finding severities — matches SKILL.md severity levels table.
 VALID_SEVERITIES = ("critical", "major", "minor", "nit")
 
+# Valid finding classes — the 8 inconsistency types from taxonomy.md.
+VALID_FINDING_CLASSES = (
+    "internal-contradiction",
+    "forgotten-propagation",
+    "semantic-drift",
+    "stale-reference",
+    "implausibility",
+    "argument-incoherence",
+    "convention-break",
+    "incomplete-change",
+)
+
 
 # ---------------------------------------------------------------------------
 # Internal helpers
@@ -237,6 +249,13 @@ def add_claims(
         for finding in findings
     ),
     f"finding severity must be one of {VALID_SEVERITIES}",
+)
+@precondition(
+    lambda review_id, findings, **_: all(
+        finding.get("class", "") in VALID_FINDING_CLASSES
+        for finding in findings
+    ),
+    f"finding class must be one of {VALID_FINDING_CLASSES}",
 )
 def add_findings(
     review_id: str,

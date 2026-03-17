@@ -304,7 +304,14 @@ class TestAddFindings:
                 [self._sample_finding(severity="banana")],
                 state_dir=review_file.parent,
             )
-
+    def test_rejects_invalid_class(self, review_file: Path):
+        _init(review_file.parent)
+        with pytest.raises(ContractViolationError, match="(?i)class"):
+            state.add_findings(
+                "test-review",
+                [self._sample_finding(**{"class": "banana"})],
+                state_dir=review_file.parent,
+            )
 
 # ---------------------------------------------------------------------------
 # update_finding tests
@@ -340,7 +347,7 @@ class TestUpdateFinding:
         _init(review_file.parent)
         state.add_findings(
             "test-review",
-            [{"fingerprint": "fp1", "class": "x", "severity": "critical",
+            [{"fingerprint": "fp1", "class": "internal-contradiction", "severity": "critical",
               "title": "t", "where": "w", "what": "x", "why": "y",
               "suggestion": "s", "chunk_ids": [], "claim_ids": []}],
             state_dir=review_file.parent,
@@ -453,7 +460,7 @@ class TestStatus:
         )
         state.add_findings(
             "test-review",
-            [{"fingerprint": "fp1", "class": "x", "severity": "critical",
+            [{"fingerprint": "fp1", "class": "internal-contradiction", "severity": "critical",
               "title": "t", "where": "w", "what": "x", "why": "y",
               "suggestion": "s", "chunk_ids": [], "claim_ids": []}],
             state_dir=review_file.parent,

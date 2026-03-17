@@ -93,6 +93,8 @@ uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/state.py export --review-id "my-r
 uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/state.py init --review-id "my-review" --scope "..." --state-dir /path/to/dir
 ```
 
+> **Note**: The Quick Start omits `update-phase` calls for brevity. In practice, advance the phase after each stage completes — see the detailed Phase 1–4 workflow below.
+
 ## Review Workflow — 4 Phases
 
 The LLM drives each phase. Scripts handle persistence; the LLM does all reasoning.
@@ -118,7 +120,7 @@ For each unextracted chunk (use `state.py pending` to get the list):
    - **reference**: pointer to another location (import, link, file path)
 3. **Write claims to a temp file**, run `state.py add-claims`
 4. **Mark chunk as extracted**: `state.py update-chunk --chunk-id cN --status extracted`
-5. Move to next chunk. When all chunks extracted, run `state.py update-phase --phase extract`
+5. Move to next chunk. When all chunks extracted, run `state.py update-phase --phase cross-check`
 
 **Claim format** (JSON array for `add-claims --file`):
 ```json
@@ -139,7 +141,7 @@ This is where inconsistencies are found. After all claims are extracted:
 3. **Systematically check the 8 inconsistency classes** from `references/taxonomy.md`
 4. **For each finding**, compute a fingerprint (stable hash of class + involved files + short description) and write to `state.py add-findings`
 5. **Mark chunks as reviewed**: `state.py update-chunk --chunk-id cN --status reviewed`
-6. When all chunks reviewed, run `state.py update-phase --phase cross-check`
+6. When all chunks reviewed, run `state.py update-phase --phase report`
 
 **Cross-check in groups**: Don't try to compare all claims at once. Group by:
 - Same module/directory (likely to share conventions)
