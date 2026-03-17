@@ -35,6 +35,8 @@ This skill provides **stateful, systematic consistency review** with persistent 
 
 The core insight: inconsistency is **relational** — it exists between two or more statements, not within one. The methodology: extract claims from each file, then systematically compare claims across files.
 
+> **READ-ONLY**: This skill MUST ONLY review and report findings. NEVER fix, edit, modify, or apply changes to the reviewed material. Output is a report — the user decides what to fix.
+
 > **MANDATORY**: Read `references/taxonomy.md` to understand the 8 inconsistency classes and claim categories before starting any review.
 
 ## Scripts
@@ -291,6 +293,7 @@ This ensures:
 
 ## Anti-Patterns to Avoid
 
+- **Do not fix, edit, or modify the reviewed material.** This skill is strictly read-only. Report findings and stop. Never apply fixes, even if the user says "re-check after changes" — re-check means re-review, not repair.
 - **Do not invent problems.** Only report actual inconsistencies you can point to concretely.
 - **Do not report style preferences as inconsistencies.** Unless the codebase has an established convention that is broken, stylistic variation is not an inconsistency.
 - **Do not overwhelm with nits.** If there are many nits of the same kind, report the pattern once with examples, not each instance separately.
