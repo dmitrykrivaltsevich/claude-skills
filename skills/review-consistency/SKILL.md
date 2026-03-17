@@ -100,7 +100,7 @@ The LLM drives each phase. Scripts handle persistence; the LLM does all reasonin
 1. Run `inventory.py` on the target paths to get the file list with hashes
 2. Run `state.py init` to create (or resume) the review session
 3. Write the inventory JSON to a temp file, run `state.py add-chunks`
-4. Run `state.py update-phase --phase inventory`
+4. Run `state.py update-phase --phase extract`
 
 **Scope guidance**: When the user provides a directory, inventory ALL relevant files. Use `--ext` to filter to relevant file types and `--exclude` to skip test fixtures, build outputs, and vendored code.
 
