@@ -41,6 +41,9 @@ VALID_FINDING_STATUSES = ("open", "fixed", "wont-fix", "false-positive")
 # Valid claim categories.
 VALID_CLAIM_CATEGORIES = ("contract", "convention", "assertion", "reference")
 
+# Valid finding severities — matches SKILL.md severity levels table.
+VALID_SEVERITIES = ("critical", "major", "minor", "nit")
+
 
 # ---------------------------------------------------------------------------
 # Internal helpers
@@ -227,6 +230,13 @@ def add_claims(
 @precondition(
     lambda review_id, findings, **_: len(findings) > 0,
     "At least one finding is required",
+)
+@precondition(
+    lambda review_id, findings, **_: all(
+        finding.get("severity", "major") in VALID_SEVERITIES
+        for finding in findings
+    ),
+    f"finding severity must be one of {VALID_SEVERITIES}",
 )
 def add_findings(
     review_id: str,

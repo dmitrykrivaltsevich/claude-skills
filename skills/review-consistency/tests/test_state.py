@@ -296,6 +296,15 @@ class TestAddFindings:
         with pytest.raises(ContractViolationError, match="(?i)finding"):
             state.add_findings("test-review", [], state_dir=review_file.parent)
 
+    def test_rejects_invalid_severity(self, review_file: Path):
+        _init(review_file.parent)
+        with pytest.raises(ContractViolationError, match="(?i)severity"):
+            state.add_findings(
+                "test-review",
+                [self._sample_finding(severity="banana")],
+                state_dir=review_file.parent,
+            )
+
 
 # ---------------------------------------------------------------------------
 # update_finding tests
