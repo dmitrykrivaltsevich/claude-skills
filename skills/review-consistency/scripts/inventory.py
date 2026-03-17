@@ -16,6 +16,7 @@ This script is a data pipe: file system → structured JSON to stdout.
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import hashlib
 import json
 import sys
@@ -52,6 +53,8 @@ def _should_exclude(path: Path, exclude_set: frozenset[str]) -> bool:
     """Check if any path component matches an exclude pattern."""
     for part in path.parts:
         if part in exclude_set:
+            return True
+        if any(fnmatch.fnmatch(part, pat) for pat in exclude_set if "*" in pat or "?" in pat):
             return True
     return False
 

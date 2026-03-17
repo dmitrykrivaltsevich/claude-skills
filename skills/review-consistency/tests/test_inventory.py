@@ -64,6 +64,16 @@ class TestScanPaths:
         assert not any("__pycache__" in p for p in paths)
         assert not any(".git" in p for p in paths)
 
+    def test_glob_exclude_pattern(self, tmp_path: Path):
+        """Glob patterns like *.egg-info should match real directory names."""
+        (tmp_path / "mypackage.egg-info").mkdir()
+        (tmp_path / "mypackage.egg-info" / "PKG-INFO").write_text("Name: mypackage\n")
+        (tmp_path / "keep.py").write_text("x = 1\n")
+        result = inventory.scan_paths([str(tmp_path)])
+        paths = {r["path"] for r in result}
+        assert not any(".egg-info" in p for p in paths)
+        assert str(tmp_path / "keep.py") in paths
+
     def test_custom_excludes(self, sample_tree: Path):
         result = inventory.scan_paths(
             [str(sample_tree)],
