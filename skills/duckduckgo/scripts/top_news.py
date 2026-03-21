@@ -31,6 +31,7 @@ from __future__ import annotations
 import argparse
 import concurrent.futures
 import json
+import random
 import re
 import sys
 from datetime import datetime, timezone
@@ -161,6 +162,12 @@ def enrich_authors(stories: list[dict], max_fetch: int = 40) -> None:
 # ---------------------------------------------------------------------------
 # Comprehensive query catalogue — each group targets a different slice of the
 # information ecosystem so that important stories bubble up regardless of topic.
+#
+# BIAS NOTES (for LLM awareness):
+# - Default groups skew US/UK center-left in editorial perspective
+# - For conservative viewpoints: include 'broadcast_diverse' group
+# - For non-Western coverage: include 'international' + use translate_search.py
+# - Tech groups prioritize primary sources (company blogs) over journalism
 # ---------------------------------------------------------------------------
 QUERY_GROUPS: dict[str, list[str]] = {
     # Broad sweep — seeds the pool with high-volume, cross-domain coverage
@@ -175,7 +182,7 @@ QUERY_GROUPS: dict[str, list[str]] = {
         "site:reuters.com",
         "site:apnews.com",
     ],
-    # Anglophone newspapers of record
+    # Anglophone newspapers of record (center to center-left editorial lean)
     "print": [
         "site:nytimes.com",
         "site:theguardian.com",
@@ -186,7 +193,7 @@ QUERY_GROUPS: dict[str, list[str]] = {
         "site:theatlantic.com",
         "site:newyorker.com",
     ],
-    # Broadcast / digital-native news
+    # Broadcast / digital-native news (center to center-left)
     "broadcast": [
         "site:bbc.com",
         "site:cnn.com",
@@ -195,6 +202,14 @@ QUERY_GROUPS: dict[str, list[str]] = {
         "site:abcnews.go.com",
         "site:pbs.org/newshour",
         "site:sky.com/news",
+    ],
+    # Broadcast diversity — adds center-right / right-leaning outlets for balance
+    "broadcast_diverse": [
+        "site:foxnews.com",
+        "site:nypost.com",
+        "site:dailymail.co.uk",
+        "site:washingtonexaminer.com",
+        "site:nationalreview.com",
     ],
     # Finance & business
     "finance": [
@@ -213,7 +228,7 @@ QUERY_GROUPS: dict[str, list[str]] = {
         "site:propublica.org",
         "site:theintercept.com",
     ],
-    # Technology
+    # Technology — journalism/analysis
     "tech": [
         "site:techcrunch.com",
         "site:arstechnica.com",
@@ -223,6 +238,57 @@ QUERY_GROUPS: dict[str, list[str]] = {
         "site:thenextweb.com",
         "site:zdnet.com",
         "site:venturebeat.com",
+    ],
+    # Technology — PRIMARY sources (company newsrooms, announcements break here first)
+    "tech_primary": [
+        "site:newsroom.apple.com",
+        "site:blog.google",
+        "site:blogs.microsoft.com",
+        "site:aboutamazon.com/news",
+        "site:about.fb.com/news",
+        "site:openai.com/blog",
+        "site:anthropic.com/news",
+        "site:nvidia.com/en-us/about-nvidia/press-releases",
+    ],
+    # Technology — engineering blogs (how tech actually works)
+    "tech_engineering": [
+        "site:github.blog",
+        "site:engineering.fb.com",
+        "site:netflixtechblog.com",
+        "site:blog.cloudflare.com",
+        "site:aws.amazon.com/blogs",
+        "site:cloud.google.com/blog",
+        "site:azure.microsoft.com/en-us/blog",
+        "site:uber.com/blog/engineering",
+    ],
+    # Technology — AI-specific sources (labs, model releases, research)
+    "tech_ai": [
+        "site:openai.com/blog",
+        "site:anthropic.com/news",
+        "site:huggingface.co/blog",
+        "site:deepmind.google/blog",
+        "site:ai.meta.com/blog",
+        "site:stability.ai/blog",
+    ],
+    # Technology — security (breaches, vulnerabilities, patches)
+    "tech_security": [
+        "site:krebsonsecurity.com",
+        "site:bleepingcomputer.com",
+        "site:thehackernews.com",
+        "site:darkreading.com",
+        "site:therecord.media",
+    ],
+    # Technology — products & indie (new launches, bootstrapped startups)
+    "tech_products": [
+        "site:producthunt.com",
+        "site:indiehackers.com",
+    ],
+    # Technology — Asia/global tech ecosystems
+    "tech_asia": [
+        "site:technode.com",
+        "site:techinasia.com",
+        "site:restofworld.org",
+        "site:techeu.com",
     ],
     # Science & academic
     "science": [
@@ -235,16 +301,73 @@ QUERY_GROUPS: dict[str, list[str]] = {
         "site:arxiv.org",
         "site:phys.org",
     ],
-    # International / non-English press (English editions)
+    # Health & medicine (medical journals, health agencies, health journalism)
+    "health": [
+        "site:who.int/news",
+        "site:cdc.gov/media",
+        "site:nih.gov/news-events",
+        "site:thelancet.com",
+        "site:nejm.org",
+        "site:bmj.com",
+        "site:statnews.com",
+        "site:kffhealthnews.org",
+    ],
+    # Sports
+    "sports": [
+        "site:espn.com",
+        "site:bbc.com/sport",
+        "site:skysports.com",
+        "site:theathletic.com",
+        "site:sports.yahoo.com",
+    ],
+    # Environment & climate
+    "environment": [
+        "site:carbonbrief.org",
+        "site:insideclimatenews.org",
+        "site:eenews.net",
+        "site:grist.org",
+        "site:climatechangenews.com",
+    ],
+    # Entertainment & culture
+    "entertainment": [
+        "site:variety.com",
+        "site:hollywoodreporter.com",
+        "site:deadline.com",
+        "site:rollingstone.com",
+        "site:pitchfork.com",
+    ],
+    # International — expanded global coverage (English editions)
     "international": [
+        # Europe
         "site:spiegel.de/international",
         "site:lemonde.fr/en",
-        "site:elpais.com/usa",
-        "site:japan-forward.com",
-        "site:hindustantimes.com",
-        "site:aljazeera.com",
         "site:france24.com",
         "site:dw.com/en",
+        "site:elpais.com/internacional",  # international edition, not US
+        # Middle East
+        "site:aljazeera.com",
+        "site:haaretz.com",
+        "site:arabnews.com",
+        # Asia-Pacific
+        "site:scmp.com",              # Hong Kong/China
+        "site:japantimes.co.jp",
+        "site:koreaherald.com",
+        "site:straitstimes.com",       # Singapore/SEA
+        "site:hindustantimes.com",
+        "site:abc.net.au/news",        # Australia
+        # Africa
+        "site:dailymaverick.co.za",    # South Africa
+        "site:nation.africa",          # East Africa
+        # Latin America
+        "site:buenosairesherald.com",
+    ],
+    # Institutional / government / NGO sources
+    "institutional": [
+        "site:who.int/news",
+        "site:un.org/news",
+        "site:europa.eu/newsroom",
+        "site:state.gov/press-releases",
+        "site:whitehouse.gov/briefing-room",
     ],
     # Social aggregators & community signals
     "social": [
@@ -347,6 +470,7 @@ def fetch_news(
     query_map: dict[str, str],
     per_query: int = 20,
     timelimit: str | None = None,
+    region: str | None = None,
 ) -> list[dict]:
     """Fetch news for all queries in parallel, each with its own DDGS instance.
 
@@ -359,6 +483,8 @@ def fetch_news(
             kwargs: dict = {"max_results": per_query}
             if timelimit:
                 kwargs["timelimit"] = timelimit
+            if region:
+                kwargs["region"] = region
             return DDGS().news(q, **kwargs)
         except Exception:
             return []
@@ -435,6 +561,10 @@ def main() -> None:
         "--timelimit", "-t",
         help="Time filter: d (day), w (week), m (month), y (year)",
     )
+    parser.add_argument(
+        "--region", "-r",
+        help="DDG region code (e.g. us-en, uk-en, de-de, fr-fr, wt-wt for worldwide)",
+    )
     args = parser.parse_args()
 
     # Build the query map from selected groups
@@ -455,7 +585,12 @@ def main() -> None:
         f"{len(selected_groups)} groups…",
         file=sys.stderr,
     )
-    results = fetch_news(query_map, per_query=args.per_query, timelimit=args.timelimit)
+    results = fetch_news(
+        query_map,
+        per_query=args.per_query,
+        timelimit=args.timelimit,
+        region=args.region,
+    )
 
     if not results:
         print("No results found.", file=sys.stderr)
@@ -463,6 +598,10 @@ def main() -> None:
         return
 
     print(f"Collected {len(results)} unique articles.", file=sys.stderr)
+
+    # Shuffle results to prevent first-responder bias (queries that complete
+    # first would otherwise dominate the top of the array if LLM truncates)
+    random.shuffle(results)
 
     # Optional author enrichment via page metadata
     if args.enrich_authors:

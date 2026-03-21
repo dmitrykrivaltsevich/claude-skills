@@ -204,11 +204,23 @@ Queries 11 source groups (62+ queries) in parallel via DDG News API:
 | `wires` | Reuters, AP |
 | `print` | NYT, Guardian, WashPost, FT, WSJ, Economist, Atlantic, New Yorker |
 | `broadcast` | BBC, CNN, NBC, CBS, ABC, PBS, Sky |
+| `broadcast_diverse` | Fox News, NY Post, Daily Mail, Washington Examiner, National Review |
 | `finance` | Bloomberg, CNBC, MarketWatch, Fortune, Business Insider |
 | `policy` | Politico, Axios, Vox, Foreign Affairs, ProPublica, The Intercept |
 | `tech` | TechCrunch, Ars Technica, The Verge, Wired, Slashdot, TNW, ZDNet, VentureBeat |
+| `tech_primary` | Apple Newsroom, Google Blog, Microsoft Blogs, Amazon News, Meta News, OpenAI Blog, Anthropic News, NVIDIA |
+| `tech_engineering` | GitHub Blog, Meta Engineering, Netflix Tech, Cloudflare Blog, AWS Blogs, GCP Blog, Azure Blog, Uber Engineering |
+| `tech_ai` | OpenAI, Anthropic, Hugging Face, DeepMind, Meta AI, Stability AI |
+| `tech_security` | KrebsOnSecurity, BleepingComputer, The Hacker News, Dark Reading, The Record |
+| `tech_products` | Product Hunt, Indie Hackers |
+| `tech_asia` | TechNode, Tech in Asia, Rest of World, Tech.eu |
 | `science` | Nature, Science, New Scientist, SciAm, ACM, IEEE, arXiv, Phys.org |
-| `international` | Spiegel, Le Monde, El País, Japan Forward, Hindustan Times, Al Jazeera, France24, DW |
+| `health` | WHO, CDC, NIH, Lancet, NEJM, BMJ, STAT News, KFF Health News |
+| `sports` | ESPN, BBC Sport, Sky Sports, The Athletic, Yahoo Sports |
+| `environment` | Carbon Brief, Inside Climate News, E&E News, Grist, Climate Home |
+| `entertainment` | Variety, Hollywood Reporter, Deadline, Rolling Stone, Pitchfork |
+| `international` | Spiegel, Le Monde, France24, DW, El País Intl, Al Jazeera, Haaretz, Arab News, SCMP, Japan Times, Korea Herald, Straits Times, Hindustan Times, ABC AU, Daily Maverick, Nation Africa, Buenos Aires Herald |
+| `institutional` | WHO, UN News, EU Newsroom, State Dept, White House |
 | `social` | Reddit r/worldnews, r/news, Hacker News |
 | `independent` | Substack, Medium, Bellingcat |
 
@@ -217,6 +229,7 @@ Queries 11 source groups (62+ queries) in parallel via DDG News API:
 - `--queries "AI boom" "LLM safety"` — add free-form queries (tagged `query_group: "custom"`)
 - `--per-query 20` — DDG results per query (default 20)
 - `--timelimit d|w|m|y` — restrict news to past day/week/month/year
+- `--region us-en|uk-en|de-de|…` — DDG region code (default: user's locale; `wt-wt` for worldwide)
 - `--enrich-authors` — fetch page metadata (JSON-LD/OG) for author names (adds ~10–20 s)
 - `--max-enrich 60` — cap how many articles get metadata fetch
 
@@ -248,6 +261,29 @@ VS Code Copilot does NOT render `![](url)` or `<img>`. Present image results as 
 - **Paywalled pages**: `download.py` returns only publicly visible content
 - **Author coverage**: `--enrich-authors` works for wire/open-access articles; paywalled sites block metadata
 - **No login required** — public API only
+
+## Source Bias Notes
+
+The default source pool has known biases the LLM should compensate for:
+
+| Bias type | Default behavior | How to compensate |
+|-----------|-----------------|-------------------|
+| **Geographic** | ~60% US/UK sources | Add `--groups international` or use `translate_search.py` for non-Western coverage |
+| **Political** | Center to center-left editorial lean | Add `--groups broadcast_diverse` for right-leaning perspectives |
+| **Topic** | Tech/policy heavy; health/sports/environment underrepresented | Explicitly include `health`, `sports`, `environment`, `entertainment` groups |
+| **Source type** | Journalism heavy; misses primary sources | Use `tech_primary`, `tech_engineering`, `institutional` for direct announcements |
+
+**For balanced coverage**, expand beyond defaults:
+```bash
+# Politically balanced news sweep:
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/top_news.py --groups wires print broadcast broadcast_diverse international
+
+# Comprehensive tech coverage (primary + journalism + security):
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/top_news.py --groups tech tech_primary tech_engineering tech_ai tech_security tech_asia
+
+# Health-focused sweep:
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/top_news.py --groups health science wires
+```
 
 ## Technical Details
 
