@@ -32,7 +32,7 @@ import sys
 import pymupdf
 
 sys.path.insert(0, os.path.dirname(__file__))
-from contracts import precondition
+from contracts import check_file_readable, precondition
 
 # Default rendering resolution.
 # 400 DPI gives the LLM enough detail to read small text and table cells
@@ -45,8 +45,8 @@ DEFAULT_DPI = 400  # dots per inch — balances quality vs file size for LLM vis
     "PDF path must not be empty",
 )
 @precondition(
-    lambda pdf_path, **_: os.path.isfile(pdf_path),
-    "PDF path does not exist",
+    lambda pdf_path, **_: check_file_readable(pdf_path),
+    "PDF file is not readable",
 )
 @precondition(
     lambda pdf_path, output_dir, dpi=DEFAULT_DPI, **_: dpi >= 72,

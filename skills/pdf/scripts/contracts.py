@@ -7,11 +7,61 @@
 Provides @precondition, @postcondition, and @invariant decorators
 that enforce contracts at runtime, raising ContractViolationError
 on violation.
+
+Also provides check_file_readable() for TCC-aware file access validation.
 """
 from __future__ import annotations
 
 import functools
+import os
 from typing import Any, Callable
+
+
+# macOS TCC-protected directories where terminal processes are often blocked.
+_TCC_DIRS = ("Desktop", "Documents", "Downloads")
+
+
+def check_file_readable(path: str) -> bool:
+    """Verify a file exists AND is readable by the current process.
+
+    On macOS, files in ~/Desktop, ~/Documents, etc. may exist but be
+    blocked by TCC (Transparency, Consent, Control). os.path.isfile()
+    returns True for such files, but open() raises PermissionError.
+
+    Raises ContractViolationError with an actionable message instead of
+    returning False, so the user/LLM knows exactly what to do.
+    """
+    if not os.path.isfile(path):
+        raise ContractViolationError(
+            f"File does not exist: {path}",
+            kind="precondition",
+        )
+
+    try:
+        with open(path, "rb") as f:
+            f.read(1)
+    except PermissionError:
+        abs_path = os.path.abspath(path)
+        home = os.path.expanduser("~")
+        # Detect if the file is in a TCC-protected directory
+        rel = os.path.relpath(abs_path, home) if abs_path.startswith(home) else ""
+        top_dir = rel.split(os.sep)[0] if rel else ""
+
+        if top_dir in _TCC_DIRS:
+            raise ContractViolationError(
+                f"macOS blocked access to '{abs_path}'. "
+                f"The ~/{top_dir} folder is protected by macOS privacy settings (TCC). "
+                f"Fix: copy the file to a non-protected location first:\n"
+                f"  open -R \"{abs_path}\"  # reveals in Finder\n"
+                f"Then drag-copy it to ~/Downloads or /tmp, and use the new path.",
+                kind="precondition",
+            )
+        raise ContractViolationError(
+            f"Permission denied reading '{abs_path}'. Check file permissions.",
+            kind="precondition",
+        )
+
+    return True
 
 
 class ContractViolationError(Exception):

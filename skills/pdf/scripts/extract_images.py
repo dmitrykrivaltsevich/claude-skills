@@ -24,7 +24,7 @@ import sys
 import pymupdf
 
 sys.path.insert(0, os.path.dirname(__file__))
-from contracts import precondition
+from contracts import check_file_readable, precondition
 
 # Minimum image dimension in pixels to extract.
 # Filters out tiny decorative images (bullets, icons, line art).
@@ -36,8 +36,8 @@ MIN_IMAGE_DIM = 32  # px — images smaller than this in any dimension are likel
     "PDF path must not be empty",
 )
 @precondition(
-    lambda pdf_path, **_: os.path.isfile(pdf_path),
-    "PDF path does not exist",
+    lambda pdf_path, **_: check_file_readable(pdf_path),
+    "PDF file is not readable",
 )
 def extract_images(
     pdf_path: str,

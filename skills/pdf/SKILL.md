@@ -268,6 +268,7 @@ Some text#footnote[This is a footnote.]
 
 ## Limitations
 
+- **macOS protected folders** — `~/Desktop` and other folders may be blocked by macOS privacy settings (TCC) unless VS Code has been granted access. Scripts detect this and print a fix: go to **System Settings → Privacy & Security → Files and Folders** (or **Full Disk Access**) and grant access to VS Code. Alternatively, ask the user to copy the file to `~/Downloads` or `/tmp`.
 - **OCR requires vision-capable LLM** — if the model has no vision, scanned PDFs can only be processed via `read.py` (which reads any existing OCR text layer in the PDF itself)
 - **Typst fonts** — uses system fonts; on headless servers, font availability may be limited. On macOS, all system fonts including New Computer Modern are available
 - **PDF forms/annotations** — not yet supported for reading or writing

@@ -26,7 +26,7 @@ import pymupdf
 import pymupdf4llm
 
 sys.path.insert(0, os.path.dirname(__file__))
-from contracts import precondition
+from contracts import check_file_readable, precondition
 
 
 @precondition(
@@ -34,8 +34,8 @@ from contracts import precondition
     "PDF path must not be empty",
 )
 @precondition(
-    lambda pdf_path, **_: os.path.isfile(pdf_path),
-    "PDF path does not exist",
+    lambda pdf_path, **_: check_file_readable(pdf_path),
+    "PDF file is not readable",
 )
 @precondition(
     lambda pdf_path, page_start=1, **_: page_start >= 1,

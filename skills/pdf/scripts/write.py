@@ -29,7 +29,7 @@ import typst
 import pymupdf
 
 sys.path.insert(0, os.path.dirname(__file__))
-from contracts import precondition
+from contracts import check_file_readable, precondition
 
 
 @precondition(
@@ -37,8 +37,8 @@ from contracts import precondition
     "Source path must not be empty",
 )
 @precondition(
-    lambda source_path, **_: os.path.isfile(source_path),
-    "Source file does not exist",
+    lambda source_path, **_: check_file_readable(source_path),
+    "Source file is not readable",
 )
 @precondition(
     lambda source_path, output_path, **_: output_path.strip() != "",

@@ -24,7 +24,7 @@ import sys
 import pymupdf
 
 sys.path.insert(0, os.path.dirname(__file__))
-from contracts import precondition
+from contracts import check_file_readable, precondition
 
 
 @precondition(
@@ -32,8 +32,8 @@ from contracts import precondition
     "PDF path must not be empty",
 )
 @precondition(
-    lambda pdf_path: os.path.isfile(pdf_path),
-    "PDF path does not exist",
+    lambda pdf_path: check_file_readable(pdf_path),
+    "PDF file is not readable",
 )
 def get_info(pdf_path: str) -> dict:
     """Extract metadata, TOC, and per-page structural analysis."""

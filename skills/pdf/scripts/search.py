@@ -24,7 +24,7 @@ import sys
 import pymupdf
 
 sys.path.insert(0, os.path.dirname(__file__))
-from contracts import precondition
+from contracts import check_file_readable, precondition
 
 # Characters of context to extract around each match.
 # Enough for the LLM to judge relevance without reading the full page.
@@ -36,8 +36,8 @@ CONTEXT_CHARS = 200  # ~2 sentences of surrounding text
     "PDF path must not be empty",
 )
 @precondition(
-    lambda pdf_path, **_: os.path.isfile(pdf_path),
-    "PDF path does not exist",
+    lambda pdf_path, **_: check_file_readable(pdf_path),
+    "PDF file is not readable",
 )
 @precondition(
     lambda pdf_path, query, **_: query.strip() != "",
