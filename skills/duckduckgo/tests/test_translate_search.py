@@ -1,5 +1,6 @@
 """Tests for translate_search.py — multi-region parallel search."""
 
+import concurrent.futures
 import os
 import sys
 from unittest.mock import MagicMock, patch
@@ -144,7 +145,7 @@ class TestMultiRegionSearch:
         results = multi_region_search([
             "fr-fr:intelligence artificielle",
             "de-de:künstliche Intelligenz",
-        ])
+        ], _executor_class=concurrent.futures.ThreadPoolExecutor)
 
         assert len(results) == 2
         regions = {r["region"] for r in results}
@@ -174,7 +175,7 @@ class TestMultiRegionSearch:
             ],
         ]
 
-        results = multi_region_search(["us-en:test", "uk-en:test"])
+        results = multi_region_search(["us-en:test", "uk-en:test"], _executor_class=concurrent.futures.ThreadPoolExecutor)
 
         assert len(results) == 1
 
@@ -193,7 +194,7 @@ class TestMultiRegionSearch:
             ],
         ]
 
-        results = multi_region_search(["fr-fr:test", "de-de:test"])
+        results = multi_region_search(["fr-fr:test", "de-de:test"], _executor_class=concurrent.futures.ThreadPoolExecutor)
 
         assert len(results) == 1
         assert results[0]["region"] == "de-de"

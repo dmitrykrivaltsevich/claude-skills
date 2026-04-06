@@ -1,5 +1,6 @@
 """Tests for top_news.py — multi-source news fetcher."""
 
+import concurrent.futures
 import os
 import sys
 from unittest.mock import MagicMock, patch
@@ -139,7 +140,10 @@ class TestFetchNews:
             }
         ]
 
-        results = fetch_news({"test query": "broad"}, per_query=5)
+        results = fetch_news(
+            {"test query": "broad"}, per_query=5,
+            _executor_class=concurrent.futures.ThreadPoolExecutor,
+        )
 
         assert len(results) == 1
         assert results[0]["title"] == "Test Story"
@@ -161,7 +165,8 @@ class TestFetchNews:
         ]
 
         results = fetch_news(
-            {"query1": "broad", "query2": "wires"}, per_query=5
+            {"query1": "broad", "query2": "wires"}, per_query=5,
+            _executor_class=concurrent.futures.ThreadPoolExecutor,
         )
 
         urls = [r["url"] for r in results]
@@ -182,7 +187,10 @@ class TestFetchNews:
             }
         ]
 
-        results = fetch_news({"query": "broad"}, per_query=5)
+        results = fetch_news(
+            {"query": "broad"}, per_query=5,
+            _executor_class=concurrent.futures.ThreadPoolExecutor,
+        )
 
         assert results[0]["author"] == "Sarah Johnson"
 
@@ -200,7 +208,10 @@ class TestFetchNews:
             }
         ]
 
-        results = fetch_news({"query": "broad"}, per_query=5)
+        results = fetch_news(
+            {"query": "broad"}, per_query=5,
+            _executor_class=concurrent.futures.ThreadPoolExecutor,
+        )
 
         assert len(results[0]["description"]) <= 1200
 
@@ -210,6 +221,9 @@ class TestFetchNews:
         mock_ddgs_cls.return_value = mock_ddgs
         mock_ddgs.news.side_effect = Exception("Rate limited")
 
-        results = fetch_news({"query": "broad"}, per_query=5)
+        results = fetch_news(
+            {"query": "broad"}, per_query=5,
+            _executor_class=concurrent.futures.ThreadPoolExecutor,
+        )
 
         assert results == []

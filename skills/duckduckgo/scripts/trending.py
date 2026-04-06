@@ -113,12 +113,21 @@ def _discover_topics() -> list[str]:
     return sorted(topics)
 
 
-def gather_trends(topics: list[str]) -> list[dict]:
-    """Gather trend data for all topics in parallel."""
+def gather_trends(
+    topics: list[str],
+    _executor_class: type | None = None,
+) -> list[dict]:
+    """Gather trend data for all topics in parallel.
+
+    Args:
+        _executor_class: Override executor (tests pass ThreadPoolExecutor
+            so mocks work within the same process).
+    """
     results: list[dict] = []
     max_workers = min(_WORKERS, len(topics))
+    executor_cls = _executor_class or concurrent.futures.ProcessPoolExecutor
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as ex:
+    with executor_cls(max_workers=max_workers) as ex:
         future_to_topic = {
             ex.submit(_gather_topic_data, t): t for t in topics
         }

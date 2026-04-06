@@ -466,35 +466,52 @@ def _build_query_map(groups: list[str]) -> dict[str, str]:
     return qmap
 
 
+def _fetch_one_query(
+    q: str, per_query: int, timelimit: str | None, region: str | None,
+) -> list:
+    """Fetch news for a single DDG query.  Runs in a worker process."""
+    try:
+        kwargs: dict = {"max_results": per_query}
+        if timelimit:
+            kwargs["timelimit"] = timelimit
+        if region:
+            kwargs["region"] = region
+        return DDGS().news(q, **kwargs)
+    except Exception:
+        return []
+
+
 def fetch_news(
     query_map: dict[str, str],
     per_query: int = 20,
     timelimit: str | None = None,
     region: str | None = None,
+    _executor_class: type | None = None,
 ) -> list[dict]:
-    """Fetch news for all queries in parallel, each with its own DDGS instance.
+    """Fetch news for all queries in parallel via separate processes.
+
+    Uses ProcessPoolExecutor because ddgs >= 9 internally spawns threads
+    per query (via primp + lxml).  Nesting our own ThreadPoolExecutor on
+    top causes a deadlock.  Processes give full isolation.
+
+    Args:
+        _executor_class: Override executor (tests pass ThreadPoolExecutor
+            so mocks work within the same process).
 
     Returns a flat list of article dicts, each tagged with ``query_group``.
     """
     queries = list(query_map)
 
-    def fetch_one(q: str) -> list:
-        try:
-            kwargs: dict = {"max_results": per_query}
-            if timelimit:
-                kwargs["timelimit"] = timelimit
-            if region:
-                kwargs["region"] = region
-            return DDGS().news(q, **kwargs)
-        except Exception:
-            return []
-
     results: list[dict] = []
     seen_urls: set[str] = set()  # URL-level dedup — exact same article
     max_workers = min(12, len(queries))
+    executor_cls = _executor_class or concurrent.futures.ProcessPoolExecutor
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as ex:
-        future_to_q = {ex.submit(fetch_one, q): q for q in queries}
+    with executor_cls(max_workers=max_workers) as ex:
+        future_to_q = {
+            ex.submit(_fetch_one_query, q, per_query, timelimit, region): q
+            for q in queries
+        }
         for fut in concurrent.futures.as_completed(future_to_q, timeout=90):
             q = future_to_q[fut]
             try:

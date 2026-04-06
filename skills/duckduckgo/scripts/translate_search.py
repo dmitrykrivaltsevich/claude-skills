@@ -118,6 +118,7 @@ def multi_region_search(
     queries: list[str],
     search_type: str = "news",
     max_results: int = _PER_QUERY,
+    _executor_class: type | None = None,
 ) -> list[dict]:
     """Search multiple region:query pairs in parallel.
 
@@ -125,6 +126,8 @@ def multi_region_search(
         queries: List of ``"region:query"`` strings.
         search_type: ``"news"`` or ``"text"``.
         max_results: Results per query.
+        _executor_class: Override executor (tests pass ThreadPoolExecutor
+            so mocks work within the same process).
 
     Returns:
         Flat list of results, each tagged with region/language.
@@ -132,8 +135,9 @@ def multi_region_search(
     parsed = [_parse_query(q) for q in queries]
     all_results: list[dict] = []
     seen_urls: set[str] = set()
+    executor_cls = _executor_class or concurrent.futures.ProcessPoolExecutor
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=_WORKERS) as ex:
+    with executor_cls(max_workers=_WORKERS) as ex:
         futures = {
             ex.submit(_search_region, query, region, search_type, max_results): (region, query)
             for region, query in parsed

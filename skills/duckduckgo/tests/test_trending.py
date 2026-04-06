@@ -1,5 +1,6 @@
 """Tests for trending.py — trend detection data pipe."""
 
+import concurrent.futures
 import os
 import sys
 from unittest.mock import MagicMock, patch
@@ -91,7 +92,7 @@ class TestGatherTrends:
             "date_range": {"earliest": None, "latest": None},
         }
 
-        results = gather_trends(["AI", "climate"])
+        results = gather_trends(["AI", "climate"], _executor_class=concurrent.futures.ThreadPoolExecutor)
 
         assert len(results) == 2
         topics = {r["topic"] for r in results}
@@ -116,7 +117,7 @@ class TestGatherTrends:
 
         mock_gather.side_effect = side_effect
 
-        results = gather_trends(["good", "broken"])
+        results = gather_trends(["good", "broken"], _executor_class=concurrent.futures.ThreadPoolExecutor)
 
         assert len(results) == 2
         broken = [r for r in results if r["topic"] == "broken"][0]

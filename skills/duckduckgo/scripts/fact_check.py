@@ -116,21 +116,25 @@ def _search_tier(claim: str, tier_name: str, sites: list[str]) -> dict:
 def cross_reference(
     claim: str,
     tiers: list[str] | None = None,
+    _executor_class: type | None = None,
 ) -> dict:
     """Search a claim across source tiers in parallel.
 
     Args:
         claim: The headline or claim to verify (min 5 characters).
         tiers: Tier names to check (default: all tiers).
+        _executor_class: Override executor (tests pass ThreadPoolExecutor
+            so mocks work within the same process).
 
     Returns:
         Structured dict with per-tier results and summary counts.
     """
     selected = tiers or list(SOURCE_TIERS)
     tier_data = [(t, SOURCE_TIERS[t]) for t in selected if t in SOURCE_TIERS]
+    executor_cls = _executor_class or concurrent.futures.ProcessPoolExecutor
 
     results: list[dict] = []
-    with concurrent.futures.ThreadPoolExecutor(max_workers=_WORKERS) as ex:
+    with executor_cls(max_workers=_WORKERS) as ex:
         futures = {
             ex.submit(_search_tier, claim, name, sites): name
             for name, sites in tier_data

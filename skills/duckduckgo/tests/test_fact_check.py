@@ -1,5 +1,6 @@
 """Tests for fact_check.py — claim cross-referencing."""
 
+import concurrent.futures
 import os
 import sys
 from unittest.mock import MagicMock, patch
@@ -114,6 +115,7 @@ class TestCrossReference:
         result = cross_reference(
             "test claim long enough",
             tiers=["wires", "broadsheets"],
+            _executor_class=concurrent.futures.ThreadPoolExecutor,
         )
 
         assert result["tiers_checked"] == 2
@@ -128,6 +130,7 @@ class TestCrossReference:
         result = cross_reference(
             "important claim here",
             tiers=["wires", "broadsheets"],
+            _executor_class=concurrent.futures.ThreadPoolExecutor,
         )
 
         assert result["total_results"] == 3
@@ -141,7 +144,7 @@ class TestCrossReference:
             "results": [],
         }
 
-        result = cross_reference("specific claim text", tiers=["wires"])
+        result = cross_reference("specific claim text", tiers=["wires"], _executor_class=concurrent.futures.ThreadPoolExecutor)
 
         assert result["claim"] == "specific claim text"
 
@@ -153,7 +156,7 @@ class TestCrossReference:
             "results": [],
         }
 
-        result = cross_reference("claim with no tier filter")
+        result = cross_reference("claim with no tier filter", _executor_class=concurrent.futures.ThreadPoolExecutor)
 
         assert result["tiers_checked"] == len(SOURCE_TIERS)
 
@@ -168,6 +171,7 @@ class TestCrossReference:
         result = cross_reference(
             "claim for testing",
             tiers=["wires", "nonexistent_tier"],
+            _executor_class=concurrent.futures.ThreadPoolExecutor,
         )
 
         # Only "wires" should be searched
