@@ -294,9 +294,13 @@ tags: [attention, nmt]
 ```markdown
 # src-002 cites Bahdanau et al. 2015
 
+**Citing source**: [[src-002-analysis]]
+
 **Context**: "The dominant approach to attention mechanisms was introduced by Bahdanau et al. [14], who proposed learning alignment scores between encoder and decoder states."
 
 **Claims supported**: Bahdanau introduced the dominant attention mechanism approach.
+
+**Significance**: Establishes Bahdanau's attention as the baseline this paper builds upon.
 
 **See also**: [[attention-mechanism]], [[neural-machine-translation]], [[dzmitry-bahdanau]]
 ```
@@ -305,7 +309,10 @@ tags: [attention, nmt]
 - `cited-work` is the full bibliographic reference.
 - `cite-key` is the in-text citation marker from the source.
 - Context must be the exact sentence(s) containing the citation.
+- **`Citing source` wikilink is MANDATORY** — must link to `[[<source-id>-analysis]]` so the citation is navigable back to its origin. Without this link, citations are dead ends.
+- **`Significance`** — one sentence explaining why this citation matters in the context of the citing paper. Not every citation needs equal weight.
 - Create even for works NOT in the KB — they accumulate incoming citations.
+- When the cited work already exists as a KB entry (entity, source-analysis, or stub), add a wikilink to it in See also. This enables "find all papers citing X" via backlink navigation.
 
 ---
 

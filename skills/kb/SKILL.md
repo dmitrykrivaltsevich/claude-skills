@@ -265,12 +265,18 @@ For each in-text citation like "evidence suggests X leads to Y [1][2]":
 1. Identify the exact sentence containing the citation
 2. Identify which bibliography entries [1], [2] refer to
 3. Create/update citation entry: `knowledge/citations/<source-id>-cites-<ref-slug>.md`
-4. Content: the exact context sentence, which claims it supports, the referenced work
+4. Content MUST include:
+   - `**Citing source**: [[<source-id>-analysis]]` — mandatory navigable wikilink back to the source
+   - `**Context**:` — the exact sentence containing the citation
+   - `**Claims supported**:` — what the citation is used for
+   - `**Significance**:` — one sentence: why this citation matters (foundational? competing? methodological?)
+   - `**See also**:` — wikilinks to related KB entries (entities, topics, ideas)
 
 ### Backward Citations (what cites this source)
 
 When a referenced work Y already has an entry in the KB (from a previous source):
 - Update Y's entry with the new incoming citation context
+- Add wikilink to Y in the citation's **See also** — this enables "show me everything that cites Y" via backlink navigation
 - Over time, Y accumulates all sentences from all sources that reference it
 
 ### Entries for Works NOT in Sources
