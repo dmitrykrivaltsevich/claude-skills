@@ -18,6 +18,32 @@ user-invocable: true
 > 3. **For PDF sources**, read the `/pdf` SKILL.md first — use its scripts for text extraction and image extraction. This skill does not duplicate PDF handling.
 > 4. **`${CLAUDE_SKILL_DIR}` = this skill only.**
 
+## Routing — ALWAYS Do This First
+
+When the user invokes `/kb`, determine what they want. If their intent is clear (e.g. "/kb add this paper"), go straight to the matching operation. If their intent is ambiguous or they just said "/kb", present this menu:
+
+```
+Knowledge Base — available operations:
+
+1. **init**   — Create a new knowledge base
+2. **open**   — Load an existing KB (do this at the start of every session)
+3. **add**    — Add a source and extract knowledge (articles, papers, books, URLs)
+4. **query**  — Search and answer questions from KB content
+5. **lint**   — Health check: find broken links, orphans, missing backlinks
+6. **status** — Dashboard: file counts, link counts, pending tasks
+
+Which operation? (pick a number or describe what you need)
+```
+
+**Routing rules:**
+- User says "create/new/init KB" → **init**
+- User says "open/load KB" or starts a session → **open**
+- User says "add/ingest/import" + file/URL/source → **add**
+- User says "search/find/query/what is/tell me about" → **query**
+- User says "check/lint/health/fix links" → **lint**
+- User says "status/dashboard/stats/how many" → **status**
+- User provides a file path or URL without other context → **add** (assume they want to ingest it)
+
 ## Contents
 
 1. [Architecture](#architecture)
