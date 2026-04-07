@@ -183,12 +183,17 @@ See [references/add-workflow.md](references/add-workflow.md) for detailed checkl
 2. Append operation to `log.md`: `## [YYYY-MM-DD] add | Source Title`
 3. Mark task complete: `state.py update-phase --phase done`
 
-### kb:lint — Health Check & Repair
+### kb:lint — Health Check, Repair & Consolidation
 
-1. Run `lint.py` — get JSON list of issues
-2. **You then fix**: broken links (correct target or create missing entry), orphan pages (link from relevant entries), missing backlinks (add reciprocal links), timeline gaps (create missing entries), missing frontmatter (add it)
-3. **You then analyze**: look for undetected contradictions, opportunities for new connections, entries that should be interlinked but aren't
-4. Update `index.md` and `log.md`
+1. Run `lint.py` — get JSON list of mechanical issues
+2. **Fix mechanical issues**: broken links (correct target or create missing entry), orphan pages (link from relevant entries), missing backlinks (add reciprocal links), timeline gaps (create missing entries), missing frontmatter (add it)
+3. **Consolidate knowledge**: scan entries for overlapping or redundant content:
+   - Find entries covering the same concept (e.g. `neural-network` and `neural-networks`, or two topic entries both explaining attention mechanisms)
+   - Merge duplicates: combine content into the richer entry, redirect wikilinks from the removed entry, delete the weaker one
+   - Absorb near-duplicates: when one entry is a strict subset of another, fold its unique content into the broader entry
+   - Strengthen connections: if two entries reference the same ideas but don't link to each other, add wikilinks
+4. **Analyze**: look for undetected contradictions, stale claims, opportunities for new connections, entries that should be interlinked but aren't
+5. Update `index.md` and `log.md`
 
 ### kb:query — Answer from KB
 
