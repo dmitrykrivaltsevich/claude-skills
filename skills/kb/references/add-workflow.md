@@ -1,0 +1,189 @@
+# kb:add Workflow Reference
+
+Detailed checklists for the knowledge extraction pipeline. Linked from SKILL.md.
+
+## Contents
+
+1. [Universal Checklist](#universal-checklist)
+2. [Source Type: Article / Blog Post](#article--blog-post)
+3. [Source Type: Academic Paper](#academic-paper)
+4. [Source Type: Book](#book)
+5. [Source Type: Video / Podcast Transcript](#video--podcast-transcript)
+6. [Source Type: URL Reference (no full text)](#url-reference)
+7. [Citation Tracking Examples](#citation-tracking-examples)
+8. [Book Processing Pattern](#book-processing-pattern)
+9. [Compaction — Why You Don't Need the Raw Text Again](#compaction)
+
+## Universal Checklist
+
+Every `kb:add` regardless of source type:
+
+- [ ] Register source (`add_source.py`)
+- [ ] Create task (`state.py init`)
+- [ ] Read the source (use `/pdf` skill for PDFs)
+- [ ] Extract ALL named entities → `knowledge/entities/`
+- [ ] Extract ALL topics → `knowledge/topics/`
+- [ ] Extract ALL concrete ideas → `knowledge/ideas/`
+- [ ] Extract ALL locations mentioned → `knowledge/locations/`
+- [ ] Extract ALL dates/events → `knowledge/timeline/`
+- [ ] Build citation graph (if applicable) → `knowledge/citations/`
+- [ ] Write source analysis → `knowledge/sources/`
+- [ ] Cross-reference with existing KB entries → add reciprocal `[[wikilinks]]`
+- [ ] Check for contradictions with existing KB → `knowledge/controversies/`
+- [ ] Consider meta-analysis opportunities → `knowledge/meta/`
+- [ ] Update `index.md`
+- [ ] Append to `log.md`
+- [ ] Mark task done (`state.py update-phase --phase done`)
+
+## Article / Blog Post
+
+Typically fits in one session. No chunking needed.
+
+1. Read the full text
+2. Identify: author, publication date, publication venue
+3. Create entity entry for author (or update existing)
+4. Extract the core argument/thesis → idea entry
+5. Extract supporting evidence → fold into idea entry or create sub-ideas
+6. Extract all mentioned entities, topics, locations, dates
+7. Note any claims that conflict with existing KB → controversy entry
+8. Write source analysis with summary + key takeaways
+9. Cross-link everything
+
+## Academic Paper
+
+Always has citation tracking. Often fits in one session.
+
+1. Read abstract → plan what to extract
+2. Read full paper
+3. Create entity entries for ALL authors
+4. Extract methodology → topic or meta entry if novel
+5. Extract findings → idea entries (attribute to authors + paper)
+6. Extract limitations acknowledged by authors → note in source analysis
+7. **Citation graph** (mandatory for papers):
+   - For each in-text citation: record exact sentence + reference
+   - Create citation entries in `knowledge/citations/`
+   - Create stub entries for referenced works not yet in KB
+   - Flag bibliography items never cited in text
+8. Cross-reference with existing KB
+9. If this paper contradicts another in KB → controversy entry
+
+## Book
+
+Multi-session. Use task state for continuity.
+
+1. **Session 1 — Plan**: Read table of contents. Create task items for each chapter/part.
+2. **Sessions 2-N — Per Chapter**:
+   - Read chapter
+   - Extract all entries (entities, topics, ideas, locations, dates)
+   - Write chapter-level notes in source analysis
+   - Mark chapter item done in task state
+3. **Final Session — Synthesis**:
+   - Write book-level source analysis (summarizes all chapters)
+   - Create cross-chapter connections
+   - Build timeline if book covers a span of time
+   - Meta-analysis if related books exist in KB
+   - Update index, log, mark task done
+
+See [Book Processing Pattern](#book-processing-pattern) below.
+
+## Video / Podcast Transcript
+
+Treat like an article but with speaker attribution.
+
+1. If no transcript exists, tell the user (you can't transcribe)
+2. If transcript provided: identify all speakers → entity entries
+3. Extract claims/ideas → attribute to specific speaker
+4. Note: timestamps are useful for the user, include them in entries when available
+5. Extract all entities, topics, ideas mentioned
+6. Source analysis notes it's a transcript (less formal than written sources)
+
+## URL Reference
+
+No full text available — just metadata and user-provided context.
+
+1. Source registered as reference stub (no file copy)
+2. Create minimal entries from what you know (title, author, topic)
+3. Mark entries as `stub: true` in frontmatter — they need enrichment later
+4. If user provides notes about the URL, extract from those
+5. Flag in source analysis: "Reference only — full text not ingested"
+
+## Citation Tracking Examples
+
+### Example: In-text citation
+
+Source text: "Recent work has shown that transformer architectures outperform RNNs on most NLP benchmarks [3][7]."
+
+Create `knowledge/citations/src-005-cites-ref-3.md`:
+
+```markdown
+---
+type: citation
+created: 2025-01-15
+source-ids: [src-005]
+cited-work: "Author et al., 2020, Title of Paper"
+cite-key: "[3]"
+---
+
+# src-005 cites Author et al. 2020
+
+**Context**: "Recent work has shown that transformer architectures outperform RNNs on most NLP benchmarks [3][7]."
+
+**Claims supported**: Transformer superiority over RNNs on NLP benchmarks.
+
+**See also**: [[transformers]], [[recurrent-neural-networks]], [[nlp-benchmarks]]
+```
+
+### Example: Unreferenced bibliography item
+
+In source analysis (`knowledge/sources/src-005-analysis.md`):
+
+```markdown
+## Bibliography Analysis
+
+### Unreferenced entries
+- [12] Smith et al., 2018 — listed in bibliography but never cited in the paper text
+- [15] Jones, 2019 — listed in bibliography but never cited in the paper text
+```
+
+## Book Processing Pattern
+
+For a book with N chapters:
+
+```
+Session 1:  Read TOC → state.py add-items (ch1, ch2, ..., chN, synthesis)
+Session 2:  state.py pending → process ch1 → update-item ch1 done
+Session 3:  state.py pending → process ch2 → update-item ch2 done
+...
+Session N+1: state.py pending → process chN → update-item chN done
+Session N+2: state.py pending → synthesis → update-phase done
+```
+
+Each chapter session:
+1. Run `open.py` to reload KB context
+2. Run `state.py pending` to see next chapter
+3. Read chapter from source
+4. Extract all entries — these ARE the compacted form
+5. Cross-link with entries from previous chapters
+6. Mark chapter done
+
+Synthesis session:
+1. Read all chapter-level entries (NOT the raw source)
+2. Write book-level source analysis
+3. Create cross-chapter connections
+4. Identify overarching themes → topic entries
+5. Meta-analysis if other books on same topic exist
+
+## Compaction
+
+After extracting knowledge from a source chunk, the entries you created ARE the knowledge. You don't need to re-read the raw source text.
+
+Why this works:
+- Each entity/topic/idea/citation entry captures the relevant facts
+- Wikilinks preserve the relationships
+- Source analysis captures the big picture
+- Citation entries preserve exact quote contexts
+
+When resuming a multi-session task:
+- Read your extracted entries (they're short, focused markdown)
+- DON'T re-read the raw source chunks you already processed
+- Use the entries as context for processing the next chunk
