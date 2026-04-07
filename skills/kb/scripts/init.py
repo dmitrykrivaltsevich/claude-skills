@@ -58,12 +58,22 @@ def _rules_md(name: str) -> str:
     return f"""# {name} — Rules
 
 This file tells the LLM how to operate on this knowledge base.
-It is co-evolved: the LLM may propose updates as the KB grows.
+Update it when the KB develops conventions not covered by the generic SKILL.md.
+Always propose changes to the user before modifying this file.
 
-## Link Format
+## Link Hygiene
 
-Use Obsidian wikilinks: `[[page-name]]` or `[[page-name|Display Text]]`.
-File names use kebab-case (e.g. `albert-einstein.md`).
+Every wikilink MUST resolve to an existing file. Clicking a broken link in Obsidian
+creates an empty file in the vault root, which destroys the KB structure.
+
+- Wikilinks: `[[page-name]]` or `[[page-name|Display Text]]`. Internal KB only.
+- External URLs: `[text](https://...)`. Never use wikilinks for external links.
+- Source references in prose: `[[src-NNN-analysis]]`, never bare `src-NNN`.
+- Source IDs in frontmatter `source-ids:` remain plain strings (not rendered).
+- Every date in prose is a wikilink: `[[2017]]`, `[[2017-06]]`, `[[2017-06-12]]`.
+  Create the timeline entry if it doesn't exist yet.
+- Never write a wikilink unless the target exists or you create it now.
+- File names use kebab-case (e.g. `albert-einstein.md`).
 
 ## Entry Types
 
@@ -128,6 +138,17 @@ Organize entries by type with one-line summaries.
 
 log.md is append-only. Each entry format:
 `## [YYYY-MM-DD] <operation> | <title>`
+
+## Co-Evolution
+
+Update this file when:
+- The user corrects entry style or structure → record the preference
+- A new entry type pattern emerges → add to the types table above
+- The user establishes a tagging convention → document the taxonomy
+- The user sets a scope boundary → add a scope section
+- A naming conflict arises → add a disambiguation rule
+- The KB outgrows current organization → add structural rules
+- The user requests a custom workflow → document it here
 """
 
 

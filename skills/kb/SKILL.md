@@ -54,7 +54,8 @@ Which operation? (pick a number or describe what you need)
 6. [Citation Tracking](#citation-tracking)
 7. [Multi-Session Continuity](#multi-session-continuity)
 8. [Context Management](#context-management)
-9. [Reference](#reference)
+9. [Rules Co-Evolution](#rules-co-evolution)
+10. [Reference](#reference)
 
 ## Architecture
 
@@ -230,10 +231,23 @@ tags: [relevant, tags]
 
 See [references/entry-types.md](references/entry-types.md) for type-specific fields and examples.
 
-### Link Format
+### Link Hygiene — MANDATORY
 
-Use Obsidian wikilinks: `[[page-name]]` or `[[page-name|Display Text]]`.
-File names use kebab-case: `albert-einstein.md`, `quantum-computing.md`.
+This KB is Obsidian-compatible. Clicking a wikilink MUST open an existing file in the correct directory. A broken link causes Obsidian to create an empty file in the vault root, which destroys the KB structure.
+
+**Format**: `[[page-name]]` or `[[page-name|Display Text]]`. File names use kebab-case.
+
+**Rule 1 — No dangling wikilinks.** NEVER write `[[something]]` unless the target file already exists OR you create it in the same operation. If you mention a concept that doesn't have an entry yet and you're not creating one now, use plain text — not a wikilink.
+
+**Rule 2 — Sources are wikilinked, not bare IDs.** When referencing a source in an entry, use `[[src-001-analysis]]` (linking to the source analysis page), NEVER bare `src-001`. The source analysis page is the navigable hub for that source. In frontmatter `source-ids: [src-001]` remains a plain string (frontmatter is data, not rendered links).
+
+**Rule 3 — Every date in text is a wikilink.** When a year, year-month, or full date appears in prose, it MUST be a wikilink to the corresponding timeline entry. Write `[[2017]]` not `2017`, `[[2017-06]]` not `June 2017`, `[[2017-06-12]]` not `June 12, 2017`. Create the timeline entry if it doesn't exist yet.
+
+**Rule 4 — External URLs use standard markdown links.** External links use `[text](https://...)`, NEVER wikilinks. Wikilinks are for internal KB entries only.
+
+**Rule 5 — Verify before linking.** Before writing a wikilink to an entry you didn't just create, check that the file exists (via search or index). When in doubt, create a minimal stub entry rather than risk a dangling link.
+
+**Pre-commit check**: After finishing a kb:add or kb:lint operation, mentally scan all new/modified files for wikilinks. Every `[[target]]` must resolve to `knowledge/<category>/target.md` or a top-level file like `index.md`.
 
 ## Citation Tracking
 
@@ -287,6 +301,24 @@ The state files live in `.kb/tasks/` inside the KB directory. Use `--state-dir /
 - **Use `search.py`** for keyword lookup when index isn't enough
 - **Don't re-read processed chunks** — read your own extracted entries instead
 - **Write entries incrementally** — don't try to hold an entire book in context
+
+## Rules Co-Evolution
+
+The file `.kb/rules.md` is the per-KB operating manual. It starts from a template but MUST evolve as the KB grows. Unlike SKILL.md (which is generic), rules.md captures decisions specific to THIS knowledge base.
+
+**When to update rules.md** (propose the change to the user first):
+
+| Trigger | What to add |
+|---|---|
+| User corrects your entry style or structure | Record the preference as a rule |
+| A new entry type pattern emerges (e.g. "recipe", "theorem") | Add it to the entry types table with directory and frontmatter |
+| User establishes a tagging convention | Document the tag taxonomy |
+| User sets a scope boundary ("this KB is only about X") | Add a scope section |
+| A naming conflict arises (two concepts with similar names) | Add a disambiguation rule |
+| The KB reaches a size where new conventions help | Add organizational rules (e.g. sub-directories, index sections) |
+| User requests a custom workflow | Document it as a named operation |
+
+**How to update**: Read the current rules.md, propose the specific change to the user, and apply it only after approval. Never silently modify rules.md.
 
 ## Reference
 
