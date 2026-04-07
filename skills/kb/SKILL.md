@@ -86,8 +86,8 @@ Three layers per KB:
 | "Create a knowledge base" | `init.py --path DIR --name "NAME"` | Scaffolded KB structure + config |
 | "Open/load this KB" | `open.py --path DIR` | JSON context: config, rules, index, counts, pending tasks |
 | "KB stats/dashboard" | `open.py --path DIR --stats` | Above + total files, total wikilinks |
-| "Add this file/source" | `add_source.py --kb-path DIR --source FILE` | Source copied, ID assigned, config updated |
-| "Add this URL as reference" | `add_source.py --kb-path DIR --source URL --reference --title "T"` | Reference stub created |
+| "Add this file/source" | `add_source.py --kb-path DIR --source FILE --source-id ID` | Source copied, config updated |
+| "Add this URL as reference" | `add_source.py --kb-path DIR --source URL --reference --title "T" --source-id ID` | Reference stub created |
 | "Check KB health" | `lint.py --path DIR` | JSON: broken links, orphans, missing backlinks, timeline gaps |
 | "Search the KB for X" | `search.py --path DIR --query "X"` | JSON: matching files with context lines |
 | "What's the task status?" | `state.py status --task-id ID` | JSON: phase, items done/pending/in-progress |
@@ -105,10 +105,10 @@ uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/init.py --path /path/to/kb --name
 uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/open.py --path /path/to/kb
 
 # Register a local file as source:
-uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/add_source.py --kb-path /path/to/kb --source /path/to/paper.pdf
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/add_source.py --kb-path /path/to/kb --source /path/to/paper.pdf --source-id real-2020
 
 # Register an external URL as reference:
-uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/add_source.py --kb-path /path/to/kb --source "https://example.com/article" --reference --title "Article Title"
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/add_source.py --kb-path /path/to/kb --source "https://example.com/article" --reference --title "Article Title" --source-id karpathy-2023
 
 # Create a task for multi-session work:
 uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/state.py init --task-id "add-paper-x" --task-type add --description "Ingest paper on X" --kb-path /path/to/kb --state-dir /path/to/kb/.kb/tasks
@@ -139,8 +139,9 @@ uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/lint.py --path /path/to/kb
 This is the most complex operation. It combines mechanical source registration with deep analytical work by you.
 
 **Phase 1 — Register Source** (script)
-1. Run `add_source.py` to copy/reference the source
-2. Run `state.py init` to create a task with the source info
+1. Determine the source ID: first-author-lastname + year in kebab-case (e.g. `real-2020`, `rumelhart-1986`). If collision with existing source, add a letter suffix: `real-2020a`
+2. Run `add_source.py` with `--source-id` to copy/reference the source
+3. Run `state.py init` to create a task with the source info
 
 **Phase 2 — Read & Plan** (you)
 1. Read the source. For PDFs: use `/pdf` skill's `read.py` or `render.py`
@@ -220,6 +221,20 @@ You are not a filing clerk. You are a knowledge analyst. When processing a sourc
 - **Controversies are first-class.** When you find contradicting information, create a dedicated entry in `knowledge/controversies/` — not just a note. Cross-reference from ALL involved entries.
 - **Recursive deepening for books.** Process chapter by chapter → part summaries → book synthesis → comparison with existing KB. Each level wikilinks to the one below. The extracted knowledge IS the compaction — you don't need the raw text again.
 
+### Source ID Naming Convention
+
+Source IDs use **first-author-year** format (BibTeX-style). This makes every reference in frontmatter and filenames immediately readable.
+
+| Source type | Pattern | Example |
+|---|---|---|
+| Academic paper | `<first-author>-<year>` | `real-2020`, `rumelhart-1986` |
+| Book | `<author>-<year>` | `isaacson-2007` |
+| Blog / article | `<author-or-site>-<year>` | `karpathy-2023`, `openai-2024` |
+| Video / talk | `<speaker>-<year>` | `lecun-2019` |
+| Disambiguation | append letter suffix | `real-2020a`, `real-2020b` |
+
+This ID propagates everywhere: `sources/files/real-2020/`, `real-2020-analysis`, `real-2020-cites-rumelhart-1986`, `source-ids: [real-2020]`. Always derive it from the first author's last name + publication year.
+
 ### Entry Frontmatter Standard
 
 Every knowledge `.md` file MUST have:
@@ -229,7 +244,7 @@ Every knowledge `.md` file MUST have:
 type: entity | topic | idea | location | timeline | source-analysis | citation | controversy | meta
 created: YYYY-MM-DD
 updated: YYYY-MM-DD
-source-ids: [src-001]
+source-ids: [real-2020]
 tags: [relevant, tags]
 ---
 ```
@@ -244,7 +259,7 @@ This KB is Obsidian-compatible. Clicking a wikilink MUST open an existing file i
 
 **Rule 1 — No dangling wikilinks.** NEVER write `[[something]]` unless the target file already exists OR you create it in the same operation. If you mention a concept that doesn't have an entry yet and you're not creating one now, use plain text — not a wikilink.
 
-**Rule 2 — Sources are wikilinked, not bare IDs.** When referencing a source in an entry, use `[[src-001-analysis]]` (linking to the source analysis page), NEVER bare `src-001`. The source analysis page is the navigable hub for that source. In frontmatter `source-ids: [src-001]` remains a plain string (frontmatter is data, not rendered links).
+**Rule 2 — Sources are wikilinked, not bare IDs.** When referencing a source in an entry, use `[[real-2020-analysis]]` (linking to the source analysis page), NEVER bare `real-2020`. The source analysis page is the navigable hub for that source. In frontmatter `source-ids: [real-2020]` remains a plain string (frontmatter is data, not rendered links).
 
 **Rule 3 — Every date in text is a wikilink.** When a year, year-month, or full date appears in prose, it MUST be a wikilink to the corresponding timeline entry. Write `[[2017]]` not `2017`, `[[2017-06]]` not `June 2017`, `[[2017-06-12]]` not `June 12, 2017`. Create the timeline entry if it doesn't exist yet.
 

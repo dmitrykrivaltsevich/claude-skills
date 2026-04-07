@@ -113,29 +113,33 @@ No full text available — just metadata and user-provided context.
 
 Source text: "Recent work has shown that transformer architectures outperform RNNs on most NLP benchmarks [3][7]."
 
-Create `knowledge/citations/src-005-cites-ref-3.md`:
+Create `knowledge/citations/chen-2023-cites-ref-3.md`:
 
 ```markdown
 ---
 type: citation
 created: 2025-01-15
-source-ids: [src-005]
+source-ids: [chen-2023]
 cited-work: "Author et al., 2020, Title of Paper"
 cite-key: "[3]"
 ---
 
-# src-005 cites Author et al. 2020
+# chen-2023 cites Author et al. 2020
+
+**Citing source**: [[chen-2023-analysis]]
 
 **Context**: "Recent work has shown that transformer architectures outperform RNNs on most NLP benchmarks [3][7]."
 
 **Claims supported**: Transformer superiority over RNNs on NLP benchmarks.
+
+**Significance**: Establishes the empirical basis for the paper's choice of transformer architecture.
 
 **See also**: [[transformers]], [[recurrent-neural-networks]], [[nlp-benchmarks]]
 ```
 
 ### Example: Unreferenced bibliography item
 
-In source analysis (`knowledge/sources/src-005-analysis.md`):
+In source analysis (`knowledge/sources/chen-2023-analysis.md`):
 
 ```markdown
 ## Bibliography Analysis

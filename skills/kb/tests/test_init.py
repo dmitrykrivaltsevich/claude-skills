@@ -88,7 +88,7 @@ class TestScaffoldKb:
     def test_source_registry_in_config(self, kb_path: Path):
         init.scaffold_kb(str(kb_path), "Test KB")
         config = yaml.safe_load((kb_path / ".kb" / "config.yaml").read_text())
-        assert config["next_source_id"] == 1
+        assert "next_source_id" not in config
         assert config["sources"] == []
 
 

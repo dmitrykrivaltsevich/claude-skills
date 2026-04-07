@@ -26,7 +26,7 @@ Schema, required frontmatter, and examples for each knowledge entry type. Linked
 type: entity
 created: 2025-01-15
 updated: 2025-01-15
-source-ids: [src-001, src-003]
+source-ids: [isaacson-2007, pais-1982]
 tags: [physicist, nobel-laureate]
 entity-kind: person | organization | institution | other
 ---
@@ -47,8 +47,8 @@ German-born theoretical physicist. Developed the theory of relativity.
 - [[prussian-academy-of-sciences]] (1914–1933)
 
 ## Sources
-- [[src-001-analysis]] — biography chapter 3
-- [[src-003-analysis]] — referenced in physics history
+- [[isaacson-2007-analysis]] — biography chapter 3
+- [[pais-1982-analysis]] — referenced in physics history
 ```
 
 **Rules**:
@@ -68,7 +68,7 @@ German-born theoretical physicist. Developed the theory of relativity.
 type: topic
 created: 2025-01-15
 updated: 2025-01-15
-source-ids: [src-001]
+source-ids: [isaacson-2007]
 tags: [physics, fundamental]
 ---
 ```
@@ -112,7 +112,7 @@ Branch of physics describing nature at the atomic and subatomic level.
 type: idea
 created: 2025-01-15
 updated: 2025-01-15
-source-ids: [src-002]
+source-ids: [vaswani-2017]
 tags: [deep-learning, architecture]
 attributed-to: [vaswani-et-al]
 year: 2017
@@ -128,7 +128,7 @@ Self-attention mechanism replacing recurrence and convolution for sequence trans
 Sequence-to-sequence models can achieve state-of-the-art results using only attention mechanisms, without recurrence or convolution.
 
 ## Evidence
-- BLEU score of 28.4 on WMT 2014 EN-DE (src-002, Table 2)
+- BLEU score of 28.4 on WMT 2014 EN-DE (vaswani-2017, Table 2)
 - Training time reduced by order of magnitude vs. recurrent models
 
 ## Impact
@@ -160,7 +160,7 @@ Sequence-to-sequence models can achieve state-of-the-art results using only atte
 type: location
 created: 2025-01-15
 updated: 2025-01-15
-source-ids: [src-001]
+source-ids: [isaacson-2007]
 tags: [city, switzerland]
 coordinates: [47.3769, 8.5417]
 ---
@@ -196,7 +196,7 @@ City in Switzerland. Home to [[eth-zurich]].
 type: timeline
 created: 2025-01-15
 updated: 2025-01-15
-source-ids: [src-001]
+source-ids: [isaacson-2007]
 tags: [physics]
 date: "1905"
 prev: "[[1904]]"
@@ -229,7 +229,7 @@ Einstein's _annus mirabilis_.
 
 ## Source Analysis
 
-**Path**: `knowledge/sources/<src-id>-analysis.md`
+**Path**: `knowledge/sources/<source-id>-analysis.md`
 **What**: Per-source summary and metadata. One per ingested source.
 
 ```yaml
@@ -237,14 +237,14 @@ Einstein's _annus mirabilis_.
 type: source-analysis
 created: 2025-01-15
 updated: 2025-01-15
-source-ids: [src-001]
+source-ids: [isaacson-2007]
 tags: [biography, physics]
 source-type: book | paper | article | transcript | reference
 ---
 ```
 
 ```markdown
-# src-001 — "Einstein: His Life and Universe"
+# isaacson-2007 — "Einstein: His Life and Universe"
 
 **Author**: Walter Isaacson
 **Published**: 2007
@@ -270,7 +270,7 @@ Comprehensive biography covering Einstein's personal life, scientific contributi
 ```
 
 **Rules**:
-- One per source. Named `<src-id>-analysis.md`.
+- One per source. Named `<source-id>-analysis.md`.
 - Must include summary, key extractions (what entries were created/updated), bibliography analysis (for academic sources).
 
 ---
@@ -284,7 +284,7 @@ Comprehensive biography covering Einstein's personal life, scientific contributi
 ---
 type: citation
 created: 2025-01-15
-source-ids: [src-002]
+source-ids: [vaswani-2017]
 cited-work: "Bahdanau et al., 2015, Neural Machine Translation by Jointly Learning to Align and Translate"
 cite-key: "[14]"
 tags: [attention, nmt]
@@ -292,9 +292,9 @@ tags: [attention, nmt]
 ```
 
 ```markdown
-# src-002 cites Bahdanau et al. 2015
+# vaswani-2017 cites Bahdanau et al. 2015
 
-**Citing source**: [[src-002-analysis]]
+**Citing source**: [[vaswani-2017-analysis]]
 
 **Context**: "The dominant approach to attention mechanisms was introduced by Bahdanau et al. [14], who proposed learning alignment scores between encoder and decoder states."
 
@@ -326,7 +326,7 @@ tags: [attention, nmt]
 type: controversy
 created: 2025-01-15
 updated: 2025-01-15
-source-ids: [src-001, src-004]
+source-ids: [isaacson-2007, trbuhovic-2005]
 tags: [attribution, physics]
 status: open | resolved
 ---
@@ -336,11 +336,11 @@ status: open | resolved
 # Did Mileva Marić Contribute to Relativity?
 
 ## Position A — Yes
-Source: [[src-004-analysis]] — "Letters suggest collaborative work on the mathematics"
+Source: [[trbuhovic-2005-analysis]] — "Letters suggest collaborative work on the mathematics"
 Entities: [[mileva-maric]]
 
 ## Position B — No
-Source: [[src-001-analysis]] — "No documentary evidence of intellectual contribution"
+Source: [[isaacson-2007-analysis]] — "No documentary evidence of intellectual contribution"
 Entities: [[albert-einstein]]
 
 ## Evidence
@@ -369,7 +369,7 @@ Open — insufficient evidence for resolution.
 type: meta
 created: 2025-01-15
 updated: 2025-01-15
-source-ids: [src-001, src-002, src-005]
+source-ids: [isaacson-2007, vaswani-2017, bahdanau-2015]
 tags: [comparison, attention]
 meta-kind: comparison | synthesis | timeline-overview | gap-analysis
 ---
@@ -381,10 +381,10 @@ meta-kind: comparison | synthesis | timeline-overview | gap-analysis
 Cross-source synthesis of how attention evolved.
 
 ## Timeline
-1. [[attention-mechanism]] — Bahdanau 2015 ([[src-005-analysis]])
-2. [[self-attention]] — Vaswani 2017 ([[src-002-analysis]])
+1. [[attention-mechanism]] — Bahdanau 2015 ([[bahdanau-2015-analysis]])
+2. [[self-attention]] — Vaswani 2017 ([[vaswani-2017-analysis]])
 3. [[multi-head-attention]] — also Vaswani 2017
-4. [[flash-attention]] — Dao 2022 ([[src-008-analysis]])
+4. [[flash-attention]] — Dao 2022 ([[dao-2022-analysis]])
 
 ## Key insight
 Each step increased parallelism while preserving or improving quality.

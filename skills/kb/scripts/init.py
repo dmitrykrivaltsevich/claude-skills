@@ -68,7 +68,7 @@ creates an empty file in the vault root, which destroys the KB structure.
 
 - Wikilinks: `[[page-name]]` or `[[page-name|Display Text]]`. Internal KB only.
 - External URLs: `[text](https://...)`. Never use wikilinks for external links.
-- Source references in prose: `[[src-NNN-analysis]]`, never bare `src-NNN`.
+- Source references in prose: `[[author-year-analysis]]`, never bare `author-year`.
 - Source IDs in frontmatter `source-ids:` remain plain strings (not rendered).
 - Every date in prose is a wikilink: `[[2017]]`, `[[2017-06]]`, `[[2017-06-12]]`.
   Create the timeline entry if it doesn't exist yet.
@@ -125,6 +125,8 @@ When information contradicts existing KB entries:
 
 ## Sources
 
+Source IDs use first-author-year convention: `real-2020`, `rumelhart-1986`.
+If collision: add a letter suffix: `real-2020a`, `real-2020b`.
 Raw source files live in sources/files/<source-id>/.
 Reference stubs (for external/uncopyable sources) live in sources/references/.
 Sources are immutable — never modify them.
@@ -241,7 +243,6 @@ def scaffold_kb(kb_path: str, name: str) -> dict:
         "created": now,
         "version": 1,  # KB schema version — bump on structure changes
         "link_format": "wikilink",  # Obsidian [[...]] format
-        "next_source_id": 1,  # Auto-increment counter for source IDs
         "sources": [],  # Registry of added sources
     }
     (root / ".kb" / "config.yaml").write_text(

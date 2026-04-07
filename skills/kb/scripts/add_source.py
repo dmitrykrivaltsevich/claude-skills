@@ -11,6 +11,9 @@ For local files: copies to sources/files/<source-id>/.
 For remote/uncopyable sources: creates a reference stub in sources/references/.
 Updates the KB config registry with source metadata.
 
+Source IDs follow first-author-year convention (e.g. real-2020, rumelhart-1986).
+The caller provides the ID; this script validates uniqueness and format.
+
 Output: JSON to stdout.  Errors to stderr.
 """
 
@@ -19,6 +22,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shutil
 import sys
 from pathlib import Path
@@ -28,24 +32,33 @@ import yaml
 sys.path.insert(0, os.path.dirname(__file__))
 from contracts import ContractViolationError, precondition
 
+# Lowercase alphanumeric + hyphens, must start with a letter.
+# Matches: real-2020, rumelhart-1986, karpathy-2023a, openai-2024-gpt4
+_SOURCE_ID_RE = re.compile(r"^[a-z][a-z0-9]+(?:-[a-z0-9]+)+$")
+
 
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
 @precondition(
-    lambda kb_path, source, **_: len(kb_path.strip()) > 0,
+    lambda kb_path, source, source_id, **_: len(kb_path.strip()) > 0,
     "kb_path must be non-empty",
+)
+@precondition(
+    lambda kb_path, source, source_id, **_: bool(_SOURCE_ID_RE.match(source_id)),
+    "source_id must be kebab-case (e.g. real-2020, rumelhart-1986)",
 )
 def register_source(
     kb_path: str,
     source: str,
+    source_id: str,
     is_reference: bool = False,
     title: str = "",
 ) -> dict:
     """Register a source in the KB.
 
-    For local files (is_reference=False): copies file to sources/files/<src-id>/.
+    For local files (is_reference=False): copies file to sources/files/<source-id>/.
     For references (is_reference=True): creates an MD stub in sources/references/.
 
     Updates .kb/config.yaml with source registry entry.
@@ -60,8 +73,13 @@ def register_source(
 
     # Load config
     config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
-    next_id = config.get("next_source_id", 1)
-    source_id = f"src-{next_id:03d}"
+
+    # Validate source_id is unique
+    existing_ids = {s["id"] for s in config.get("sources", [])}
+    if source_id in existing_ids:
+        raise ContractViolationError(
+            f"source_id '{source_id}' already registered", kind="precondition"
+        )
 
     if is_reference:
         # Create reference stub
@@ -92,7 +110,6 @@ External source reference.
             "title": effective_title,
             "original_name": "",
         })
-        config["next_source_id"] = next_id + 1
         config_path.write_text(
             yaml.dump(config, default_flow_style=False, sort_keys=False),
             encoding="utf-8",
@@ -127,7 +144,6 @@ External source reference.
             "title": effective_title,
             "original_name": source_path.name,
         })
-        config["next_source_id"] = next_id + 1
         config_path.write_text(
             yaml.dump(config, default_flow_style=False, sort_keys=False),
             encoding="utf-8",
@@ -149,6 +165,8 @@ def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Register a source in the KB.")
     parser.add_argument("--kb-path", required=True, help="Path to KB directory")
     parser.add_argument("--source", required=True, help="File path or URL")
+    parser.add_argument("--source-id", required=True,
+                        help="Source ID in first-author-year format (e.g. real-2020)")
     parser.add_argument("--reference", action="store_true",
                         help="Create a reference stub instead of copying")
     parser.add_argument("--title", default="", help="Human-readable source title")
@@ -156,6 +174,7 @@ def main(argv: list[str] | None = None) -> None:
     args = parser.parse_args(argv)
     result = register_source(
         args.kb_path, args.source,
+        source_id=args.source_id,
         is_reference=args.reference, title=args.title,
     )
     print(json.dumps(result, ensure_ascii=False, indent=2))
