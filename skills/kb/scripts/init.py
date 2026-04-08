@@ -69,6 +69,7 @@ creates an empty file in the vault root, which destroys the KB structure.
 - Wikilinks: `[[page-name]]` or `[[page-name|Display Text]]`. Internal KB only.
 - External URLs: `[text](https://...)`. Never use wikilinks for external links.
 - Source references in prose: `[[author-year-analysis]]`, never bare `author-year`.
+- Source analysis files MUST include `**Source**: [[author-year]]` as a wikilink, never a file path.
 - Source IDs in frontmatter `source-ids:` remain plain strings (not rendered).
 - Every date in prose is a wikilink: `[[2017]]`, `[[2017-06]]`, `[[2017-06-12]]`.
   Create the timeline entry if it doesn't exist yet.

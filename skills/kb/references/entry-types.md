@@ -272,7 +272,7 @@ Comprehensive biography covering Einstein's personal life, scientific contributi
 
 **Rules**:
 - One per source. Named `<source-id>-analysis.md`.
-- **MUST wikilink to the registered source**: `**Source**: [[<source-id>]]`. This connects the analysis to the source file (in `sources/files/` or `sources/references/`), making the source navigable from the graph.
+- **MUST wikilink to the registered source**: `**Source**: [[<source-id>]]`. This is a wikilink — NOT a file path. Write `**Source**: [[lamport-1978]]`, NEVER `Source: sources/references/lamport-1978.md`. Do not mention whether the source is a reference or a file — that's an implementation detail irrelevant to the knowledge graph. The `add_source.py` script creates a navigable `.md` stub for every source, so `[[source-id]]` always resolves.
 - Must include summary, key extractions (what entries were created/updated), bibliography analysis (for academic sources).
 
 ---

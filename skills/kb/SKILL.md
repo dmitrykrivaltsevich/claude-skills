@@ -268,7 +268,7 @@ This KB is Obsidian-compatible. Clicking a wikilink MUST open an existing file i
 
 **Rule 2 — Sources are wikilinked, not bare IDs.** When referencing a source in an entry, use `[[real-2020-analysis]]` (linking to the source analysis page), NEVER bare `real-2020`. The source analysis page is the navigable hub for that source. In frontmatter `source-ids: [real-2020]` remains a plain string (frontmatter is data, not rendered links).
 
-**Rule 3 — Source analysis ↔ registered source are bidirectionally linked.** The source analysis MUST include `**Source**: [[real-2020]]` near the top, linking to the registered source file. The registered source stub already links to `[[real-2020-analysis]]`. Without this bidirectional link, the registered source becomes an orphan in the graph.
+**Rule 3 — Source analysis ↔ registered source are bidirectionally linked.** The source analysis MUST include `**Source**: [[lamport-1978]]` near the top — a wikilink, not a file path. NEVER write `Source: sources/references/lamport-1978.md` or `Source: sources/files/real-2020/paper.pdf`. The `add_source.py` script creates a navigable `.md` stub for every source (both files and references), so `[[source-id]]` always resolves. The stub already links to `[[source-id-analysis]]`. Without this bidirectional wikilink, the source becomes an orphan in the graph.
 
 **Rule 4 — Every date in text is a wikilink.** When a year, year-month, or full date appears in prose, it MUST be a wikilink to the corresponding timeline entry. Write `[[2017]]` not `2017`, `[[2017-06]]` not `June 2017`, `[[2017-06-12]]` not `June 12, 2017`. Create the timeline entry if it doesn't exist yet.
 

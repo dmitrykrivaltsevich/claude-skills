@@ -97,6 +97,15 @@ class TestRegisterFile:
         result = add_source.register_source(str(kb_path), str(sample_md), source_id="real-2020b")
         assert result["source_id"] == "real-2020b"
 
+    def test_creates_stub_for_local_file(self, kb_path: Path, sample_pdf: Path):
+        """Local file registration must create a navigable .md stub like references do."""
+        add_source.register_source(str(kb_path), str(sample_pdf), source_id="real-2020")
+        stub = kb_path / "sources" / "files" / "real-2020.md"
+        assert stub.exists()
+        content = stub.read_text(encoding="utf-8")
+        assert "[[real-2020-analysis]]" in content
+        assert "paper.pdf" in content
+
 
 class TestRegisterReference:
     def test_creates_reference_stub(self, kb_path: Path):

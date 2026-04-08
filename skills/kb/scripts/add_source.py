@@ -136,8 +136,23 @@ External source reference.
         dest_file = dest_dir / source_path.name
         shutil.copy2(str(source_path), str(dest_file))
 
-        # Update config
+        # Create navigable stub so [[source-id]] resolves in Obsidian
         effective_title = title or source_path.stem
+        stub_path = root / "sources" / "files" / f"{source_id}.md"
+        stub_content = f"""---
+type: source-file
+source-id: {source_id}
+title: {effective_title}
+---
+
+# {effective_title}
+
+- **File**: {source_id}/{source_path.name}
+- **Analysis**: [[{source_id}-analysis]]
+"""
+        stub_path.write_text(stub_content, encoding="utf-8")
+
+        # Update config
         config["sources"].append({
             "id": source_id,
             "type": "file",
