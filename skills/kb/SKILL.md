@@ -170,7 +170,7 @@ This is the intellectual core. For each chunk of the source:
 6. **Synthesize key arguments, facts, insights** → into the appropriate entries above
 7. **Embed visual assets** in relevant entries using `![[knowledge/assets/<source-id>/<filename>.png]]`. Place each figure/table next to the text discussing it, with a caption. Only embed assets extracted in Phase 2 — never reference non-existent files.
 8. **Interlink everything** via `[[wikilinks]]` — bidirectional where possible
-9. Mark processed items via `state.py update-item`
+9. **Checkpoint & advance**: Write all entries to disk, then mark the item done with checkpoint notes: `state.py update-item --item-id iN --status done --notes "+3E +2T +1I +5C: key-entity-names; key-topics"`. The notes are your breadcrumb trail — they survive context compaction.
 
 See [references/add-workflow.md](references/add-workflow.md) for detailed checklists per source type.
 
@@ -327,19 +327,63 @@ If a source lists items in its bibliography but NEVER cites them in the text:
 - Record them in the source analysis entry as "listed but unreferenced"
 - These may indicate background reading or padding — useful signal for the user
 
-## Multi-Session Continuity
+## Long-Horizon Autonomous Work
 
-Large sources (books, collections) require multiple sessions. The task state system ensures no work is lost:
+Large sources require sustained work across many context windows. Context compaction, session breaks, and tool errors WILL happen. This skill is designed for resilience — the LLM must be able to lose its entire context and fully recover from disk state alone.
 
-1. **Create task**: `state.py init` at the start of `kb:add`
-2. **Plan dynamically**: Add work items as you discover them (chapters found while reading)
-3. **Track progress**: Mark items done/in-progress as you go
-4. **Resume**: Next session, run `open.py` → see pending tasks → run `state.py pending` → pick up where you left off
-5. **Knowledge = compaction**: Already-extracted entries are the compact representation. You don't need to re-read raw source chunks — just read the entries you created from them.
+### Core Principle: Everything on Disk
 
-The state files live in `.kb/tasks/` inside the KB directory. Use `--state-dir /path/to/kb/.kb/tasks` when calling `state.py`.
+Your context window is volatile. The KB's files and task state are permanent. Every decision, every extraction, every checkpoint MUST be written to disk before moving on. If you crash after writing, no work is lost. If you crash before writing, you redo only that one chunk.
 
-## Context Management
+### Checkpoint Discipline
+
+When you finish processing any work item (chapter, section, batch):
+
+1. **Write all entries to disk first** — entity, topic, idea, citation, timeline files
+2. **Write checkpoint notes** via `state.py update-item --notes "..."` — a compact tally of what you extracted (e.g. `+5E +3T +2I +8C: dijkstra, parnas, brooks; waterfall, incremental; lehman-laws; 1968-1975 timeline`)
+3. **Then** mark the item done
+
+The notes field is your breadcrumb trail. When context compacts, `state.py pending` returns the last 5 completed items with their notes — enough to reconstruct what was done and what comes next.
+
+### Resumption Protocol
+
+After ANY interruption (context compaction, session break, error recovery):
+
+```
+1. Run open.py          → reload KB structure, index, rules, pending tasks
+2. Run state.py status  → see current phase, done/pending counts
+3. Run state.py pending → see next items + checkpoint notes from recent items
+4. Read the source analysis file → see chapter-level notes already written
+5. Continue from the next pending item — do NOT re-process done items
+```
+
+This protocol works whether you lost context 5 minutes ago or 5 days ago. The disk state is the single source of truth.
+
+### Hierarchical Processing for Large Sources
+
+Any source too large for one pass requires hierarchical processing. This applies to books, collections, large reports — anything with internal structure.
+
+**Processing levels** (bottom-up):
+
+| Level | Unit | What you do | Checkpoint |
+|-------|------|------------|------------|
+| **Chunk** | Chapter, section, essay | Exhaustive extraction: entities, topics, ideas, citations, dates | `update-item --notes` with extraction tally |
+| **Group** | Part, section cluster | Cross-chunk connections, part-level themes | Notes in source analysis under `## Part N` |
+| **Source** | Whole book/collection | Source-level synthesis, overarching themes, bibliography analysis | Full source analysis file |
+| **Cross-source** | Related KB content | Meta-analyses, contradiction detection | `knowledge/meta/` and `knowledge/controversies/` entries |
+
+Each level builds on the one below. Do NOT skip levels — the synthesis quality depends on having exhaustive chunk-level extraction first.
+
+### Preventing Trajectory Drift
+
+Context compaction can cause the LLM to "forget" the extraction strategy and drift into summarization. Defenses:
+
+1. **Task items are your todo list.** Process them in order. Don't improvise.
+2. **Checkpoint notes anchor your approach.** When resuming, read the notes from recent items — they show the extraction pattern you were following (e.g. "+8E +3T +12C" tells you to maintain that density, not drop to "+1T").
+3. **The quality gate is mandatory.** Every chunk MUST pass the quality gate checklist before marking done. This prevents drift toward skimming.
+4. **Write chapter notes in the source analysis incrementally.** After each chapter, append 2-3 sentences to the source analysis. This is your running narrative — it survives compaction and reminds you of the book's arc.
+
+### Context Management
 
 - **Start every session** with `open.py` to load the KB context
 - **Read `index.md` first** when searching for information — it's your table of contents
@@ -347,6 +391,7 @@ The state files live in `.kb/tasks/` inside the KB directory. Use `--state-dir /
 - **Use `search.py`** for keyword lookup when index isn't enough
 - **Don't re-read processed chunks** — read your own extracted entries instead
 - **Write entries incrementally** — don't try to hold an entire book in context
+- **If context feels full**, finish the current item, write checkpoint notes, mark done, then continue — the resumption protocol handles the rest
 
 ## Rules Co-Evolution
 

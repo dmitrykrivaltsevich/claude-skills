@@ -10,9 +10,10 @@ Detailed checklists for the knowledge extraction pipeline. Linked from SKILL.md.
 4. [Source Type: Book](#book)
 5. [Source Type: Video / Podcast Transcript](#video--podcast-transcript)
 6. [Source Type: URL Reference (no full text)](#url-reference)
-7. [Citation Tracking Examples](#citation-tracking-examples)
-8. [Book Processing Pattern](#book-processing-pattern)
-9. [Compaction — Why You Don't Need the Raw Text Again](#compaction)
+7. [Any Large Source (Generic Pattern)](#any-large-source-generic-pattern)
+8. [Citation Tracking Examples](#citation-tracking-examples)
+9. [Book Processing Pattern](#book-processing-pattern)
+10. [Compaction — Why You Don't Need the Raw Text Again](#compaction)
 
 ## Universal Checklist
 
@@ -103,7 +104,7 @@ For each chapter, complete ALL of these before marking done:
 9. **Embed extracted figures** in relevant entries using `![[knowledge/assets/<source-id>/<name>.png]]`
 10. **Cross-link with entries from previous chapters** — wikilinks both directions
 11. **Detect contradictions** with existing KB or earlier chapters → controversy entries
-12. **Write chapter-level notes** in source analysis — a 2-3 sentence summary of the chapter plus what was extracted
+12. **Write chapter-level notes** in source analysis — append 2-3 sentences under the chapter heading: what the chapter covered + what you extracted
 
 #### Per-chapter quality gate (check BEFORE marking done)
 
@@ -116,14 +117,37 @@ For each chapter, complete ALL of these before marking done:
 
 If any box is unchecked, go back and fix it before marking the chapter done.
 
+#### Checkpoint (mandatory — do this AFTER quality gate, BEFORE moving to next chapter)
+
+```bash
+state.py update-item --task-id <task-id> --item-id iN --status done \
+  --notes "+5E +2T +1I +8C +3TL: dijkstra, parnas, brooks; software-processes, waterfall; lehman-laws" \
+  --state-dir <kb>/.kb/tasks
+```
+
+The notes format: `+NE +NT +NI +NC +NTL: key-entity-names; key-topics; key-ideas`. This is what the LLM reads to reconstruct context after compaction. Be specific enough that a future you — with zero context — knows what this chapter contributed.
+
+### Part-Level Aggregation (for books with parts/sections)
+
+When a book has explicit parts (e.g. "Part 2: Dependability and Security, Chapters 10-15"), create a task item for each part boundary:
+
+1. After finishing all chapters in a part, add part-level notes to the source analysis: `## Part N — <Title>` with 3-5 sentences on cross-chapter themes within the part
+2. Create or update topic entries for part-level themes that span multiple chapters
+3. Identify inter-chapter connections within the part → add wikilinks
+
+This is the middle level of hierarchical aggregation. Without it, the book-level synthesis has to jump from 26 individual chapters to a single synthesis — too large a gap.
+
 ### Final Session — Synthesis
 
-1. Write book-level source analysis (summarizes all chapters, cross-cutting themes)
-2. Create cross-chapter topic connections (themes that span multiple chapters)
-3. Build complete timeline from all extracted dates
-4. Identify controversies/debates the book discusses across chapters → controversy entries
-5. Meta-analysis if related sources exist in KB (e.g. same topic, contrasting viewpoints)
-6. Update index, log, mark task done
+Book-level aggregation — the top of the hierarchy for this source:
+
+1. Read all part-level summaries from source analysis (NOT the raw source)
+2. Write book-level source analysis: overarching thesis, cross-part themes, the author's argumentative arc
+3. Create cross-part topic connections (themes that span the entire book)
+4. Review the complete timeline extracted — fill any gaps
+5. Identify controversies/debates the book discusses across parts → controversy entries
+6. Meta-analysis if related sources exist in KB (e.g. same topic, contrasting viewpoints) → `knowledge/meta/`
+7. Update index, log, mark task done
 
 See [Book Processing Pattern](#book-processing-pattern) below.
 
@@ -147,6 +171,24 @@ No full text available — just metadata and user-provided context.
 3. Mark entries as `stub: true` in frontmatter — they need enrichment later
 4. If user provides notes about the URL, extract from those
 5. Flag in source analysis: "Reference only — full text not ingested"
+
+## Any Large Source (Generic Pattern)
+
+When a source is too large for a single pass — regardless of type — apply hierarchical processing:
+
+1. **Identify natural chunks**: chapters, sections, episodes, parts. Create task items for each.
+2. **Process chunk by chunk**: exhaustive extraction per chunk, quality gate, checkpoint notes.
+3. **Aggregate at group boundaries**: when a logical group of chunks is done (e.g. all chapters in a part, all episodes in a season), write a group-level summary in source analysis.
+4. **Synthesize at source level**: after all chunks, write source-level analysis from group summaries.
+5. **Cross-reference with KB**: meta-analyses, contradiction detection across sources.
+
+Signs a source needs this pattern:
+- More than ~30 pages or ~15K words
+- Has internal chapter/section structure
+- You can't read and extract it all before context fills up
+- The user says to process it "thoroughly" or "exhaustively"
+
+When in doubt, use this pattern. The overhead of task items + checkpoint notes is tiny compared to losing work to context compaction.
 
 ## Citation Tracking Examples
 
@@ -192,25 +234,34 @@ In source analysis (`knowledge/sources/chen-2023-analysis.md`):
 
 ## Book Processing Pattern
 
-For a book with N chapters:
+For a book with P parts and N chapters:
 
 ```
-Session 1:  Read TOC → state.py add-items (ch1, ch2, ..., chN, synthesis)
-Session 2:  state.py pending → process ch1 → quality gate → update-item ch1 done
-Session 3:  state.py pending → process ch2 → quality gate → update-item ch2 done
+Session 1:  Read TOC → state.py add-items (ch1, ..., chN, part1-agg, ..., partP-agg, synthesis)
+Session 2:  state.py pending → process ch1 → quality gate → checkpoint → done
+Session 3:  state.py pending → process ch2 → quality gate → checkpoint → done
 ...
-Session N+1: state.py pending → process chN → quality gate → update-item chN done
-Session N+2: state.py pending → synthesis → update-phase done
+After last chapter in Part 1:  process part1-agg → part-level notes in source analysis → done
+...
+Session N+P+1: state.py pending → synthesis → update-phase done
 ```
 
 Each chapter session:
 1. Run `open.py` to reload KB context
-2. Run `state.py pending` to see next chapter
-3. Read full chapter from source
-4. **Extract exhaustively** — every named person, every in-text reference, every date, every concept
-5. Cross-link with entries from previous chapters
-6. **Run per-chapter quality gate** — check all boxes before proceeding
-7. Mark chapter done
+2. Run `state.py pending` to see next chapter + recent checkpoint notes
+3. **Read the checkpoint notes** from recent items — calibrate your extraction density to match
+4. Read full chapter from source
+5. **Extract exhaustively** — every named person, every in-text reference, every date, every concept
+6. Cross-link with entries from previous chapters
+7. **Run per-chapter quality gate** — check all boxes before proceeding
+8. **Write checkpoint notes** via `update-item --notes "..."` — the notes are your recovery breadcrumb
+9. Mark chapter done
+
+Part-level aggregation session:
+1. Read chapter notes from source analysis for all chapters in this part
+2. Write part-level summary (3-5 sentences) in source analysis
+3. Create/update topic entries for cross-chapter themes within the part
+4. Add inter-chapter wikilinks within the part
 
 ### Extraction density expectations (textbooks)
 
@@ -251,8 +302,11 @@ Why this works:
 - Wikilinks preserve the relationships
 - Source analysis captures the big picture
 - Citation entries preserve exact quote contexts
+- Checkpoint notes on task items record what was extracted per chunk
 
-When resuming a multi-session task:
-- Read your extracted entries (they're short, focused markdown)
-- DON'T re-read the raw source chunks you already processed
-- Use the entries as context for processing the next chunk
+When resuming after context compaction or session break:
+1. Run `state.py pending` — read the `recent_completed` notes to reconstruct context
+2. Read the source analysis chapter notes for the narrative arc so far
+3. Read your extracted entries from recent chunks (they're short, focused markdown)
+4. Do NOT re-read the raw source chunks you already processed
+5. Continue with the next pending item at the same extraction density

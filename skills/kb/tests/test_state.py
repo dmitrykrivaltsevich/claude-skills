@@ -142,6 +142,34 @@ class TestUpdateItem:
         with pytest.raises(ContractViolationError, match="not found"):
             state.update_item("t1", "i999", "done", state_dir=state_dir)
 
+    def test_stores_notes_on_item(self, state_dir: Path):
+        state.init_task("t1", "add", "Test", "/tmp/kb", state_dir=state_dir)
+        state.add_items("t1", [{"title": "Ch1"}], state_dir=state_dir)
+        result = state.update_item(
+            "t1", "i1", "done",
+            notes="+3E +2T +1I (dijkstra, parnas, brooks)",
+            state_dir=state_dir,
+        )
+        assert result["notes"] == "+3E +2T +1I (dijkstra, parnas, brooks)"
+        data = json.loads((state_dir / "t1.json").read_text())
+        assert data["items"][0]["notes"] == "+3E +2T +1I (dijkstra, parnas, brooks)"
+
+    def test_notes_omitted_when_not_provided(self, state_dir: Path):
+        state.init_task("t1", "add", "Test", "/tmp/kb", state_dir=state_dir)
+        state.add_items("t1", [{"title": "Ch1"}], state_dir=state_dir)
+        result = state.update_item("t1", "i1", "done", state_dir=state_dir)
+        assert "notes" not in result
+        data = json.loads((state_dir / "t1.json").read_text())
+        assert "notes" not in data["items"][0]
+
+    def test_notes_can_be_updated(self, state_dir: Path):
+        state.init_task("t1", "add", "Test", "/tmp/kb", state_dir=state_dir)
+        state.add_items("t1", [{"title": "Ch1"}], state_dir=state_dir)
+        state.update_item("t1", "i1", "done", notes="v1", state_dir=state_dir)
+        state.update_item("t1", "i1", "done", notes="v2", state_dir=state_dir)
+        data = json.loads((state_dir / "t1.json").read_text())
+        assert data["items"][0]["notes"] == "v2"
+
 
 # ---------------------------------------------------------------------------
 # update_phase
@@ -206,6 +234,49 @@ class TestPending:
         )
         result = state.pending("t1", limit=3, state_dir=state_dir)
         assert len(result["next_items"]) == 3
+
+    def test_recent_completed_includes_notes(self, state_dir: Path):
+        state.init_task("t1", "add", "Test", "/tmp/kb", state_dir=state_dir)
+        state.add_items(
+            "t1",
+            [{"title": "Ch1"}, {"title": "Ch2"}, {"title": "Ch3"}],
+            state_dir=state_dir,
+        )
+        state.update_item(
+            "t1", "i1", "done", notes="+3E +2T", state_dir=state_dir,
+        )
+        result = state.pending("t1", state_dir=state_dir)
+        assert len(result["recent_completed"]) == 1
+        assert result["recent_completed"][0]["notes"] == "+3E +2T"
+        assert result["recent_completed"][0]["title"] == "Ch1"
+
+    def test_recent_completed_skips_items_without_notes(self, state_dir: Path):
+        state.init_task("t1", "add", "Test", "/tmp/kb", state_dir=state_dir)
+        state.add_items(
+            "t1",
+            [{"title": "Ch1"}, {"title": "Ch2"}],
+            state_dir=state_dir,
+        )
+        state.update_item("t1", "i1", "done", state_dir=state_dir)  # no notes
+        result = state.pending("t1", state_dir=state_dir)
+        assert result["recent_completed"] == []
+
+    def test_recent_completed_limited_to_5(self, state_dir: Path):
+        state.init_task("t1", "add", "Test", "/tmp/kb", state_dir=state_dir)
+        state.add_items(
+            "t1",
+            [{"title": f"Ch{i}"} for i in range(8)],
+            state_dir=state_dir,
+        )
+        for i in range(1, 8):
+            state.update_item(
+                "t1", f"i{i}", "done", notes=f"notes-{i}",
+                state_dir=state_dir,
+            )
+        result = state.pending("t1", state_dir=state_dir)
+        assert len(result["recent_completed"]) == 5
+        # Should be the last 5 (i3..i7)
+        assert result["recent_completed"][0]["notes"] == "notes-3"
 
 
 # ---------------------------------------------------------------------------

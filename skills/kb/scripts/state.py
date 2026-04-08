@@ -164,16 +164,27 @@ def update_item(
     task_id: str,
     item_id: str,
     status: str,
+    notes: str | None = None,
     state_dir: Path = _DEFAULT_STATE_DIR,
 ) -> dict:
-    """Update the status of a specific work item."""
+    """Update the status of a specific work item.
+
+    If *notes* is provided, it is stored on the item — use this to
+    record a compact checkpoint of what was extracted so the LLM can
+    resume after context compaction.
+    """
     data = _load(task_id, state_dir)
     for item in data["items"]:
         if item["id"] == item_id:
             item["status"] = status
+            if notes is not None:
+                item["notes"] = notes
             data["updated_at"] = datetime.now(timezone.utc).isoformat()
             _save(task_id, data, state_dir)
-            return {"item_id": item_id, "status": status}
+            result: dict = {"item_id": item_id, "status": status}
+            if notes is not None:
+                result["notes"] = notes
+            return result
 
     raise ContractViolationError(
         f"Item not found: {item_id!r}", kind="precondition"
@@ -225,7 +236,11 @@ def pending(
     limit: int | None = None,
     state_dir: Path = _DEFAULT_STATE_DIR,
 ) -> dict:
-    """Return pending work items (status == 'pending'), optionally limited."""
+    """Return pending work items (status == 'pending'), optionally limited.
+
+    Also returns checkpoint notes from recently completed items so the
+    LLM can reconstruct context after compaction.
+    """
     data = _load(task_id, state_dir)
     pending_items = [
         {"id": i["id"], "title": i["title"]}
@@ -234,9 +249,25 @@ def pending(
     ]
     if limit is not None:
         pending_items = pending_items[:limit]
-    return {"next_items": pending_items, "remaining": len([
-        i for i in data["items"] if i["status"] == "pending"
-    ])}
+
+    # Last 5 completed items with their checkpoint notes — enough context
+    # for the LLM to reconstruct what was already done.
+    done_items = [
+        i for i in data["items"]
+        if i["status"] == "done" and i.get("notes")
+    ]
+    recent_done = [
+        {"id": i["id"], "title": i["title"], "notes": i["notes"]}
+        for i in done_items[-5:]  # last 5 keep the output compact
+    ]
+
+    return {
+        "next_items": pending_items,
+        "remaining": len([
+            i for i in data["items"] if i["status"] == "pending"
+        ]),
+        "recent_completed": recent_done,
+    }
 
 
 def list_tasks(
@@ -318,6 +349,7 @@ def main(argv: list[str] | None = None) -> None:
     _add_common_args(p_ui)
     p_ui.add_argument("--item-id", required=True)
     p_ui.add_argument("--status", required=True)
+    p_ui.add_argument("--notes", default=None, help="Checkpoint notes for resumption")
 
     # update-phase
     p_up = sub.add_parser("update-phase")
@@ -356,7 +388,8 @@ def main(argv: list[str] | None = None) -> None:
         result = add_items(args.task_id, items, state_dir=state_dir)
     elif args.command == "update-item":
         result = update_item(
-            args.task_id, args.item_id, args.status, state_dir=state_dir,
+            args.task_id, args.item_id, args.status,
+            notes=args.notes, state_dir=state_dir,
         )
     elif args.command == "update-phase":
         result = update_phase(args.task_id, args.phase, state_dir=state_dir)
