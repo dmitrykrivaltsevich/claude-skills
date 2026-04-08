@@ -143,10 +143,10 @@ This is the most complex operation. It combines mechanical source registration w
 **Phase 1 — Register Source** (script)
 1. Determine the source ID: first-author-lastname + year in kebab-case (e.g. `real-2020`, `rumelhart-1986`). If collision with existing source, add a letter suffix: `real-2020a`
 2. **Acquire the file:**
-   - Local file → use directly
-   - Google Drive file/URL → use `/drive` skill's `download.py` to download locally first
+   - Local file → use directly, register as local source
+   - Google Drive file/URL → use `/drive` skill's `download.py` to download a local copy for reading, but register as `--reference` with the original Google Drive URL (the downloaded file is temporary — the canonical location is Drive)
    - URL (web article) → register as reference with `--reference`
-3. Run `add_source.py` with `--source-id` to copy/reference the source
+3. Run `add_source.py` with `--source-id` to copy/reference the source. For Drive and URL sources, pass `--reference --source <original-URL> --title "Title"`
 4. Run `state.py init` to create a task with the source info
 
 **Phase 2 — Read & Plan** (you)
