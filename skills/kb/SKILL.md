@@ -14,9 +14,11 @@ user-invocable: true
 > **CRITICAL — read before doing anything else:**
 >
 > 1. **Scripts are data pipes.** They handle file I/O, copying, link scanning, state management. **YOU (the LLM) do ALL the intellectual work**: knowledge extraction, summarization, analysis, cross-linking, controversy detection, citation tracking, and meta-analysis.
-> 2. **One active KB at a time.** Run `open.py` to prime your context for a KB before operating on it.
-> 3. **For PDF sources**, read the `/pdf` SKILL.md first — use its scripts for text extraction and image extraction. This skill does not duplicate PDF handling.
-> 4. **`${CLAUDE_SKILL_DIR}` = this skill only.**
+> 2. **NEVER extract from LLM memory.** If you cannot read the actual source text (file inaccessible, format unsupported, network error), STOP and tell the user. Do not fill in entries from what you “remember” about the work. Every fact in a KB entry must come from the source text you actually read in this session. Hallucinated entries are worse than no entries.
+> 3. **One active KB at a time.** Run `open.py` to prime your context for a KB before operating on it.
+> 4. **For PDF sources**, read the `/pdf` SKILL.md first — use its scripts for text extraction and image extraction. This skill does not duplicate PDF handling.
+> 5. **For Google Drive sources**, use the `/google-drive` skill to download the file first, then process the local copy.
+> 6. **`${CLAUDE_SKILL_DIR}` = this skill only.**
 
 ## Routing — ALWAYS Do This First
 
@@ -140,11 +142,16 @@ This is the most complex operation. It combines mechanical source registration w
 
 **Phase 1 — Register Source** (script)
 1. Determine the source ID: first-author-lastname + year in kebab-case (e.g. `real-2020`, `rumelhart-1986`). If collision with existing source, add a letter suffix: `real-2020a`
-2. Run `add_source.py` with `--source-id` to copy/reference the source
-3. Run `state.py init` to create a task with the source info
+2. **Acquire the file:**
+   - Local file → use directly
+   - Google Drive file/URL → use `/drive` skill's `download.py` to download locally first
+   - URL (web article) → register as reference with `--reference`
+3. Run `add_source.py` with `--source-id` to copy/reference the source
+4. Run `state.py init` to create a task with the source info
 
 **Phase 2 — Read & Plan** (you)
-1. Read the source. For PDFs: use `/pdf` skill's `read.py` or `render.py`
+1. Read the source. For PDFs: use `/pdf` skill's `read.py` or `render.py`. For Google Docs: the downloaded markdown from `/drive` is directly readable.
+2. **Verify you have actual text.** If the read produced no content or errored, STOP. Tell the user the file could not be read and suggest alternatives (re-download, different format, manual copy-paste). Do NOT proceed from memory.
 2. Assess the source: what kind is it? (article, paper, book chapter, transcript, etc.)
 3. For large sources (books): identify chapters/sections → add as task items via `state.py add-items`
 4. Run `state.py update-phase --phase analyzing`
