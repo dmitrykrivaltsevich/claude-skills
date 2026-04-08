@@ -294,11 +294,6 @@ Comprehensive biography covering Einstein's personal life, scientific contributi
 - 38 cited in text
 - 4 unreferenced: [list them]
 
-## Processing notes
-- Chapters 1-5 processed in session 1
-- Chapters 6-12 processed in session 2
-- Synthesis completed in session 3
-
 ## Figures & Tables
 
 ![[knowledge/assets/isaacson-2007/einstein-1905-patent-office.png]]
@@ -311,7 +306,7 @@ Comprehensive biography covering Einstein's personal life, scientific contributi
 **Rules**:
 - One per source. Named `<source-id>-analysis.md`.
 - **MUST wikilink to the registered source**: `**Source**: [[<source-id>]]`. This is a wikilink — NOT a file path. Write `**Source**: [[lamport-1978]]`, NEVER `Source: sources/references/lamport-1978.md`. Do not mention whether the source is a reference or a file — that's an implementation detail irrelevant to the knowledge graph. The `add_source.py` script creates a navigable `.md` stub for every source, so `[[source-id]]` always resolves.
-- Must include summary, key extractions (what entries were created/updated), bibliography analysis (for academic sources).
+- Must include summary, key extractions (what entries were created/updated), bibliography analysis (for academic sources). MUST NOT contain progress checklists, session logs, or chapter-by-chapter extraction checkboxes — that operational state belongs in task state (`state.py --notes`), not in knowledge files.
 - If visual assets were extracted, add a `## Figures & Tables` section. Each asset MUST be an Obsidian image embed — `![[knowledge/assets/<source-id>/<name>.png]]` on its own line, followed by an italicized caption on the next line. NEVER list assets as plain text or code-formatted paths.
 
 ---

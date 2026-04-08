@@ -353,8 +353,7 @@ After ANY interruption (context compaction, session break, error recovery):
 1. Run open.py          → reload KB structure, index, rules, pending tasks
 2. Run state.py status  → see current phase, done/pending counts
 3. Run state.py pending → see next items + checkpoint notes from recent items
-4. Read the source analysis file → see chapter-level notes already written
-5. Continue from the next pending item — do NOT re-process done items
+4. Continue from the next pending item — do NOT re-process done items
 ```
 
 This protocol works whether you lost context 5 minutes ago or 5 days ago. The disk state is the single source of truth.
@@ -381,7 +380,7 @@ Context compaction can cause the LLM to "forget" the extraction strategy and dri
 1. **Task items are your todo list.** Process them in order. Don't improvise.
 2. **Checkpoint notes anchor your approach.** When resuming, read the notes from recent items — they show the extraction pattern you were following (e.g. "+8E +3T +12C" tells you to maintain that density, not drop to "+1T").
 3. **The quality gate is mandatory.** Every chunk MUST pass the quality gate checklist before marking done. This prevents drift toward skimming.
-4. **Write chapter notes in the source analysis incrementally.** After each chapter, append 2-3 sentences to the source analysis. This is your running narrative — it survives compaction and reminds you of the book's arc.
+4. **Checkpoint notes are your narrative.** After each chunk, write a `--notes` that captures both the extraction tally AND the key themes. This is your running narrative — it survives compaction and anchors your trajectory. Do NOT write incremental progress into knowledge files.
 
 ### Context Management
 

@@ -104,7 +104,6 @@ For each chapter, complete ALL of these before marking done:
 9. **Embed extracted figures** in relevant entries using `![[knowledge/assets/<source-id>/<name>.png]]`
 10. **Cross-link with entries from previous chapters** — wikilinks both directions
 11. **Detect contradictions** with existing KB or earlier chapters → controversy entries
-12. **Write chapter-level notes** in source analysis — append 2-3 sentences under the chapter heading: what the chapter covered + what you extracted
 
 #### Per-chapter quality gate (check BEFORE marking done)
 
@@ -112,7 +111,6 @@ For each chapter, complete ALL of these before marking done:
 - [ ] Every in-text reference has a citation entry
 - [ ] Every year/date mentioned has a timeline entry (or updates an existing one)
 - [ ] Key figures/diagrams extracted as visual assets and embedded in entries
-- [ ] Chapter notes written in source analysis
 - [ ] All new entries interlinked with `[[wikilinks]]`
 
 If any box is unchecked, go back and fix it before marking the chapter done.
@@ -131,7 +129,7 @@ The notes format: `+NE +NT +NI +NC +NTL: key-entity-names; key-topics; key-ideas
 
 When a book has explicit parts (e.g. "Part 2: Dependability and Security, Chapters 10-15"), create a task item for each part boundary:
 
-1. After finishing all chapters in a part, add part-level notes to the source analysis: `## Part N — <Title>` with 3-5 sentences on cross-chapter themes within the part
+1. After finishing all chapters in a part, write checkpoint notes summarizing cross-chapter themes for the part: `state.py update-item --notes "Part 2 themes: dependability vs security trade-off, Reason's Swiss cheese..."`
 2. Create or update topic entries for part-level themes that span multiple chapters
 3. Identify inter-chapter connections within the part → add wikilinks
 
@@ -141,13 +139,14 @@ This is the middle level of hierarchical aggregation. Without it, the book-level
 
 Book-level aggregation — the top of the hierarchy for this source:
 
-1. Read all part-level summaries from source analysis (NOT the raw source)
-2. Write book-level source analysis: overarching thesis, cross-part themes, the author's argumentative arc
-3. Create cross-part topic connections (themes that span the entire book)
-4. Review the complete timeline extracted — fill any gaps
-5. Identify controversies/debates the book discusses across parts → controversy entries
-6. Meta-analysis if related sources exist in KB (e.g. same topic, contrasting viewpoints) → `knowledge/meta/`
-7. Update index, log, mark task done
+1. Read checkpoint notes from all completed items — these are your chapter and part summaries
+2. Read the topic/idea/entity entries created during extraction (NOT the raw source)
+3. Write the source analysis — this is a **finished analytical document**: book summary, overarching thesis, cross-part themes, key extractions list, bibliography analysis, figures & tables. No checklists, no progress tracking, no session logs.
+4. Create cross-part topic connections (themes that span the entire book)
+5. Review the complete timeline extracted — fill any gaps
+6. Identify controversies/debates the book discusses across parts → controversy entries
+7. Meta-analysis if related sources exist in KB (e.g. same topic, contrasting viewpoints) → `knowledge/meta/`
+8. Update index, log, mark task done
 
 See [Book Processing Pattern](#book-processing-pattern) below.
 
@@ -258,10 +257,10 @@ Each chapter session:
 9. Mark chapter done
 
 Part-level aggregation session:
-1. Read chapter notes from source analysis for all chapters in this part
-2. Write part-level summary (3-5 sentences) in source analysis
-3. Create/update topic entries for cross-chapter themes within the part
-4. Add inter-chapter wikilinks within the part
+1. Read checkpoint notes from completed chapter items in this part
+2. Create/update topic entries for cross-chapter themes within the part
+3. Add inter-chapter wikilinks within the part
+4. Write part-level checkpoint notes via `update-item --notes`
 
 ### Extraction density expectations (textbooks)
 
@@ -287,11 +286,12 @@ A 26-chapter textbook should typically produce:
 The LLM's instinct is to summarize — to compress a chapter into its 3-5 key points. That's the opposite of what the KB needs. The KB is a **long-term memory** that accumulates facts across sources. A person mentioned in passing in Chapter 9 might be a central figure in a later source. A citation to an obscure 1972 paper might become critical when that paper is added to the KB. Extract everything — the KB's value grows combinatorially with coverage.
 
 Synthesis session:
-1. Read all chapter-level entries (NOT the raw source)
-2. Write book-level source analysis
-3. Create cross-chapter connections
-4. Identify overarching themes → topic entries
-5. Meta-analysis if other books on same topic exist
+1. Read checkpoint notes from all completed items (NOT the raw source)
+2. Read the topic/idea/entity entries created during extraction
+3. Write book-level source analysis — this is the ONLY time you write the source analysis for a book. It is a finished analytical document: summary, key themes, cross-references, bibliography analysis. No checklists, no progress tracking.
+4. Create cross-chapter connections
+5. Identify overarching themes → topic entries
+6. Meta-analysis if other books on same topic exist
 
 ## Compaction
 
