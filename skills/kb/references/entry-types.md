@@ -46,6 +46,26 @@ German-born theoretical physicist. Developed the theory of relativity.
 - [[eth-zurich]] (1912–1914)
 - [[prussian-academy-of-sciences]] (1914–1933)
 
+## Connections
+- [[marcel-grossmann]] — university friend at [[eth-zurich]], introduced Einstein to Riemannian geometry essential for [[general-relativity]] ([[1912]])
+- [[michele-besso]] — lifelong friend and sounding board, acknowledged in the [[special-relativity]] paper ([[1905]])
+- [[mileva-maric]] — first wife, studied physics together at [[eth-zurich]] (1896–1901)
+- [[niels-bohr]] — decades-long debate on [[quantum-mechanics]] interpretation (1920s–1950s)
+
+## Influenced by
+- [[hendrik-lorentz]] — Lorentz transformations, direct correspondence from [[1901]]
+- [[ernst-mach]] — critique of Newtonian absolute space, read during [[bern]] patent office years ([[1902]]–[[1905]])
+- [[james-clerk-maxwell]] — electromagnetic theory, foundation for relativity
+
+## Influenced
+- [[niels-bohr]] — photoelectric effect paper catalyzed quantum atomic model
+- [[john-wheeler]] — geometrodynamics program built on general relativity
+
+## Locations
+- [[bern]] — patent office ([[1902]]–[[1909]]), where [[special-relativity]] was conceived
+- [[berlin]] — Kaiser Wilhelm Institute ([[1914]]–[[1933]])
+- [[princeton]] — Institute for Advanced Study ([[1933]]–[[1955]])
+
 ## Sources
 - [[isaacson-2007-analysis]] — biography chapter 3
 - [[pais-1982-analysis]] — referenced in physics history
@@ -55,6 +75,9 @@ German-born theoretical physicist. Developed the theory of relativity.
 - One file per entity. Accumulates facts from multiple sources.
 - `entity-kind` is required.
 - Link to ideas they originated, organizations they belong to, timeline entries for key dates.
+- **Connections** — record who this person knew, collaborated with, debated, or corresponded with. Include: the nature of the relationship, when it occurred (wikilinked date), and what it produced. Only record what the source explicitly states — never infer relationships.
+- **Influenced by / Influenced** — record intellectual influence chains: who shaped this person's thinking (and how), and who this person influenced (and how). Include the mechanism when stated (read their work, personal mentorship, correspondence, attended lectures). These sections build the influence graph over time.
+- **Locations** — record where this person was at key moments, especially when the source ties location to intellectual output (e.g. "conceived idea X while at Y").
 
 ---
 

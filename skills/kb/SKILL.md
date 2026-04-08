@@ -162,8 +162,9 @@ This is the most complex operation. It combines mechanical source registration w
 This is the intellectual core. For each chunk of the source:
 
 1. **Extract entities** → create/update files in `knowledge/entities/` (people, organizations)
-2. **Extract topics** → `knowledge/topics/` (subject areas, fields)
-3. **Extract ideas** → `knowledge/ideas/` (specific hypotheses, proposals — ideas are attributable, topics are not)
+2. **Extract relationships & influences** → for each person, record connections (who knows whom, collaborations, debates), influence chains (who influenced whom, how, when), and locations at key moments. Only what the source explicitly states — see entity template in [references/entry-types.md](references/entry-types.md).
+3. **Extract topics** → `knowledge/topics/` (subject areas, fields)
+4. **Extract ideas** → `knowledge/ideas/` (specific hypotheses, proposals — ideas are attributable, topics are not)
 4. **Extract locations** → `knowledge/locations/`
 5. **Extract dates** → create/update `knowledge/timeline/` entries (year→month→day chain)
 6. **Synthesize key arguments, facts, insights** → into the appropriate entries above
@@ -226,6 +227,7 @@ You are not a filing clerk. You are a knowledge analyst. When processing a sourc
 - **Understand before filing.** Read the whole chunk first, then decide what entries to create.
 - **Ideas ≠ Topics.** An idea is a specific intellectual contribution (attributable to a person/paper). A topic is a subject area. "Machine learning" is a topic. "Attention is all you need" is an idea.
 - **Every entity gets a page.** Every person mentioned (author, subject, referenced individual) gets an entry in `knowledge/entities/`. The entry accumulates facts and links as more sources are added.
+- **Relationships and influences are first-class.** When a source mentions who knew whom, who influenced whom, mentorship, correspondence, collaboration, or debate — record it in entity entries under `## Connections`, `## Influenced by`, and `## Influenced`. Include the mechanism (read their work, personal meeting, correspondence) and the date/location when stated. Over time this builds an influence graph showing how ideas propagated through people and places. Never fabricate connections — only record what the source explicitly states.
 - **Timeline is a navigable chain.** Each date entry links to prev/next at its level. Year entries have prev/next year. Month entries have prev/next month. Day entries have prev/next day. Each links up to parent (day→month→year).
 - **Controversies are first-class.** When you find contradicting information, create a dedicated entry in `knowledge/controversies/` — not just a note. Cross-reference from ALL involved entries.
 - **Recursive deepening for books.** Process chapter by chapter → part summaries → book synthesis → comparison with existing KB. Each level wikilinks to the one below. The extracted knowledge IS the compaction — you don't need the raw text again.
