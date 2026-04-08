@@ -36,7 +36,7 @@ All scripts are independently runnable and freely composable — the LLM picks w
 | User says… | Script | What it returns |
 |---|---|---|
 | "what's in this PDF", "how many pages" | `info.py` | JSON: metadata, TOC, per-page analysis |
-| "read this PDF", "extract text from pages 5-10" | `read.py` | JSON: markdown content per page |
+| "read this PDF", "extract text from pages 5-10" | `read.py` | JSON: markdown content per page. Use `--output FILE` for large ranges |
 | "find X in this PDF", "search for Y" | `search.py` | JSON: matches with page numbers + context |
 | "extract images/figures/charts" | `extract_images.py` | Images saved to dir + JSON manifest |
 | "this is a scanned PDF", "OCR this" | `render.py` | High-DPI PNGs for LLM vision reading |
@@ -54,6 +54,11 @@ uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/read.py /path/to/file.pdf
 
 # Extract specific page range (1-based, inclusive):
 uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/read.py /path/to/file.pdf --page-start 5 --page-end 10
+
+# Extract page range to file (use for large ranges — avoids terminal truncation):
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/read.py /path/to/file.pdf --page-start 43 --page-end 72 --output /tmp/chapter.json
+# Prints compact summary to stdout; full JSON written to /tmp/chapter.json
+# Then read the file to get the markdown content
 
 # Search for text:
 uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/search.py /path/to/file.pdf "query text"
@@ -92,7 +97,8 @@ The LLM generates the `.typ` file, then calls `write.py` to compile it. If compi
 1. info.py → get TOC, identify sections
 2. read.py --page-start 1 --page-end 3 → read intro/abstract
 3. For each TOC section of interest:
-     read.py --page-start N --page-end M → extract section
+     read.py --page-start N --page-end M --output /tmp/section.json → extract to file
+     Read /tmp/section.json to get the markdown
 4. extract_images.py → get figures/charts
 5. Synthesize analysis
 ```
@@ -132,9 +138,14 @@ For PDFs with 1000+ pages (or multi-GB files), NEVER read the entire document at
 
 1. **Start with `info.py`** — always lightweight, gives TOC + page count regardless of size
 2. **Use `search.py`** to find relevant pages instead of reading everything
-3. **Read in small batches** — `--page-start` and `--page-end` with 10-50 page ranges
-4. **Extract images in batches** — process 50-100 pages at a time
-5. **Render selectively** — only render specific pages needed for OCR, not the entire PDF
+3. **Read in small batches** — use `--page-start` and `--page-end` with 10-50 page ranges
+4. **Always use `--output` for ranges over ~5 pages** — terminal output is truncated at ~60KB, which corrupts the JSON. Write to a temp file and read it instead:
+   ```
+   read.py file.pdf --page-start 43 --page-end 72 --output /tmp/chapter.json
+   ```
+   This prints a compact summary (page numbers + word counts) to stdout and writes the full JSON to the file.
+5. **Extract images in batches** — process 50-100 pages at a time
+6. **Render selectively** — only render specific pages needed for OCR, not the entire PDF
 
 All scripts support `--page-start` and `--page-end` for this reason.
 

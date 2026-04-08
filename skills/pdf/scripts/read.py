@@ -12,6 +12,10 @@ Uses pymupdf4llm for high-quality markdown conversion that preserves
 headings, tables, lists, and layout structure. Supports page ranges
 for working with large documents (thousands of pages).
 
+For large page ranges, use --output to write JSON to a file instead of
+stdout (avoids terminal truncation). A compact summary is printed to
+stdout when --output is used.
+
 Progress/errors go to stderr.
 """
 
@@ -50,7 +54,11 @@ def read_pages(
     page_start: int = 1,
     page_end: int | None = None,
 ) -> dict:
-    """Extract pages as markdown with word counts."""
+    """Extract pages as markdown with word counts.
+
+    Uses batched extraction via page_chunks for efficiency — opens the
+    PDF once and extracts all requested pages in a single call.
+    """
     doc = pymupdf.open(pdf_path)
     try:
         total_pages = len(doc)
@@ -61,16 +69,28 @@ def read_pages(
         # pymupdf4llm uses 0-based page indices
         page_indices = list(range(page_start - 1, effective_end))
 
+        print(
+            f"Reading pages {page_start}-{effective_end} of {total_pages}...",
+            file=sys.stderr,
+        )
+
+        # Batch extract all pages at once — much faster than per-page calls
+        # because the PDF is opened/parsed only once.
+        chunks = pymupdf4llm.to_markdown(
+            doc,
+            pages=page_indices,
+            page_chunks=True,
+        )
+
+        # Sort by page number — page_chunks may return out of order
+        chunks.sort(key=lambda c: c["metadata"]["page_number"])
+
         pages = []
-        for idx in page_indices:
-            print(f"Reading page {idx + 1}/{total_pages}...", file=sys.stderr)
-            md = pymupdf4llm.to_markdown(
-                pdf_path,
-                pages=[idx],
-            )
+        for chunk in chunks:
+            md = chunk["text"]
             word_count = len(md.split()) if md.strip() else 0
             pages.append({
-                "number": idx + 1,
+                "number": chunk["metadata"]["page_number"],  # already 1-based
                 "markdown": md,
                 "word_count": word_count,
             })
@@ -90,11 +110,38 @@ def main() -> None:
     parser.add_argument("pdf_path", help="Path to the PDF file")
     parser.add_argument("--page-start", type=int, default=1, help="First page (1-based)")
     parser.add_argument("--page-end", type=int, default=None, help="Last page (1-based, inclusive)")
+    parser.add_argument(
+        "--output", default=None,
+        help="Write full JSON to this file instead of stdout. "
+             "A compact summary is printed to stdout. "
+             "Use for large page ranges to avoid terminal truncation.",
+    )
     args = parser.parse_args()
 
     try:
         result = read_pages(args.pdf_path, args.page_start, args.page_end)
-        print(json.dumps(result, indent=2, ensure_ascii=False))
+
+        if args.output:
+            # Write full JSON to file, print compact summary to stdout
+            with open(args.output, "w", encoding="utf-8") as f:
+                json.dump(result, f, indent=2, ensure_ascii=False)
+
+            total_words = sum(p["word_count"] for p in result["pages"])
+            summary = {
+                "file_path": result["file_path"],
+                "total_pages": result["total_pages"],
+                "pages_returned": result["pages_returned"],
+                "page_count": len(result["pages"]),
+                "total_words": total_words,
+                "output_file": args.output,
+                "pages": [
+                    {"number": p["number"], "word_count": p["word_count"]}
+                    for p in result["pages"]
+                ],
+            }
+            print(json.dumps(summary, indent=2, ensure_ascii=False))
+        else:
+            print(json.dumps(result, indent=2, ensure_ascii=False))
     except Exception as e:
         print(json.dumps({"error": str(e)}), file=sys.stderr)
         sys.exit(1)
