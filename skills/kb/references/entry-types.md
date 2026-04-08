@@ -246,6 +246,7 @@ source-type: book | paper | article | transcript | reference
 ```markdown
 # isaacson-2007 — "Einstein: His Life and Universe"
 
+**Source**: [[isaacson-2007]]
 **Author**: Walter Isaacson
 **Published**: 2007
 **Source type**: Book
@@ -271,6 +272,7 @@ Comprehensive biography covering Einstein's personal life, scientific contributi
 
 **Rules**:
 - One per source. Named `<source-id>-analysis.md`.
+- **MUST wikilink to the registered source**: `**Source**: [[<source-id>]]`. This connects the analysis to the source file (in `sources/files/` or `sources/references/`), making the source navigable from the graph.
 - Must include summary, key extractions (what entries were created/updated), bibliography analysis (for academic sources).
 
 ---

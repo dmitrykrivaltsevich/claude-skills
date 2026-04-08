@@ -99,6 +99,7 @@ External source reference.
 
 - **Location**: {source}
 - **Source ID**: {source_id}
+- **Analysis**: [[{source_id}-analysis]]
 """
         stub_path.write_text(stub_content, encoding="utf-8")
 

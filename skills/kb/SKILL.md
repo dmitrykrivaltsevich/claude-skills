@@ -268,11 +268,13 @@ This KB is Obsidian-compatible. Clicking a wikilink MUST open an existing file i
 
 **Rule 2 — Sources are wikilinked, not bare IDs.** When referencing a source in an entry, use `[[real-2020-analysis]]` (linking to the source analysis page), NEVER bare `real-2020`. The source analysis page is the navigable hub for that source. In frontmatter `source-ids: [real-2020]` remains a plain string (frontmatter is data, not rendered links).
 
-**Rule 3 — Every date in text is a wikilink.** When a year, year-month, or full date appears in prose, it MUST be a wikilink to the corresponding timeline entry. Write `[[2017]]` not `2017`, `[[2017-06]]` not `June 2017`, `[[2017-06-12]]` not `June 12, 2017`. Create the timeline entry if it doesn't exist yet.
+**Rule 3 — Source analysis ↔ registered source are bidirectionally linked.** The source analysis MUST include `**Source**: [[real-2020]]` near the top, linking to the registered source file. The registered source stub already links to `[[real-2020-analysis]]`. Without this bidirectional link, the registered source becomes an orphan in the graph.
 
-**Rule 4 — External URLs use standard markdown links.** External links use `[text](https://...)`, NEVER wikilinks. Wikilinks are for internal KB entries only.
+**Rule 4 — Every date in text is a wikilink.** When a year, year-month, or full date appears in prose, it MUST be a wikilink to the corresponding timeline entry. Write `[[2017]]` not `2017`, `[[2017-06]]` not `June 2017`, `[[2017-06-12]]` not `June 12, 2017`. Create the timeline entry if it doesn't exist yet.
 
-**Rule 5 — Verify before linking.** Before writing a wikilink to an entry you didn't just create, check that the file exists (via search or index). When in doubt, create a minimal stub entry rather than risk a dangling link.
+**Rule 5 — External URLs use standard markdown links.** External links use `[text](https://...)`, NEVER wikilinks. Wikilinks are for internal KB entries only.
+
+**Rule 6 — Verify before linking.** Before writing a wikilink to an entry you didn't just create, check that the file exists (via search or index). When in doubt, create a minimal stub entry rather than risk a dangling link.
 
 **Pre-commit check**: After finishing a kb:add or kb:lint operation, mentally scan all new/modified files for wikilinks. Every `[[target]]` must resolve to `knowledge/<category>/target.md` or a top-level file like `index.md`.
 

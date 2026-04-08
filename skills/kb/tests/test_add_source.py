@@ -109,6 +109,7 @@ class TestRegisterReference:
         content = stub.read_text(encoding="utf-8")
         assert "https://example.com/paper.pdf" in content
         assert "Remote Paper" in content
+        assert "[[smith-2024-analysis]]" in content
 
     def test_reference_updates_config(self, kb_path: Path):
         result = add_source.register_source(
