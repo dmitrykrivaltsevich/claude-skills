@@ -77,6 +77,26 @@ tags: []
         broken = [i for i in result["issues"] if i["type"] == "broken-link"]
         assert len(broken) == 0
 
+    def test_source_stub_link_not_flagged(self, kb_path: Path):
+        """Wikilinks to source stubs in sources/ should not be flagged as broken."""
+        _write_entry(kb_path, "sources/references/real-2020.md",
+                     "---\ntype: source-reference\nsource-id: real-2020\n---\n# Real 2020\n")
+        _write_entry(kb_path, "knowledge/sources/real-2020-analysis.md", """---
+type: source-analysis
+created: 2026-04-07
+updated: 2026-04-07
+source-ids: [real-2020]
+tags: []
+---
+
+# real-2020 — Paper Title
+
+**Source**: [[real-2020]]
+""")
+        result = lint.lint_kb(str(kb_path))
+        broken = [i for i in result["issues"] if i["type"] == "broken-link"]
+        assert len(broken) == 0
+
 
 class TestOrphanPages:
     def test_detects_orphan(self, kb_path: Path):

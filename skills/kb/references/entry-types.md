@@ -127,9 +127,15 @@ Self-attention mechanism replacing recurrence and convolution for sequence trans
 ## Core claim
 Sequence-to-sequence models can achieve state-of-the-art results using only attention mechanisms, without recurrence or convolution.
 
+![[knowledge/assets/vaswani-2017/transformer-architecture.png]]
+*Figure 1: The Transformer model architecture (vaswani-2017, Figure 1)*
+
 ## Evidence
 - BLEU score of 28.4 on WMT 2014 EN-DE (vaswani-2017, Table 2)
 - Training time reduced by order of magnitude vs. recurrent models
+
+![[knowledge/assets/vaswani-2017/bleu-score-comparison.png]]
+*Table 2: BLEU score comparison on EN-DE and EN-FR translation tasks*
 
 ## Impact
 - Foundation for [[transformer-architecture]]
@@ -147,6 +153,7 @@ Sequence-to-sequence models can achieve state-of-the-art results using only atte
 - `attributed-to` is required. Lists entity slugs.
 - `year` is required when known.
 - Distinguish from topics: ideas have specific authors and claims.
+- Embed extracted figures/tables inline using `![[knowledge/assets/<source-id>/<name>.png]]` with an italicized caption on the next line. Place each figure next to the text it supports.
 
 ---
 
@@ -274,6 +281,7 @@ Comprehensive biography covering Einstein's personal life, scientific contributi
 - One per source. Named `<source-id>-analysis.md`.
 - **MUST wikilink to the registered source**: `**Source**: [[<source-id>]]`. This is a wikilink — NOT a file path. Write `**Source**: [[lamport-1978]]`, NEVER `Source: sources/references/lamport-1978.md`. Do not mention whether the source is a reference or a file — that's an implementation detail irrelevant to the knowledge graph. The `add_source.py` script creates a navigable `.md` stub for every source, so `[[source-id]]` always resolves.
 - Must include summary, key extractions (what entries were created/updated), bibliography analysis (for academic sources).
+- If visual assets were extracted, list them under a `## Figures & Tables` section with `![[knowledge/assets/<source-id>/<name>.png]]` embeds and captions summarizing what each shows.
 
 ---
 

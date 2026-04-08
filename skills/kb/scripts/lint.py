@@ -84,6 +84,7 @@ def lint_kb(kb_path: str) -> dict:
     """
     root = Path(kb_path)
     knowledge_dir = root / "knowledge"
+    sources_dir = root / "sources"
     issues: list[dict] = []
 
     # Collect all knowledge .md files
@@ -91,6 +92,12 @@ def lint_kb(kb_path: str) -> dict:
 
     if not all_files:
         return {"issues": [], "total_issues": 0}
+
+    # Collect source stubs as valid link targets (not scanned for content)
+    source_stubs: set[str] = set()
+    if sources_dir.exists():
+        for f in sources_dir.rglob("*.md"):
+            source_stubs.add(f.stem)
 
     # Build link graph: file_stem → set of targets it links to
     outgoing: dict[str, set[str]] = {}
@@ -122,8 +129,8 @@ def lint_kb(kb_path: str) -> dict:
             incoming.setdefault(target_clean, set())
             incoming[target_clean].add(stem)
 
-            # Check if target exists
-            if target_clean not in all_files:
+            # Check if target exists in knowledge/ or sources/
+            if target_clean not in all_files and target_clean not in source_stubs:
                 issues.append({
                     "type": "broken-link",
                     "file": str(fpath.relative_to(root)),

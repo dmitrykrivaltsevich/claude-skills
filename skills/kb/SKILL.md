@@ -70,7 +70,7 @@ Three layers per KB:
 ├─────────────────────────────────────────────────────────┤
 │  KNOWLEDGE LAYER    knowledge/                          │
 │  entities/ topics/ ideas/ locations/ timeline/           │
-│  sources/ citations/ controversies/ meta/               │
+│  sources/ citations/ controversies/ meta/ assets/       │
 │  (LLM-curated markdown, interlinked via [[wikilinks]])  │
 ├─────────────────────────────────────────────────────────┤
 │  RAW LAYER    sources/                                  │
@@ -152,9 +152,10 @@ This is the most complex operation. It combines mechanical source registration w
 **Phase 2 — Read & Plan** (you)
 1. Read the source. For PDFs: use `/pdf` skill's `read.py` or `render.py`. For Google Docs: the downloaded markdown from `/drive` is directly readable.
 2. **Verify you have actual text.** If the read produced no content or errored, STOP. Tell the user the file could not be read and suggest alternatives (re-download, different format, manual copy-paste). Do NOT proceed from memory.
-2. Assess the source: what kind is it? (article, paper, book chapter, transcript, etc.)
-3. For large sources (books): identify chapters/sections → add as task items via `state.py add-items`
-4. Run `state.py update-phase --phase analyzing`
+3. **Extract visual assets.** For PDFs: use `/pdf` skill's `extract_images.py` to save embedded images to `knowledge/assets/<source-id>/`. Then use `render.py` on pages containing key figures, tables, diagrams, or charts that are NOT embedded images (e.g. vector graphics, formatted tables). Name each file descriptively: `transformer-architecture.png`, `attention-scores-table.png`, `training-loss-curve.png`. Skip decorative images (logos, headers, page backgrounds).
+4. Assess the source: what kind is it? (article, paper, book chapter, transcript, etc.)
+5. For large sources (books): identify chapters/sections → add as task items via `state.py add-items`
+6. Run `state.py update-phase --phase analyzing`
 
 **Phase 3 — Extract Knowledge** (you, per chunk)
 
@@ -166,8 +167,9 @@ This is the intellectual core. For each chunk of the source:
 4. **Extract locations** → `knowledge/locations/`
 5. **Extract dates** → create/update `knowledge/timeline/` entries (year→month→day chain)
 6. **Synthesize key arguments, facts, insights** → into the appropriate entries above
-7. **Interlink everything** via `[[wikilinks]]` — bidirectional where possible
-8. Mark processed items via `state.py update-item`
+7. **Embed visual assets** in relevant entries using `![[knowledge/assets/<source-id>/<filename>.png]]`. Place each figure/table next to the text discussing it, with a caption. Only embed assets extracted in Phase 2 — never reference non-existent files.
+8. **Interlink everything** via `[[wikilinks]]` — bidirectional where possible
+9. Mark processed items via `state.py update-item`
 
 See [references/add-workflow.md](references/add-workflow.md) for detailed checklists per source type.
 
@@ -275,6 +277,8 @@ This KB is Obsidian-compatible. Clicking a wikilink MUST open an existing file i
 **Rule 5 — External URLs use standard markdown links.** External links use `[text](https://...)`, NEVER wikilinks. Wikilinks are for internal KB entries only.
 
 **Rule 6 — Verify before linking.** Before writing a wikilink to an entry you didn't just create, check that the file exists (via search or index). When in doubt, create a minimal stub entry rather than risk a dangling link.
+
+**Rule 7 — Asset embeds use `![[path]]`.** Embed extracted images/figures with `![[knowledge/assets/<source-id>/<filename>.png]]`. Only embed files that you extracted in Phase 2 and that exist on disk. Never fabricate asset references.
 
 **Pre-commit check**: After finishing a kb:add or kb:lint operation, mentally scan all new/modified files for wikilinks. Every `[[target]]` must resolve to `knowledge/<category>/target.md` or a top-level file like `index.md`.
 

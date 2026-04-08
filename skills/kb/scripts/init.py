@@ -46,6 +46,7 @@ _KB_DIRS = [
     "knowledge/citations",
     "knowledge/controversies",
     "knowledge/meta",
+    "knowledge/assets",
 ]
 
 

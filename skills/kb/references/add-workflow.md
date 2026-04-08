@@ -21,6 +21,7 @@ Every `kb:add` regardless of source type:
 - [ ] Register source (`add_source.py`)
 - [ ] Create task (`state.py init`)
 - [ ] Read the source (use `/pdf` skill for PDFs)
+- [ ] Extract visual assets (figures, tables, diagrams, charts) → `knowledge/assets/<source-id>/`
 - [ ] Extract ALL named entities → `knowledge/entities/`
 - [ ] Extract ALL topics → `knowledge/topics/`
 - [ ] Extract ALL concrete ideas → `knowledge/ideas/`
@@ -41,13 +42,15 @@ Typically fits in one session. No chunking needed.
 
 1. Read the full text
 2. Identify: author, publication date, publication venue
-3. Create entity entry for author (or update existing)
-4. Extract the core argument/thesis → idea entry
-5. Extract supporting evidence → fold into idea entry or create sub-ideas
-6. Extract all mentioned entities, topics, locations, dates
-7. Note any claims that conflict with existing KB → controversy entry
-8. Write source analysis with summary + key takeaways
-9. Cross-link everything
+3. Extract visual assets: if source has diagrams, charts, or key figures, extract them to `knowledge/assets/<source-id>/` using `/pdf` skill's `extract_images.py` or `render.py`
+4. Create entity entry for author (or update existing)
+5. Extract the core argument/thesis → idea entry
+6. Extract supporting evidence → fold into idea entry or create sub-ideas
+7. Extract all mentioned entities, topics, locations, dates
+8. Embed extracted figures in relevant entries using `![[knowledge/assets/<source-id>/<name>.png]]`
+9. Note any claims that conflict with existing KB → controversy entry
+10. Write source analysis with summary + key takeaways
+11. Cross-link everything
 
 ## Academic Paper
 
@@ -55,10 +58,15 @@ Always has citation tracking. Often fits in one session.
 
 1. Read abstract → plan what to extract
 2. Read full paper
-3. Create entity entries for ALL authors
-4. Extract methodology → topic or meta entry if novel
-5. Extract findings → idea entries (attribute to authors + paper)
-6. Extract limitations acknowledged by authors → note in source analysis
+3. **Extract visual assets** (mandatory for papers with figures/tables):
+   - Use `/pdf` `extract_images.py` → save to `knowledge/assets/<source-id>/`
+   - Use `/pdf` `render.py` on pages with key figures, architecture diagrams, result tables, or algorithm pseudocode that aren't captured as embedded images
+   - Name descriptively: `transformer-architecture.png`, `bleu-score-comparison.png`, `algorithm-1-training-loop.png`
+   - Skip: decorative headers, journal logos, page numbers
+4. Create entity entries for ALL authors
+5. Extract methodology → topic or meta entry if novel
+6. Extract findings → idea entries (attribute to authors + paper). Embed relevant figures: `![[knowledge/assets/<source-id>/<name>.png]]`
+7. Extract limitations acknowledged by authors → note in source analysis
 7. **Citation graph** (mandatory for papers):
    - For each in-text citation: record exact sentence + reference
    - Create citation entries in `knowledge/citations/`
@@ -74,6 +82,7 @@ Multi-session. Use task state for continuity.
 1. **Session 1 — Plan**: Read table of contents. Create task items for each chapter/part.
 2. **Sessions 2-N — Per Chapter**:
    - Read chapter
+   - Extract visual assets from chapter pages (diagrams, illustrations, maps) → `knowledge/assets/<source-id>/`
    - Extract all entries (entities, topics, ideas, locations, dates)
    - Write chapter-level notes in source analysis
    - Mark chapter item done in task state

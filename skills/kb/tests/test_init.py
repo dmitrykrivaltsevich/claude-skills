@@ -40,6 +40,7 @@ class TestScaffoldKb:
         assert (kb_path / "knowledge" / "citations").is_dir()
         assert (kb_path / "knowledge" / "controversies").is_dir()
         assert (kb_path / "knowledge" / "meta").is_dir()
+        assert (kb_path / "knowledge" / "assets").is_dir()
         assert (kb_path / "index.md").exists()
         assert (kb_path / "log.md").exists()
 
