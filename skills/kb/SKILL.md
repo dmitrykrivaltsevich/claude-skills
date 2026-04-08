@@ -196,7 +196,7 @@ Mandatory for academic papers AND textbooks/books with bibliographies.
 
 **Phase 6 — Index & Log** (you)
 1. Update `index.md` with all new entries (organized by type, one-line summaries)
-2. Append operation to `log.md`: `## [YYYY-MM-DD] add | Source Title`
+2. Append ONE line to `log.md`: `YYYY-MM-DD add <source-id> | +NE +NT +NI +NC +NTL` (E=entities, T=topics, I=ideas, C=citations, TL=timeline; omit zero counts; use `~N` for updated entries). Do NOT write multi-line narratives — details live in source analyses and task state.
 3. Mark task complete: `state.py update-phase --phase done`
 
 ### kb:lint — Health Check, Repair & Consolidation
@@ -209,7 +209,7 @@ Mandatory for academic papers AND textbooks/books with bibliographies.
    - Absorb near-duplicates: when one entry is a strict subset of another, fold its unique content into the broader entry
    - Strengthen connections: if two entries reference the same ideas but don't link to each other, add wikilinks
 4. **Analyze**: look for undetected contradictions, stale claims, opportunities for new connections, entries that should be interlinked but aren't
-5. Update `index.md` and `log.md`
+5. Update `index.md`. Append one line to `log.md`: `YYYY-MM-DD lint | N issues fixed, ~M files`
 
 ### kb:query — Answer from KB
 

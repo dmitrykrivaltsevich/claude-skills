@@ -140,8 +140,11 @@ Organize entries by type with one-line summaries.
 
 ## Log
 
-log.md is append-only. Each entry format:
-`## [YYYY-MM-DD] <operation> | <title>`
+log.md is append-only. One line per operation:
+`YYYY-MM-DD <op> <source-id> | <tally>`
+Example: `2026-04-07 add vaswani-2017 | +10E +8T +4I +3TL`
+Key: E=entities, T=topics, I=ideas, C=citations, TL=timeline. ~N=updated.
+Details live in source analyses and task state — the log is a ledger, not a journal.
 
 ## Co-Evolution
 
@@ -203,9 +206,9 @@ def _log_md(name: str) -> str:
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     return f"""# {name} — Log
 
-Chronological record of KB operations.
+One line per operation. Details in source analyses and task state.
 
-## [{now}] init | Knowledge base created
+{now} init | KB created
 """
 
 

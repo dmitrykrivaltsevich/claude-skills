@@ -29,7 +29,7 @@ from contracts import ContractViolationError, precondition
 
 # Max lines of log to include in context — enough for recent activity
 # without bloating the context window.
-_MAX_LOG_LINES = 50  # ~50 lines ≈ last 10-15 operations
+_MAX_LOG_LINES = 50  # ~50 lines ≈ last ~47 operations (one-line-per-op format)
 
 
 # ---------------------------------------------------------------------------

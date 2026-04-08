@@ -33,7 +33,7 @@ Every `kb:add` regardless of source type:
 - [ ] Check for contradictions with existing KB → `knowledge/controversies/`
 - [ ] Consider meta-analysis opportunities → `knowledge/meta/`
 - [ ] Update `index.md`
-- [ ] Append to `log.md`
+- [ ] Append one line to `log.md`: `YYYY-MM-DD add <source-id> | +NE +NT +NI +NC +NTL`
 - [ ] Mark task done (`state.py update-phase --phase done`)
 
 ## Article / Blog Post
