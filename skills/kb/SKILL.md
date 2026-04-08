@@ -174,8 +174,13 @@ This is the intellectual core. For each chunk of the source:
 
 See [references/add-workflow.md](references/add-workflow.md) for detailed checklists per source type.
 
+> **Books & textbooks**: Do NOT skim. Extract EVERY named person, EVERY in-text citation, EVERY date. A 26-chapter textbook should yield 50–150 entity entries, 50–200 citations, 15–40 timeline entries. Run the per-chapter quality gate from add-workflow.md before marking any chapter done. The KB's value grows combinatorially with extraction coverage — a name mentioned in passing today becomes a central figure when its source is added later.
+
 **Phase 4 — Citation Graph** (you, for academic/referenced sources)
-1. Find every in-text citation (e.g., "bla bla bla [1][2]")
+
+Mandatory for academic papers AND textbooks/books with bibliographies.
+
+1. Find every in-text citation (e.g., "bla bla bla [1][2]", "(Author, Year)", "as shown by Author (Year)")
 2. For each citation: record the exact context sentence + what reference it points to
 3. Create citation entries in `knowledge/citations/`
 4. Create entries for referenced works NOT in KB — they accumulate incoming references over time

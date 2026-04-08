@@ -77,21 +77,53 @@ Always has citation tracking. Often fits in one session.
 
 ## Book
 
-Multi-session. Use task state for continuity.
+Multi-session. Use task state for continuity. Books — especially textbooks — are the densest source type. A 26-chapter textbook can yield 50–100+ entities, 100+ citations, 20+ timeline entries, and multiple controversies. Skimming is the #1 failure mode.
 
-1. **Session 1 — Plan**: Read table of contents. Create task items for each chapter/part.
-2. **Sessions 2-N — Per Chapter**:
-   - Read chapter
-   - Extract visual assets from chapter pages (diagrams, illustrations, maps) → `knowledge/assets/<source-id>/`
-   - Extract all entries (entities, topics, ideas, locations, dates)
-   - Write chapter-level notes in source analysis
-   - Mark chapter item done in task state
-3. **Final Session — Synthesis**:
-   - Write book-level source analysis (summarizes all chapters)
-   - Create cross-chapter connections
-   - Build timeline if book covers a span of time
-   - Meta-analysis if related books exist in KB
-   - Update index, log, mark task done
+### Session 1 — Plan
+
+1. Read table of contents, preface, and any "guided reading" sections
+2. Create task items: one per chapter + one "synthesis" item. Titles MUST include chapter number and name (e.g. `Ch 7: Design and implementation (pp. 176-204)`)
+3. If the book has a bibliography or references section, scan it to estimate citation density
+
+### Sessions 2-N — Per Chapter
+
+For each chapter, complete ALL of these before marking done:
+
+1. **Read the full chapter** — do not skim
+2. **Extract visual assets** — diagrams, figures, tables → `knowledge/assets/<source-id>/`
+3. **Extract EVERY named person** → entity entries. Textbooks reference researchers by name in running text (e.g. "Dijkstra's early work on…", "as Parnas showed in 1972…"). Each named person MUST get an entity entry (or update an existing one). A typical textbook chapter mentions 5–15 individuals.
+4. **Extract topics** → topic entries for each distinct subject area the chapter covers
+5. **Extract ideas** → idea entries for specific proposals, frameworks, methods, theorems attributed to someone (e.g. "Lehman's Laws of Software Evolution", "Boehm's spiral model"). Ideas are attributable to a person; topics are not.
+6. **Extract locations** → if the chapter mentions specific places (conferences, labs, companies)
+7. **Extract dates** → timeline entries for every year/event mentioned (e.g. "NATO Software Engineering Conference (1968)", "Agile Manifesto (2001)")
+8. **Citation tracking** (mandatory for textbooks):
+   - For each in-text reference (e.g. "(Royce, 1970)", "[Parnas, 1972]", "as shown by Brooks (1975)") create a citation entry
+   - Create stub entries for referenced works not yet in KB
+   - If the chapter has a "Further Reading" or "References" section, note bibliography items not cited in-text
+9. **Embed extracted figures** in relevant entries using `![[knowledge/assets/<source-id>/<name>.png]]`
+10. **Cross-link with entries from previous chapters** — wikilinks both directions
+11. **Detect contradictions** with existing KB or earlier chapters → controversy entries
+12. **Write chapter-level notes** in source analysis — a 2-3 sentence summary of the chapter plus what was extracted
+
+#### Per-chapter quality gate (check BEFORE marking done)
+
+- [ ] Every named person in the chapter text has an entity entry
+- [ ] Every in-text reference has a citation entry
+- [ ] Every year/date mentioned has a timeline entry (or updates an existing one)
+- [ ] Key figures/diagrams extracted as visual assets and embedded in entries
+- [ ] Chapter notes written in source analysis
+- [ ] All new entries interlinked with `[[wikilinks]]`
+
+If any box is unchecked, go back and fix it before marking the chapter done.
+
+### Final Session — Synthesis
+
+1. Write book-level source analysis (summarizes all chapters, cross-cutting themes)
+2. Create cross-chapter topic connections (themes that span multiple chapters)
+3. Build complete timeline from all extracted dates
+4. Identify controversies/debates the book discusses across chapters → controversy entries
+5. Meta-analysis if related sources exist in KB (e.g. same topic, contrasting viewpoints)
+6. Update index, log, mark task done
 
 See [Book Processing Pattern](#book-processing-pattern) below.
 
@@ -164,20 +196,44 @@ For a book with N chapters:
 
 ```
 Session 1:  Read TOC → state.py add-items (ch1, ch2, ..., chN, synthesis)
-Session 2:  state.py pending → process ch1 → update-item ch1 done
-Session 3:  state.py pending → process ch2 → update-item ch2 done
+Session 2:  state.py pending → process ch1 → quality gate → update-item ch1 done
+Session 3:  state.py pending → process ch2 → quality gate → update-item ch2 done
 ...
-Session N+1: state.py pending → process chN → update-item chN done
+Session N+1: state.py pending → process chN → quality gate → update-item chN done
 Session N+2: state.py pending → synthesis → update-phase done
 ```
 
 Each chapter session:
 1. Run `open.py` to reload KB context
 2. Run `state.py pending` to see next chapter
-3. Read chapter from source
-4. Extract all entries — these ARE the compacted form
+3. Read full chapter from source
+4. **Extract exhaustively** — every named person, every in-text reference, every date, every concept
 5. Cross-link with entries from previous chapters
-6. Mark chapter done
+6. **Run per-chapter quality gate** — check all boxes before proceeding
+7. Mark chapter done
+
+### Extraction density expectations (textbooks)
+
+These are baselines, not caps. Real chapters often exceed these:
+
+| Entry type | Typical per chapter | Notes |
+|-----------|-------------------|-------|
+| Entities  | 5–15              | Every named person in running text. Authors of cited works. Historical figures. |
+| Topics    | 1–3               | Major subject areas the chapter introduces or deepens |
+| Ideas     | 1–5               | Specific named models, methods, proposals (attributable) |
+| Citations | 5–20              | Every "(Author, Year)" or "[N]" reference in text |
+| Timeline  | 1–5               | Years explicitly mentioned with events |
+| Locations | 0–2               | Conferences, institutions, labs |
+
+A 26-chapter textbook should typically produce:
+- 50–150 entity entries (not 5)
+- 50–200 citation entries (not 0)
+- 15–40 timeline entries (not 4)
+- 3–8 controversy entries (not 0)
+
+### Why exhaustive extraction matters
+
+The LLM's instinct is to summarize — to compress a chapter into its 3-5 key points. That's the opposite of what the KB needs. The KB is a **long-term memory** that accumulates facts across sources. A person mentioned in passing in Chapter 9 might be a central figure in a later source. A citation to an obscure 1972 paper might become critical when that paper is added to the KB. Extract everything — the KB's value grows combinatorially with coverage.
 
 Synthesis session:
 1. Read all chapter-level entries (NOT the raw source)
