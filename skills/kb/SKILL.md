@@ -287,6 +287,8 @@ This KB is Obsidian-compatible. Clicking a wikilink MUST open an existing file i
 
 **Rule 7 — Asset embeds use `![[path]]`.** Embed extracted images/figures with `![[knowledge/assets/<source-id>/<filename>.png]]`. Only embed files that you extracted in Phase 2 and that exist on disk. Never fabricate asset references.
 
+**Rule 8 — No dead parenthetical references.** NEVER leave bare `(Author Year)` parenthetical references as plain text in knowledge entries. When the source text says "X is true (Boehm 2002)", the entry MUST replace the parenthetical with a wikilink to the citation entry: `X is true ([[sommerville-2011-cites-boehm-2002|Boehm, 2002]])`. If the citation entry doesn't exist yet, create it first (even a minimal stub). This makes every factual claim traceable — the reader clicks the link, lands on the citation entry, sees the exact context and citing source. A bare "(Boehm 2002)" is a dead end that tells the reader nothing about which Boehm 2002 work, which edition, or where to find it.
+
 **Pre-commit check**: After finishing a kb:add or kb:lint operation, mentally scan all new/modified files for wikilinks. Every `[[target]]` must resolve to `knowledge/<category>/target.md` or a top-level file like `index.md`.
 
 ## Citation Tracking

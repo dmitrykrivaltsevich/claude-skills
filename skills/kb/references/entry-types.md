@@ -122,6 +122,7 @@ Branch of physics describing nature at the atomic and subatomic level.
 **Rules**:
 - Topics are NOT attributable. "Machine learning" is a topic. "Attention mechanism" is an idea (attributable to Bahdanau et al.).
 - Link to entities (key figures), ideas (key contributions), and sub/super topics.
+- **No bare parenthetical references.** When prose contains a claim from a source that references another work — e.g. "less suitable for dependable processes (Boehm 2002)" — replace the parenthetical with a wikilink to the citation entry: `less suitable for dependable processes ([[sommerville-2011-cites-boehm-2002|Boehm, 2002]])`. Create the citation entry if it doesn't exist yet. This applies to ALL entry types with prose content (topics, ideas, entities, controversies).
 
 ---
 
