@@ -388,6 +388,7 @@ Context compaction can cause the LLM to "forget" the extraction strategy and dri
 3. **The quality gate is mandatory.** Every chunk MUST pass the quality gate checklist before marking done. This prevents drift toward skimming.
 4. **Checkpoint notes are your narrative.** After each chunk, write a `--notes` that captures both the extraction tally AND the key themes. This is your running narrative — it survives compaction and anchors your trajectory. Do NOT write incremental progress into knowledge files.
 5. **NEVER bulk-read after compaction.** When resuming after context compaction, process ONE chapter/section at a time — exactly as you did before compaction. The temptation to "catch up" by reading multiple remaining chapters at once produces shallow, summary-level extraction. Each chapter deserves the same exhaustive treatment regardless of how many remain. If 15 chapters are left, process them one by one across 15 cycles. There are no shortcuts.
+6. **Density drop = drift alarm.** After writing checkpoint notes, compare your extraction tally with the previous 2-3 chapters. If your counts dropped dramatically (e.g. previous chapters averaged `+5E +3I +8C` but you just wrote `+1T`), you ARE drifting. STOP. Re-read the quality gate. Re-read the chapter. Extract what you missed. Do NOT mark the chapter done until your extraction density is comparable to pre-compaction chapters.
 
 ### Context Management
 
