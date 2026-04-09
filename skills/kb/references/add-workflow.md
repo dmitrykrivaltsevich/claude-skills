@@ -83,7 +83,7 @@ Multi-session. Use task state for continuity. Books — especially textbooks —
 ### Session 1 — Plan
 
 1. Read table of contents, preface, and any "guided reading" sections
-2. Create task items: one per chapter + one "synthesis" item. Titles MUST include chapter number and name (e.g. `Ch 7: Design and implementation (pp. 176-204)`)
+2. Create task items: one per chapter + one per part/section boundary + one "synthesis" item. Titles MUST include chapter number and name (e.g. `Ch 7: Design and implementation (pp. 176-204)`) and part boundaries (e.g. `Part 2 aggregation: Dependability and Security (Ch 10-15)`). Part-level aggregation items are NOT optional — without them, book-level synthesis must jump from 26 chapters to one summary, which is too large a gap.
 3. If the book has a bibliography or references section, scan it to estimate citation density
 
 ### Sessions 2-N — Per Chapter
@@ -91,27 +91,37 @@ Multi-session. Use task state for continuity. Books — especially textbooks —
 For each chapter, complete ALL of these before marking done:
 
 1. **Read the full chapter** — do not skim
-2. **Extract visual assets** — diagrams, figures, tables → `knowledge/assets/<source-id>/`
+2. **Extract visual assets (MANDATORY)** — scan every page of the chapter. Use `/pdf` `render.py` on pages with figures, tables, diagrams, charts, architecture drawings, algorithm pseudocode, data tables, or workflow illustrations. Use `/pdf` `extract_images.py` for embedded images. A chapter with zero extracted assets is almost certainly a failed extraction — most non-trivial chapters contain at least one figure or table. Save to `knowledge/assets/<source-id>/ch<N>-<descriptive-name>.png`.
 3. **Extract EVERY named person** → entity entries. Textbooks reference researchers by name in running text (e.g. "Dijkstra's early work on…", "as Parnas showed in 1972…"). Each named person MUST get an entity entry (or update an existing one). A typical textbook chapter mentions 5–15 individuals.
-4. **Extract topics** → topic entries for each distinct subject area the chapter covers
-5. **Extract ideas** → idea entries for specific proposals, frameworks, methods, theorems attributed to someone (e.g. "Lehman's Laws of Software Evolution", "Boehm's spiral model"). Ideas are attributable to a person; topics are not.
-6. **Extract locations** → if the chapter mentions specific places (conferences, labs, companies)
-7. **Extract dates** → timeline entries for every year/event mentioned (e.g. "NATO Software Engineering Conference (1968)", "Agile Manifesto (2001)")
-8. **Citation tracking** (mandatory for textbooks):
+4. **Extract practical insights** (MANDATORY for every chapter) — this is what makes the KB USEFUL to an engineer:
+   - Decision tables: "when X, use Y; when Z, use W" → idea entries with tag `practical`
+   - Implementation patterns and architecture blueprints → idea entries
+   - Common pitfalls, gotchas, failure modes with causes and fixes → idea entries
+   - Design heuristics and rules of thumb → idea entries
+   - Deployment/scaling/operational considerations → idea entries
+   - Worked examples showing how theory applies in practice → fold into idea entries
+   - Think: "if I were building this system tomorrow, what from this chapter would I need?"
+5. **Extract topics** → topic entries for each distinct subject area the chapter covers
+6. **Extract ideas** → idea entries for specific proposals, frameworks, methods, theorems attributed to someone (e.g. "Lehman's Laws of Software Evolution", "Boehm's spiral model"). Ideas are attributable to a person; topics are not.
+7. **Extract locations** → if the chapter mentions specific places (conferences, labs, companies)
+8. **Extract dates** → timeline entries for every year/event mentioned (e.g. "NATO Software Engineering Conference (1968)", "Agile Manifesto (2001)")
+9. **Citation tracking** (mandatory for textbooks):
    - For each in-text reference (e.g. "(Royce, 1970)", "[Parnas, 1972]", "as shown by Brooks (1975)") create a citation entry
    - Create stub entries for referenced works not yet in KB
    - If the chapter has a "Further Reading" or "References" section, note bibliography items not cited in-text
-9. **Embed extracted figures** in relevant entries using `![[knowledge/assets/<source-id>/<name>.png]]`
-10. **Cross-link with entries from previous chapters** — wikilinks both directions
-11. **Detect contradictions** with existing KB or earlier chapters → controversy entries
+10. **Embed extracted figures** in relevant entries using `![[knowledge/assets/<source-id>/<name>.png]]`
+11. **Cross-link with entries from previous chapters** — wikilinks both directions
+12. **Detect contradictions** with existing KB or earlier chapters → controversy entries
 
 #### Per-chapter quality gate (check BEFORE marking done)
 
 - [ ] Every named person in the chapter text has an entity entry
 - [ ] Every in-text reference has a citation entry
 - [ ] Every year/date mentioned has a timeline entry (or updates an existing one)
-- [ ] Key figures/diagrams extracted as visual assets and embedded in entries
+- [ ] Figures/diagrams/tables extracted as visual assets and embedded in entries (zero assets = re-check the chapter)
+- [ ] Practical insights extracted: decision tables, pitfalls, implementation patterns, heuristics (if the chapter has ANY "how to" or "lessons learned" content, it MUST be extracted)
 - [ ] All new entries interlinked with `[[wikilinks]]`
+- [ ] Math explanations include plain-language intuition alongside formulas
 
 If any box is unchecked, go back and fix it before marking the chapter done.
 
@@ -125,15 +135,17 @@ state.py update-item --task-id <task-id> --item-id iN --status done \
 
 The notes format: `+NE +NT +NI +NC +NTL: key-entity-names; key-topics; key-ideas`. This is what the LLM reads to reconstruct context after compaction. Be specific enough that a future you — with zero context — knows what this chapter contributed.
 
-### Part-Level Aggregation (for books with parts/sections)
+### Part-Level Aggregation (MANDATORY for books with parts/sections)
 
-When a book has explicit parts (e.g. "Part 2: Dependability and Security, Chapters 10-15"), create a task item for each part boundary:
+When a book has explicit parts (e.g. \"Part 2: Dependability and Security, Chapters 10-15\"), you MUST have a task item for each part boundary (created in Session 1). Even if the book doesn't have explicit parts, group every 4-6 chapters into logical clusters and create aggregation items for them.
 
-1. After finishing all chapters in a part, write checkpoint notes summarizing cross-chapter themes for the part: `state.py update-item --notes "Part 2 themes: dependability vs security trade-off, Reason's Swiss cheese..."`
-2. Create or update topic entries for part-level themes that span multiple chapters
-3. Identify inter-chapter connections within the part → add wikilinks
+1. After finishing all chapters in a part, process the part-level aggregation item
+2. Write checkpoint notes summarizing cross-chapter themes: `state.py update-item --notes \"Part 2 themes: dependability vs security trade-off, Reason's Swiss cheese...\"`
+3. Create or update topic entries for part-level themes that span multiple chapters
+4. Create cross-chapter idea entries for patterns visible only at the part level
+5. Identify inter-chapter connections within the part → add wikilinks
 
-This is the middle level of hierarchical aggregation. Without it, the book-level synthesis has to jump from 26 individual chapters to a single synthesis — too large a gap.
+This is the middle level of hierarchical aggregation. Skipping it means the book-level synthesis must jump from 26 individual chapters to one summary — producing shallow, useless output.
 
 ### Final Session — Synthesis
 
@@ -271,9 +283,11 @@ These are baselines, not caps. Real chapters often exceed these:
 | Entities  | 5–15              | Every named person in running text. Authors of cited works. Historical figures. |
 | Topics    | 1–3               | Major subject areas the chapter introduces or deepens |
 | Ideas     | 1–5               | Specific named models, methods, proposals (attributable) |
-| Citations | 5–20              | Every "(Author, Year)" or "[N]" reference in text |
+| Practical | 1–3               | Decision tables, pitfalls, implementation guides, heuristics (tag: `practical`) |
+| Citations | 5–20              | Every \"(Author, Year)\" or \"[N]\" reference in text |
 | Timeline  | 1–5               | Years explicitly mentioned with events |
 | Locations | 0–2               | Conferences, institutions, labs |
+| Assets    | 1–5               | Figures, tables, diagrams rendered or extracted from the chapter |
 
 A 26-chapter textbook should typically produce:
 - 50–150 entity entries (not 5)
@@ -310,3 +324,4 @@ When resuming after context compaction or session break:
 3. Read your extracted entries from recent chunks (they're short, focused markdown)
 4. Do NOT re-read the raw source chunks you already processed
 5. Continue with the next pending item at the same extraction density
+6. **NEVER bulk-read remaining chapters to "catch up."** After compaction, process ONE chapter at a time — read it, extract exhaustively, checkpoint, move on. Bulk-reading multiple chapters at once produces shallow, summary-level extraction that misses practical insights, named entities, and citations. If 15 chapters remain, that's 15 separate read-extract-checkpoint cycles. There are no shortcuts.

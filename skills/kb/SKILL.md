@@ -152,7 +152,7 @@ This is the most complex operation. It combines mechanical source registration w
 **Phase 2 — Read & Plan** (you)
 1. Read the source. For PDFs: use `/pdf` skill's `read.py` or `render.py`. For Google Docs: the downloaded markdown from `/drive` is directly readable.
 2. **Verify you have actual text.** If the read produced no content or errored, STOP. Tell the user the file could not be read and suggest alternatives (re-download, different format, manual copy-paste). Do NOT proceed from memory.
-3. **Extract visual assets.** For PDFs: use `/pdf` skill's `extract_images.py` to save embedded images to `knowledge/assets/<source-id>/`. Then use `render.py` on pages containing key figures, tables, diagrams, or charts that are NOT embedded images (e.g. vector graphics, formatted tables). Name each file descriptively: `transformer-architecture.png`, `attention-scores-table.png`, `training-loss-curve.png`. Skip decorative images (logos, headers, page backgrounds).
+3. **Extract visual assets (MANDATORY — do not skip).** For PDFs: use `/pdf` skill's `extract_images.py` to save embedded images to `knowledge/assets/<source-id>/`. Then scan page by page: use `render.py` on EVERY page containing figures, tables, diagrams, charts, architecture drawings, algorithm pseudocode, or data tables that are NOT embedded images (e.g. vector graphics, formatted tables). This is not optional — a book with zero extracted assets is a failed extraction. Name each file descriptively: `transformer-architecture.png`, `attention-scores-table.png`, `training-loss-curve.png`. Skip only decorative images (logos, headers, page backgrounds). For books: extract assets per-chapter during Phase 3, not all at once.
 4. Assess the source: what kind is it? (article, paper, book chapter, transcript, etc.)
 5. For large sources (books): identify chapters/sections → add as task items via `state.py add-items`
 6. Run `state.py update-phase --phase analyzing`
@@ -236,6 +236,8 @@ You are not a filing clerk. You are a knowledge analyst. When processing a sourc
 - **Timeline is a navigable chain.** Each date entry links to prev/next at its level. Year entries have prev/next year. Month entries have prev/next month. Day entries have prev/next day. Each links up to parent (day→month→year).
 - **Controversies are first-class.** When you find contradicting information, create a dedicated entry in `knowledge/controversies/` — not just a note. Cross-reference from ALL involved entries.
 - **Recursive deepening for books.** Process chapter by chapter → part summaries → book synthesis → comparison with existing KB. Each level wikilinks to the one below. The extracted knowledge IS the compaction — you don't need the raw text again.
+- **Practical insights are first-class.** Most books contain actionable engineering knowledge: decision tables ("when X, use Y"), implementation patterns, common pitfalls with fixes, architecture trade-offs, design heuristics, deployment checklists, scaling considerations, debugging techniques. These are often MORE valuable than the theoretical concepts. Extract them as idea entries with tag `practical`. If a chapter has a "lessons learned", "common mistakes", "best practices", or "implementation" section — extract it exhaustively.
+- **Write for a staff/principal engineer, not a PhD student.** When the source uses dense math, always provide intuition FIRST, then the formula, then engineering implications. Translate "$O(\sqrt{KT \log T})$ regret" into "exploration cost grows as the square root of time — meaning it gets relatively cheaper to explore as you gather more data." Include the formula for precision, but never let it stand alone without a plain-language explanation of what it means in practice.
 
 ### Source ID Naming Convention
 
@@ -385,6 +387,7 @@ Context compaction can cause the LLM to "forget" the extraction strategy and dri
 2. **Checkpoint notes anchor your approach.** When resuming, read the notes from recent items — they show the extraction pattern you were following (e.g. "+8E +3T +12C" tells you to maintain that density, not drop to "+1T").
 3. **The quality gate is mandatory.** Every chunk MUST pass the quality gate checklist before marking done. This prevents drift toward skimming.
 4. **Checkpoint notes are your narrative.** After each chunk, write a `--notes` that captures both the extraction tally AND the key themes. This is your running narrative — it survives compaction and anchors your trajectory. Do NOT write incremental progress into knowledge files.
+5. **NEVER bulk-read after compaction.** When resuming after context compaction, process ONE chapter/section at a time — exactly as you did before compaction. The temptation to "catch up" by reading multiple remaining chapters at once produces shallow, summary-level extraction. Each chapter deserves the same exhaustive treatment regardless of how many remain. If 15 chapters are left, process them one by one across 15 cycles. There are no shortcuts.
 
 ### Context Management
 
