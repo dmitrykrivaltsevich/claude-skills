@@ -115,6 +115,19 @@ For each chapter, complete ALL of these before marking done:
 
 #### Per-chapter quality gate (check BEFORE marking done)
 
+**Hard minimums — a chapter that fails ANY of these is incomplete:**
+
+| Category | Minimum | Why |
+|----------|---------|-----|
+| Entities (E) | ≥ 3 | Nearly every textbook chapter names researchers, historical figures, or practitioners |
+| Citations (C) | ≥ 3 | Textbooks cite prior work throughout — zero citations means you skimmed |
+| Distinct categories | ≥ 3 of {E, T, I, C, TL} | A `+1T` checkpoint is ALWAYS drift. Real chapters produce entities + citations + at least one more type |
+| Visual assets | ≥ 1 (if chapter has any figures/tables) | Most non-trivial chapters have at least one figure, table, or diagram |
+
+If your extraction doesn't meet these minimums, **re-read the chapter from the beginning** — do not try to "patch" from memory.
+
+**Completeness checks — verify each before marking done:**
+
 - [ ] Every named person in the chapter text has an entity entry
 - [ ] Every in-text reference has a citation entry
 - [ ] Every year/date mentioned has a timeline entry (or updates an existing one)
@@ -133,7 +146,7 @@ state.py update-item --task-id <task-id> --item-id iN --status done \
   --state-dir <kb>/.kb/tasks
 ```
 
-The notes format: `+NE +NT +NI +NC +NTL: key-entity-names; key-topics; key-ideas`. This is what the LLM reads to reconstruct context after compaction. Be specific enough that a future you — with zero context — knows what this chapter contributed.
+The notes format: `+NE +NT +NI +NC +NTL: key-entity-names; key-topics; key-ideas`. This is what the LLM reads to reconstruct context after compaction. Be specific enough that a future you — with zero context — knows what this chapter contributed. **If any mandatory category shows +0 (especially E or C), you skipped extraction — go back and re-read the chapter before marking done.**
 
 ### Part-Level Aggregation (MANDATORY for books with parts/sections)
 
@@ -260,13 +273,14 @@ Session N+P+1: state.py pending → synthesis → update-phase done
 Each chapter session:
 1. Run `open.py` to reload KB context
 2. Run `state.py pending` to see next chapter + recent checkpoint notes
-3. **Read the checkpoint notes** from recent items — calibrate your extraction density to match
-4. Read full chapter from source
-5. **Extract exhaustively** — every named person, every in-text reference, every date, every concept
-6. Cross-link with entries from previous chapters
-7. **Run per-chapter quality gate** — check all boxes before proceeding
-8. **Write checkpoint notes** via `update-item --notes "..."` — the notes are your recovery breadcrumb
-9. Mark chapter done
+3. **Read the checkpoint notes from the FIRST 3 completed items** — these set the extraction density floor. If recent items show lower counts than early ones, you are drifting and must match early density.
+4. **Re-read the per-chapter quality gate above** (hard minimums table + completeness checks) — after compaction you will NOT remember the specific requirements
+5. Read full chapter from source
+6. **Extract exhaustively** — every named person, every in-text reference, every date, every concept
+7. Cross-link with entries from previous chapters
+8. **Run per-chapter quality gate** — verify hard minimums (≥3 E, ≥3 C, ≥3 categories) AND check all boxes before proceeding
+9. **Write checkpoint notes** via `update-item --notes "..."` — the notes are your recovery breadcrumb
+10. Mark chapter done
 
 Part-level aggregation session:
 1. Read checkpoint notes from completed chapter items in this part

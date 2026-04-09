@@ -356,10 +356,15 @@ The notes field is your breadcrumb trail. When context compacts, `state.py pendi
 After ANY interruption (context compaction, session break, error recovery):
 
 ```
-1. Run open.py          → reload KB structure, index, rules, pending tasks
-2. Run state.py status  → see current phase, done/pending counts
-3. Run state.py pending → see next items + checkpoint notes from recent items
-4. Continue from the next pending item — do NOT re-process done items
+1. Run open.py              → reload KB structure, index, rules, pending tasks
+2. Run state.py status      → see current phase, done/pending counts
+3. Run state.py pending     → see next items + checkpoint notes from recent items
+4. Calibrate extraction density:
+   - Read checkpoint notes from the FIRST 3 completed items (not just recent ones)
+   - These set the extraction density floor for all remaining items
+   - If recent items show declining counts vs early items, you ARE drifting
+5. For book chapters: re-read the per-chapter quality gate in add-workflow.md
+6. Continue from the next pending item — do NOT re-process done items
 ```
 
 This protocol works whether you lost context 5 minutes ago or 5 days ago. The disk state is the single source of truth.
@@ -389,6 +394,7 @@ Context compaction can cause the LLM to "forget" the extraction strategy and dri
 4. **Checkpoint notes are your narrative.** After each chunk, write a `--notes` that captures both the extraction tally AND the key themes. This is your running narrative — it survives compaction and anchors your trajectory. Do NOT write incremental progress into knowledge files.
 5. **NEVER bulk-read after compaction.** When resuming after context compaction, process ONE chapter/section at a time — exactly as you did before compaction. The temptation to "catch up" by reading multiple remaining chapters at once produces shallow, summary-level extraction. Each chapter deserves the same exhaustive treatment regardless of how many remain. If 15 chapters are left, process them one by one across 15 cycles. There are no shortcuts.
 6. **Density drop = drift alarm.** After writing checkpoint notes, compare your extraction tally against TWO baselines: (a) the density expectations table in add-workflow.md (5-15 entities, 5-20 citations per chapter), and (b) the first 3 chapters you processed in this task. Do NOT compare only against the previous 2-3 chapters — if those were already degraded by drift, you'll anchor to a bad baseline. If your counts are below 50% of EITHER baseline (e.g. early chapters averaged `+5E +3I +8C` but you just wrote `+1T`), you ARE drifting. STOP. Re-read the quality gate. Re-read the chapter. Extract what you missed. Do NOT mark the chapter done until density recovers.
+7. **Minimum viable extraction per chapter.** Every book chapter checkpoint MUST include at least 3 distinct extraction categories from {E, T, I, C, TL}. A checkpoint with only `+1T` or any single category is ALWAYS incomplete — no exceptions. Most non-trivial textbook chapters contain named people (→ E), in-text references (→ C), and at least one date or topic alongside ideas. If your checkpoint shows `+0E` or `+0C` for a textbook chapter, re-read the chapter — you skimmed it. The per-chapter quality gate in add-workflow.md has specific minimums.
 
 ### Context Management
 
