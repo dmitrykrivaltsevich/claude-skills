@@ -132,6 +132,34 @@ class TestRegisterReference:
         assert config["sources"][0]["id"] == "smith-2024"
         assert config["sources"][0]["location"] == "https://example.com/paper.pdf"
 
+    def test_reference_title_with_colon_produces_valid_yaml(self, kb_path: Path):
+        """Title containing colons must produce valid YAML frontmatter."""
+        add_source.register_source(
+            str(kb_path),
+            "https://example.com/paper.pdf",
+            is_reference=True,
+            title="Infrastructure: More, Better, Faster (Tang et al., 2010)",
+            source_id="tang-2010",
+        )
+        stub = kb_path / "sources" / "references" / "tang-2010.md"
+        content = stub.read_text(encoding="utf-8")
+        # Must be parseable by YAML
+        parts = content.split("---", 2)
+        fm = yaml.safe_load(parts[1])
+        assert fm["title"] == "Infrastructure: More, Better, Faster (Tang et al., 2010)"
+
+    def test_file_title_with_colon_produces_valid_yaml(self, kb_path: Path, sample_pdf: Path):
+        """Local file stub title with colons must produce valid YAML frontmatter."""
+        add_source.register_source(
+            str(kb_path), str(sample_pdf), source_id="tang-2010",
+            title="Infrastructure: More, Better, Faster (Tang et al., 2010)",
+        )
+        stub = kb_path / "sources" / "files" / "tang-2010.md"
+        content = stub.read_text(encoding="utf-8")
+        parts = content.split("---", 2)
+        fm = yaml.safe_load(parts[1])
+        assert fm["title"] == "Infrastructure: More, Better, Faster (Tang et al., 2010)"
+
 
 class TestCli:
     def test_register_file_cli(self, kb_path: Path, sample_pdf: Path, capsys):

@@ -89,8 +89,8 @@ def register_source(
         stub_content = f"""---
 type: source-reference
 source-id: {source_id}
-location: {source}
-title: {effective_title}
+location: "{source}"
+title: "{effective_title}"
 ---
 
 # {effective_title}
@@ -142,7 +142,7 @@ External source reference.
         stub_content = f"""---
 type: source-file
 source-id: {source_id}
-title: {effective_title}
+title: "{effective_title}"
 ---
 
 # {effective_title}
