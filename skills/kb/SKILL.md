@@ -176,12 +176,12 @@ See [references/add-workflow.md](references/add-workflow.md) for detailed checkl
 
 > **Books & textbooks**: Do NOT skim. Extract EVERY named person, EVERY in-text citation, EVERY date. A 26-chapter textbook should yield 50–150 entity entries, 50–200 citations, 15–40 timeline entries. Run the per-chapter quality gate from add-workflow.md before marking any chapter done. The KB's value grows combinatorially with extraction coverage — a name mentioned in passing today becomes a central figure when its source is added later.
 
-**Phase 4 — Citation Graph** (you, for academic/referenced sources)
+**Phase 4 — Citation Graph** (you, for any source that references external works)
 
-Mandatory for academic papers AND textbooks/books with bibliographies.
+Mandatory for academic papers, textbooks, and any source that references other works — whether via formal bibliography, numbered citations, inline URLs, footnotes, or informal mentions. A practitioner book with 30 inline URLs has 30 citations, not zero.
 
-1. Find every in-text citation (e.g., "bla bla bla [1][2]", "(Author, Year)", "as shown by Author (Year)")
-2. For each citation: record the exact context sentence + what reference it points to
+1. Find every reference: `[1][2]`, `(Author, Year)`, `as shown by Author (Year)`, inline hyperlinks/URLs, footnotes to external works, informal references ("see the scikit-learn docs")
+2. For each: record the exact context sentence + what it points to
 3. Create citation entries in `knowledge/citations/`
 4. Create entries for referenced works NOT in KB — they accumulate incoming references over time
 5. Track bibliography entries listed but NEVER cited in context → note in source analysis
@@ -229,7 +229,9 @@ Run `open.py --stats` and present: file counts by category, total wikilinks, pen
 
 You are not a filing clerk. You are a knowledge analyst. When processing a source:
 
-- **Understand before filing.** Read the whole chunk first, then decide what entries to create.
+- **Understand before filing.** Read the whole chunk first, then decide what entries to create. If you start creating entries mid-read, you'll file surface-level summaries instead of insights.
+- **Depth over breadth in entry content.** A good entry tells the reader something they wouldn't get from skimming the source or reading Wikipedia. Bad: "LinUCB is a UCB-based algorithm for contextual bandits." Good: "LinUCB's key insight: maintaining a confidence region over θ lets you explore efficiently in high dimensions — d features require only √d× more exploration, not d×." Every entry should contain at least one sentence that makes the reader say "huh, I didn't know that" or "that changes how I'd approach this."
+- **Find the hidden structure.** Authors bury insights in supporting paragraphs, worked examples, footnotes, and "aside" sections. The main heading tells you the topic; the paragraph starting with "Interestingly..." or "Note that..." or "A common mistake is..." contains the gem. Extract those — they're the entries a senior engineer would actually bookmark.
 - **Ideas ≠ Topics.** An idea is a specific intellectual contribution (attributable to a person/paper). A topic is a subject area. "Machine learning" is a topic. "Attention is all you need" is an idea.
 - **Every entity gets a page.** Every person mentioned (author, subject, referenced individual) gets an entry in `knowledge/entities/`. The entry accumulates facts and links as more sources are added.
 - **Relationships and influences are first-class.** When a source mentions who knew whom, who influenced whom, mentorship, correspondence, collaboration, or debate — record it in entity entries under `## Connections`, `## Influenced by`, and `## Influenced`. Include the mechanism (read their work, personal meeting, correspondence) and the date/location when stated. Over time this builds an influence graph showing how ideas propagated through people and places. Never fabricate connections — only record what the source explicitly states.
@@ -297,11 +299,11 @@ This KB is Obsidian-compatible. Clicking a wikilink MUST open an existing file i
 
 ## Citation Tracking
 
-For every academic or referenced source, you MUST build a citation graph:
+For every source that references external works, you MUST build a citation graph. This applies to academic papers (always), textbooks (always), practitioner books (usually — even without formal bibliographies), and articles/blog posts (when they link to sources). Inline URLs, hyperlinks, and footnotes count as references.
 
 ### Forward Citations (what this source cites)
 
-For each in-text citation like "evidence suggests X leads to Y [1][2]":
+For each reference — whether `[1]`, `(Author, Year)`, an inline URL, or a footnote:
 
 1. Identify the exact sentence containing the citation
 2. Identify which bibliography entries [1], [2] refer to

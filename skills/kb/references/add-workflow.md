@@ -91,9 +91,18 @@ Multi-session. Use task state for continuity. Books — especially textbooks —
 For each chapter, complete ALL of these before marking done:
 
 1. **Read the full chapter** — do not skim
-2. **Extract visual assets (MANDATORY)** — scan every page of the chapter. Use `/pdf` `render.py` on pages with figures, tables, diagrams, charts, architecture drawings, algorithm pseudocode, data tables, or workflow illustrations. Use `/pdf` `extract_images.py` for embedded images. A chapter with zero extracted assets is almost certainly a failed extraction — most non-trivial chapters contain at least one figure or table. Save to `knowledge/assets/<source-id>/ch<N>-<descriptive-name>.png`.
-3. **Extract EVERY named person** → entity entries. Textbooks reference researchers by name in running text (e.g. "Dijkstra's early work on…", "as Parnas showed in 1972…"). Each named person MUST get an entity entry (or update an existing one). A typical textbook chapter mentions 5–15 individuals.
-4. **Extract practical insights** (MANDATORY for every chapter) — this is what makes the KB USEFUL to an engineer:
+2. **Understand deeply (MANDATORY — BEFORE any extraction):**
+   Answer these questions in your head before creating a single entry:
+   - What is the chapter's core argument in your own words? (not a summary — the argument)
+   - What here would surprise a senior engineer? What goes against conventional wisdom?
+   - What is the single most important sentence or paragraph? Why?
+   - What does this chapter teach that you can't learn from the topic's Wikipedia page?
+   - What non-obvious connection exists to earlier chapters or other KB entries?
+   
+   **Include your answers in checkpoint notes.** They force deep processing. If you can't answer them, you read the words but didn't understand the chapter — read it again.
+3. **Extract visual assets (MANDATORY)** — scan every page of the chapter. Use `/pdf` `render.py` on pages with figures, tables, diagrams, charts, architecture drawings, algorithm pseudocode, data tables, or workflow illustrations. Use `/pdf` `extract_images.py` for embedded images. A chapter with zero extracted assets is almost certainly a failed extraction — most non-trivial chapters contain at least one figure or table. Save to `knowledge/assets/<source-id>/ch<N>-<descriptive-name>.png`.
+4. **Extract EVERY named person** → entity entries. Each named person MUST get an entity entry (or update an existing one). A typical textbook chapter mentions 5–15 individuals.
+5. **Extract practical insights** (MANDATORY for every chapter) — this is what makes the KB USEFUL to an engineer:
    - Decision tables: "when X, use Y; when Z, use W" → idea entries with tag `practical`
    - Implementation patterns and architecture blueprints → idea entries
    - Common pitfalls, gotchas, failure modes with causes and fixes → idea entries
@@ -101,17 +110,20 @@ For each chapter, complete ALL of these before marking done:
    - Deployment/scaling/operational considerations → idea entries
    - Worked examples showing how theory applies in practice → fold into idea entries
    - Think: "if I were building this system tomorrow, what from this chapter would I need?"
-5. **Extract topics** → topic entries for each distinct subject area the chapter covers
-6. **Extract ideas** → idea entries for specific proposals, frameworks, methods, theorems attributed to someone (e.g. "Lehman's Laws of Software Evolution", "Boehm's spiral model"). Ideas are attributable to a person; topics are not.
-7. **Extract locations** → if the chapter mentions specific places (conferences, labs, companies)
-8. **Extract dates** → timeline entries for every year/event mentioned (e.g. "NATO Software Engineering Conference (1968)", "Agile Manifesto (2001)")
-9. **Citation tracking** (mandatory for textbooks):
-   - For each in-text reference (e.g. "(Royce, 1970)", "[Parnas, 1972]", "as shown by Brooks (1975)") create a citation entry
+6. **Extract topics** → topic entries for each distinct subject area the chapter covers
+7. **Extract ideas** → idea entries for specific proposals, frameworks, methods, theorems attributed to someone (e.g. "Lehman's Laws of Software Evolution", "Boehm's spiral model"). Ideas are attributable to a person; topics are not.
+8. **Extract locations** → if the chapter mentions specific places (conferences, labs, companies)
+9. **Extract dates** → timeline entries for every year/event mentioned (e.g. "NATO Software Engineering Conference (1968)", "Agile Manifesto (2001)")
+10. **Citation tracking** (mandatory for ALL sources — not just those with formal bibliographies):
+   - **Academic references**: "(Royce, 1970)", "[Parnas, 1972]", "as shown by Brooks (1975)" → citation entry
+   - **Inline URLs**: hyperlinks or bare URLs to papers, articles, docs, Wikipedia, GitHub repos → citation entry. The URL IS the reference — treat it exactly like a numbered citation
+   - **Footnote references**: footnotes pointing to external works → citation entry
+   - **Informal mentions**: "see the scikit-learn documentation", "described on the project wiki" → citation entry if the target is identifiable
    - Create stub entries for referenced works not yet in KB
    - If the chapter has a "Further Reading" or "References" section, note bibliography items not cited in-text
-10. **Embed extracted figures** in relevant entries using `![[knowledge/assets/<source-id>/<name>.png]]`
-11. **Cross-link with entries from previous chapters** — wikilinks both directions
-12. **Detect contradictions** with existing KB or earlier chapters → controversy entries
+11. **Embed extracted figures** in relevant entries using `![[knowledge/assets/<source-id>/<name>.png]]`
+12. **Cross-link with entries from previous chapters** — wikilinks both directions
+13. **Detect contradictions** with existing KB or earlier chapters → controversy entries
 
 #### Per-chapter quality gate (check BEFORE marking done)
 
@@ -135,6 +147,7 @@ If your extraction doesn't meet these minimums, **re-read the chapter from the b
 - [ ] Practical insights extracted: decision tables, pitfalls, implementation patterns, heuristics (if the chapter has ANY "how to" or "lessons learned" content, it MUST be extracted)
 - [ ] All new entries interlinked with `[[wikilinks]]`
 - [ ] Math explanations include plain-language intuition alongside formulas
+- [ ] **Insight quality check**: at least one entry contains something a senior engineer would find surprising, counterintuitive, or non-obvious — if every entry reads like a Wikipedia summary, you filed but didn't think
 
 If any box is unchecked, go back and fix it before marking the chapter done.
 
@@ -216,7 +229,7 @@ When in doubt, use this pattern. The overhead of task items + checkpoint notes i
 
 ## Citation Tracking Examples
 
-### Example: In-text citation
+### Example: Numbered in-text citation
 
 Source text: "Recent work has shown that transformer architectures outperform RNNs on most NLP benchmarks [3][7]."
 
@@ -243,6 +256,36 @@ cite-key: "[3]"
 
 **See also**: [[transformers]], [[recurrent-neural-networks]], [[nlp-benchmarks]]
 ```
+
+### Example: Inline URL citation
+
+Source text (practitioner book or blog): "Bootstrap Thompson Sampling (see https://arxiv.org/abs/1410.4009) approximates the posterior without conjugate priors."
+
+Create `knowledge/citations/sweet-2023-cites-eckles-kaptein-2014.md`:
+
+```markdown
+---
+type: citation
+created: 2025-01-15
+source-ids: [sweet-2023]
+cited-work: "Eckles & Kaptein, 2014, Thompson Sampling with the Online Bootstrap"
+cite-url: "https://arxiv.org/abs/1410.4009"
+---
+
+# sweet-2023 cites Eckles & Kaptein 2014
+
+**Citing source**: [[sweet-2023-analysis]]
+
+**Context**: "Bootstrap Thompson Sampling approximates the posterior without conjugate priors."
+
+**Claims supported**: Bootstrap as a practical alternative to exact Bayesian posterior computation.
+
+**Significance**: Key enabler for Thompson Sampling in production — removes the conjugate prior requirement that limits real-world applicability.
+
+**See also**: [[bootstrap-thompson-sampling]], [[olivier-chapelle]]
+```
+
+**Note**: Inline URLs, hyperlinks, footnote URLs, and informal references ("see the scikit-learn docs") are ALL valid citations. A book with no formal bibliography but 30 inline URLs has 30 citations — not zero.
 
 ### Example: Unreferenced bibliography item
 
@@ -276,11 +319,12 @@ Each chapter session:
 3. **Read the checkpoint notes from the FIRST 3 completed items** — these set the extraction density floor. If recent items show lower counts than early ones, you are drifting and must match early density.
 4. **Re-read the per-chapter quality gate above** (hard minimums table + completeness checks) — after compaction you will NOT remember the specific requirements
 5. Read full chapter from source
-6. **Extract exhaustively** — every named person, every in-text reference, every date, every concept
-7. Cross-link with entries from previous chapters
-8. **Run per-chapter quality gate** — verify hard minimums (≥3 E, ≥3 C, ≥3 categories) AND check all boxes before proceeding
-9. **Write checkpoint notes** via `update-item --notes "..."` — the notes are your recovery breadcrumb
-10. Mark chapter done
+6. **Understand deeply** — answer the 5 deep-reading questions (step 2 in per-chapter checklist) BEFORE extracting anything
+7. **Extract exhaustively** — every named person, every reference (including inline URLs), every date, every concept
+8. Cross-link with entries from previous chapters
+9. **Run per-chapter quality gate** — verify hard minimums (≥3 E, ≥3 C, ≥3 categories) AND check all boxes including insight quality check
+10. **Write checkpoint notes** via `update-item --notes "..."` — include deep-reading answers + extraction tally
+11. Mark chapter done
 
 Part-level aggregation session:
 1. Read checkpoint notes from completed chapter items in this part
@@ -298,7 +342,7 @@ These are baselines, not caps. Real chapters often exceed these:
 | Topics    | 1–3               | Major subject areas the chapter introduces or deepens |
 | Ideas     | 1–5               | Specific named models, methods, proposals (attributable) |
 | Practical | 1–3               | Decision tables, pitfalls, implementation guides, heuristics (tag: `practical`) |
-| Citations | 5–20              | Every \"(Author, Year)\" or \"[N]\" reference in text |
+| Citations | 5–20              | Every "(Author, Year)", "[N]", inline URL, or footnote reference in text |
 | Timeline  | 1–5               | Years explicitly mentioned with events |
 | Locations | 0–2               | Conferences, institutions, labs |
 | Assets    | 1–5               | Figures, tables, diagrams rendered or extracted from the chapter |
