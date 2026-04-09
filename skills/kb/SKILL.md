@@ -289,6 +289,8 @@ This KB is Obsidian-compatible. Clicking a wikilink MUST open an existing file i
 
 **Rule 8 — No dead parenthetical references.** NEVER leave bare `(Author Year)` parenthetical references as plain text in knowledge entries. When the source text says "X is true (Boehm 2002)", the entry MUST replace the parenthetical with a wikilink to the citation entry: `X is true ([[sommerville-2011-cites-boehm-2002|Boehm, 2002]])`. If the citation entry doesn't exist yet, create it first (even a minimal stub). This makes every factual claim traceable — the reader clicks the link, lands on the citation entry, sees the exact context and citing source. A bare "(Boehm 2002)" is a dead end that tells the reader nothing about which Boehm 2002 work, which edition, or where to find it.
 
+**Rule 9 — No aliased wikilinks inside markdown tables.** The `|` in `[[page|Display]]` conflicts with the markdown table column delimiter. Inside a table cell, use only bare `[[page-name]]` (no alias). If you need display text, restructure as a list instead of a table.
+
 **Pre-commit check**: After finishing a kb:add or kb:lint operation, mentally scan all new/modified files for wikilinks. Every `[[target]]` must resolve to `knowledge/<category>/target.md` or a top-level file like `index.md`.
 
 ## Citation Tracking
