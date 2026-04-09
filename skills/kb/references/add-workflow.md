@@ -88,70 +88,51 @@ Multi-session. Use task state for continuity. Books — especially textbooks —
 
 ### Sessions 2-N — Per Chapter
 
-For each chapter, complete ALL of these before marking done:
+Each chapter has three phases: explore, file, verify. The explore phase is stochastic — let your attention drive it. The filing creates entries from your understanding. The verification catches what you missed.
 
-1. **Read the full chapter** — do not skim
-2. **Understand deeply (MANDATORY — BEFORE any extraction):**
-   Answer these questions in your head before creating a single entry:
-   - What is the chapter's core argument in your own words? (not a summary — the argument)
-   - What here would surprise a senior engineer? What goes against conventional wisdom?
-   - What is the single most important sentence or paragraph? Why?
-   - What does this chapter teach that you can't learn from the topic's Wikipedia page?
-   - What non-obvious connection exists to earlier chapters or other KB entries?
-   
-   **Include your answers in checkpoint notes.** They force deep processing. If you can't answer them, you read the words but didn't understand the chapter — read it again.
-3. **Extract visual assets (MANDATORY)** — scan every page of the chapter. Use `/pdf` `render.py` on pages with figures, tables, diagrams, charts, architecture drawings, algorithm pseudocode, data tables, or workflow illustrations. Use `/pdf` `extract_images.py` for embedded images. A chapter with zero extracted assets is almost certainly a failed extraction — most non-trivial chapters contain at least one figure or table. Save to `knowledge/assets/<source-id>/ch<N>-<descriptive-name>.png`.
-4. **Extract EVERY named person** → entity entries. Each named person MUST get an entity entry (or update an existing one). A typical textbook chapter mentions 5–15 individuals.
-5. **Extract practical insights** (MANDATORY for every chapter) — this is what makes the KB USEFUL to an engineer:
-   - Decision tables: "when X, use Y; when Z, use W" → idea entries with tag `practical`
-   - Implementation patterns and architecture blueprints → idea entries
-   - Common pitfalls, gotchas, failure modes with causes and fixes → idea entries
-   - Design heuristics and rules of thumb → idea entries
-   - Deployment/scaling/operational considerations → idea entries
-   - Worked examples showing how theory applies in practice → fold into idea entries
-   - Think: "if I were building this system tomorrow, what from this chapter would I need?"
-6. **Extract topics** → topic entries for each distinct subject area the chapter covers
-7. **Extract ideas** → idea entries for specific proposals, frameworks, methods, theorems attributed to someone (e.g. "Lehman's Laws of Software Evolution", "Boehm's spiral model"). Ideas are attributable to a person; topics are not.
-8. **Extract locations** → if the chapter mentions specific places (conferences, labs, companies)
-9. **Extract dates** → timeline entries for every year/event mentioned (e.g. "NATO Software Engineering Conference (1968)", "Agile Manifesto (2001)")
-10. **Citation tracking** (mandatory for ALL sources — not just those with formal bibliographies):
-   - **Academic references**: "(Royce, 1970)", "[Parnas, 1972]", "as shown by Brooks (1975)" → citation entry
-   - **Inline URLs**: hyperlinks or bare URLs to papers, articles, docs, Wikipedia, GitHub repos → citation entry. The URL IS the reference — treat it exactly like a numbered citation
-   - **Footnote references**: footnotes pointing to external works → citation entry
-   - **Informal mentions**: "see the scikit-learn documentation", "described on the project wiki" → citation entry if the target is identifiable
-   - Create stub entries for referenced works not yet in KB
-   - If the chapter has a "Further Reading" or "References" section, note bibliography items not cited in-text
-11. **Embed extracted figures** in relevant entries using `![[knowledge/assets/<source-id>/<name>.png]]`
-12. **Cross-link with entries from previous chapters** — wikilinks both directions
-13. **Detect contradictions** with existing KB or earlier chapters → controversy entries
+#### Explore — read and think (stochastic, YOUR judgment)
 
-#### Per-chapter quality gate (check BEFORE marking done)
+Read the full chapter. Do not skim. As you read, notice what grabs your attention — the surprising claim, the counterintuitive result, the aside that contradicts conventional wisdom, the footnote with a key reference, the diagram that crystallizes a concept, the passage that would change how an engineer approaches a problem.
+
+**Do NOT plan your extraction before reading.** Do not think "I need to find entities, then topics, then ideas." That fragments your attention into category-scanning instead of understanding. Just read and think.
+
+#### File — create entries (informed by your exploration)
+
+Create entries from what you found. Work in whatever order your understanding suggests — if a key insight grabbed you, write that idea entry first. If a person's contribution struck you, start with that entity. If a figure crystallized the chapter's argument, extract and embed it.
+
+You will naturally produce entries across multiple categories — entities, topics, ideas, citations, timeline, practical insights, locations, visual assets. The quality gate (below) catches if you missed a category. But the ORDER and EMPHASIS come from your reading, not from a checklist.
+
+**References**: Every reference you encounter — `(Author, Year)`, `[N]`, inline URL, footnote, "see the X documentation" — gets a citation entry. These accumulate over time and become the KB's citation graph.
+
+**Visual assets**: When you encounter a figure, table, or diagram worth preserving, extract it using `/pdf` tools (`render.py` for page renders, `extract_images.py` for embedded images). Embed in the entry where it belongs: `![[knowledge/assets/<source-id>/<name>.png]]`.
+
+**Cross-link** with entries from previous chapters — wikilinks both directions. Note contradictions with existing KB → controversy entries.
+
+#### Verify — quality gate (deterministic, catches what you missed)
 
 **Hard minimums — a chapter that fails ANY of these is incomplete:**
 
 | Category | Minimum | Why |
 |----------|---------|-----|
 | Entities (E) | ≥ 3 | Nearly every textbook chapter names researchers, historical figures, or practitioners |
-| Citations (C) | ≥ 3 | Textbooks cite prior work throughout — zero citations means you skimmed |
-| Distinct categories | ≥ 3 of {E, T, I, C, TL} | A `+1T` checkpoint is ALWAYS drift. Real chapters produce entities + citations + at least one more type |
+| Citations (C) | ≥ 3 | Most chapters reference prior work — via bibliography, inline URLs, footnotes, or informal mentions |
+| Distinct categories | ≥ 3 of {E, T, I, C, TL} | A `+1T` checkpoint is ALWAYS drift. Real chapters produce entries across multiple types |
 | Visual assets | ≥ 1 (if chapter has any figures/tables) | Most non-trivial chapters have at least one figure, table, or diagram |
 
-If your extraction doesn't meet these minimums, **re-read the chapter from the beginning** — do not try to "patch" from memory.
+If your extraction doesn't meet these minimums, **go back and look specifically for the missing category** — the gate tells you where you under-extracted. Re-read relevant sections if needed.
 
-**Completeness checks — verify each before marking done:**
+**Completeness scan — check before marking done:**
 
-- [ ] Every named person in the chapter text has an entity entry
-- [ ] Every in-text reference has a citation entry
-- [ ] Every year/date mentioned has a timeline entry (or updates an existing one)
-- [ ] Figures/diagrams/tables extracted as visual assets and embedded in entries (zero assets = re-check the chapter)
-- [ ] Practical insights extracted: decision tables, pitfalls, implementation patterns, heuristics (if the chapter has ANY "how to" or "lessons learned" content, it MUST be extracted)
-- [ ] All new entries interlinked with `[[wikilinks]]`
-- [ ] Math explanations include plain-language intuition alongside formulas
-- [ ] **Insight quality check**: at least one entry contains something a senior engineer would find surprising, counterintuitive, or non-obvious — if every entry reads like a Wikipedia summary, you filed but didn't think
+- [ ] Named people in the chapter text have entity entries (scan for proper nouns you skipped)
+- [ ] References have citation entries (scan for URLs, footnotes, `(Author, Year)` patterns)
+- [ ] Years/dates mentioned have timeline entries
+- [ ] Figures/tables extracted as visual assets and embedded in entries
+- [ ] Practical insights captured: decision tables, pitfalls, implementation patterns, heuristics
+- [ ] Entries interlinked with `[[wikilinks]]`
+- [ ] Math has plain-language intuition alongside formulas
+- [ ] At least one entry contains something non-obvious — if every entry reads like a Wikipedia summary, you filed without thinking
 
-If any box is unchecked, go back and fix it before marking the chapter done.
-
-#### Checkpoint (mandatory — do this AFTER quality gate, BEFORE moving to next chapter)
+#### Checkpoint (mandatory — after quality gate, before next chapter)
 
 ```bash
 state.py update-item --task-id <task-id> --item-id iN --status done \
@@ -159,7 +140,7 @@ state.py update-item --task-id <task-id> --item-id iN --status done \
   --state-dir <kb>/.kb/tasks
 ```
 
-The notes format: `+NE +NT +NI +NC +NTL: key-entity-names; key-topics; key-ideas`. This is what the LLM reads to reconstruct context after compaction. Be specific enough that a future you — with zero context — knows what this chapter contributed. **If any mandatory category shows +0 (especially E or C), you skipped extraction — go back and re-read the chapter before marking done.**
+The notes format: `+NE +NT +NI +NC +NTL: key-entity-names; key-topics; key-ideas`. Be specific enough that a future you — with zero context — knows what this chapter contributed. **If any mandatory category shows +0 (especially E or C), go back and re-read before marking done.**
 
 ### Part-Level Aggregation (MANDATORY for books with parts/sections)
 
@@ -316,15 +297,13 @@ Session N+P+1: state.py pending → synthesis → update-phase done
 Each chapter session:
 1. Run `open.py` to reload KB context
 2. Run `state.py pending` to see next chapter + recent checkpoint notes
-3. **Read the checkpoint notes from the FIRST 3 completed items** — these set the extraction density floor. If recent items show lower counts than early ones, you are drifting and must match early density.
-4. **Re-read the per-chapter quality gate above** (hard minimums table + completeness checks) — after compaction you will NOT remember the specific requirements
+3. **Check density floor**: read checkpoint notes from the FIRST 3 completed items. If recent items show lower counts, you are drifting — match early density.
+4. **Re-read the quality gate above** — after compaction you will NOT remember the hard minimums
 5. Read full chapter from source
-6. **Understand deeply** — answer the 5 deep-reading questions (step 2 in per-chapter checklist) BEFORE extracting anything
-7. **Extract exhaustively** — every named person, every reference (including inline URLs), every date, every concept
-8. Cross-link with entries from previous chapters
-9. **Run per-chapter quality gate** — verify hard minimums (≥3 E, ≥3 C, ≥3 categories) AND check all boxes including insight quality check
-10. **Write checkpoint notes** via `update-item --notes "..."` — include deep-reading answers + extraction tally
-11. Mark chapter done
+6. **Explore freely** — follow what grabs your attention. Create entries as your understanding develops, in whatever order makes sense.
+7. **Quality gate** — verify hard minimums (≥3 E, ≥3 C, ≥3 categories). Go back for any missing category.
+8. **Checkpoint** via `update-item --notes "..."` — extraction tally + what surprised you about this chapter
+9. Mark chapter done
 
 Part-level aggregation session:
 1. Read checkpoint notes from completed chapter items in this part
@@ -352,10 +331,6 @@ A 26-chapter textbook should typically produce:
 - 50–200 citation entries (not 0)
 - 15–40 timeline entries (not 4)
 - 3–8 controversy entries (not 0)
-
-### Why exhaustive extraction matters
-
-The LLM's instinct is to summarize — to compress a chapter into its 3-5 key points. That's the opposite of what the KB needs. The KB is a **long-term memory** that accumulates facts across sources. A person mentioned in passing in Chapter 9 might be a central figure in a later source. A citation to an obscure 1972 paper might become critical when that paper is added to the KB. Extract everything — the KB's value grows combinatorially with coverage.
 
 Synthesis session:
 1. Read checkpoint notes from all completed items (NOT the raw source)

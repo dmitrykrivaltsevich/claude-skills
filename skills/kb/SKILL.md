@@ -159,20 +159,19 @@ This is the most complex operation. It combines mechanical source registration w
 
 **Phase 3 — Extract Knowledge** (you, per chunk)
 
-This is the intellectual core. For each chunk of the source:
+This is the intellectual core — for any source, any chunk, any level of granularity.
 
-1. **Extract entities** → create/update files in `knowledge/entities/` (people, organizations)
-2. **Extract relationships & influences** → for each person, record connections (who knows whom, collaborations, debates), influence chains (who influenced whom, how, when), and locations at key moments. Only what the source explicitly states — see entity template in [references/entry-types.md](references/entry-types.md).
-3. **Extract topics** → `knowledge/topics/` (subject areas, fields)
-4. **Extract ideas** → `knowledge/ideas/` (specific hypotheses, proposals — ideas are attributable, topics are not)
-4. **Extract locations** → `knowledge/locations/`
-5. **Extract dates** → create/update `knowledge/timeline/` entries (year→month→day chain)
-6. **Synthesize key arguments, facts, insights** → into the appropriate entries above
-7. **Embed visual assets** in relevant entries using `![[knowledge/assets/<source-id>/<filename>.png]]`. Place each figure/table next to the text discussing it, with a caption. Only embed assets extracted in Phase 2 — never reference non-existent files.
-8. **Interlink everything** via `[[wikilinks]]` — bidirectional where possible
-9. **Checkpoint & advance**: Write all entries to disk, then mark the item done with checkpoint notes: `state.py update-item --item-id iN --status done --notes "+3E +2T +1I +5C: key-entity-names; key-topics"`. The notes are your breadcrumb trail — they survive context compaction.
+**Create entries as you read, in whatever order your understanding dictates.** Don't scan for "all entities" then "all topics" then "all ideas" — that assembly line fragments your attention and produces Wikipedia summaries. Instead, follow what grabs you: the surprising claim, the buried insight, the unexpected connection. Your stochastic attention is an asset — it catches things a mechanical pass would miss.
 
-See [references/add-workflow.md](references/add-workflow.md) for detailed checklists per source type.
+**Context-aware reading for large chunks.** A chunk is whatever `state.py` tracks as one work item — a chapter, a section, a paper. If a chunk is too large to hold in context alongside the entries you're writing, read it in sections: read a section → extract → write entries to disk → read the next section. The entries on disk ARE your memory — you don't need to hold the raw text. Never try to read an entire 30-page chapter into context before extracting anything; you'll either hit compaction or produce shallow summaries from the tail.
+
+Extract EVERY named person, EVERY in-text citation (formal `[N]` and inline URLs alike), EVERY date. The KB's value grows combinatorially with extraction coverage — a name mentioned in passing today becomes a central figure when its source is added later. A citation to an obscure 1972 paper becomes critical when that paper is added to the KB.
+
+The entry types: `entities/`, `topics/`, `ideas/`, `locations/`, `timeline/`, `citations/`, `controversies/`, `meta/`, `assets/`. Use all that apply — the quality gate (in add-workflow.md) catches missed categories.
+
+After writing all entries for the chunk: **checkpoint**. `state.py update-item --item-id iN --status done --notes "+3E +2T +1I +5C: key-names; key-topics; key-ideas"`. The notes survive context compaction.
+
+See [references/add-workflow.md](references/add-workflow.md) for quality gates and per-source-type guidance.
 
 > **Books & textbooks**: Do NOT skim. Extract EVERY named person, EVERY in-text citation, EVERY date. A 26-chapter textbook should yield 50–150 entity entries, 50–200 citations, 15–40 timeline entries. Run the per-chapter quality gate from add-workflow.md before marking any chapter done. The KB's value grows combinatorially with extraction coverage — a name mentioned in passing today becomes a central figure when its source is added later.
 
@@ -227,18 +226,30 @@ Run `open.py --stats` and present: file counts by category, total wikilinks, pen
 
 ## Knowledge Extraction — Your Core Job
 
-You are not a filing clerk. You are a knowledge analyst. When processing a source:
+You are not a filing clerk. You are a knowledge analyst. Your stochastic nature — the ability to notice unexpected patterns, make surprising connections, follow a buried footnote — is an asset. The design below harnesses it: you explore freely, the quality gate catches what you missed. This applies universally — to any source type, any chunk size, any level of the hierarchy.
 
-- **Understand before filing.** Read the whole chunk first, then decide what entries to create. If you start creating entries mid-read, you'll file surface-level summaries instead of insights.
-- **Depth over breadth in entry content.** A good entry tells the reader something they wouldn't get from skimming the source or reading Wikipedia. Bad: "LinUCB is a UCB-based algorithm for contextual bandits." Good: "LinUCB's key insight: maintaining a confidence region over θ lets you explore efficiently in high dimensions — d features require only √d× more exploration, not d×." Every entry should contain at least one sentence that makes the reader say "huh, I didn't know that" or "that changes how I'd approach this."
-- **Find the hidden structure.** Authors bury insights in supporting paragraphs, worked examples, footnotes, and "aside" sections. The main heading tells you the topic; the paragraph starting with "Interestingly..." or "Note that..." or "A common mistake is..." contains the gem. Extract those — they're the entries a senior engineer would actually bookmark.
-- **Ideas ≠ Topics.** An idea is a specific intellectual contribution (attributable to a person/paper). A topic is a subject area. "Machine learning" is a topic. "Attention is all you need" is an idea.
-- **Every entity gets a page.** Every person mentioned (author, subject, referenced individual) gets an entry in `knowledge/entities/`. The entry accumulates facts and links as more sources are added.
+### The Two Layers
+
+**Layer 1 — Stochastic exploration (YOUR judgment drives this).** Read the source material. Follow what grabs you. The thing that seems oddly interesting, the aside that contradicts what you expected, the example that crystallizes a vague concept — FOLLOW those. Create entries as your understanding develops, in whatever order makes sense. Don't scan for "all entities" then "all topics" then "all ideas" — that's an assembly line that fragments your attention and produces Wikipedia summaries.
+
+**Layer 2 — Deterministic guardrails (quality gate drives this).** After your free exploration, the quality gate catches what you missed. Did you fail to create entity entries for named people? Did you miss citations? Did you produce entries in fewer than 3 categories? The gate tells you what to go back for. This is the safety net, not the process.
+
+This two-layer pattern is recursively composable: it works for a single article, a book chapter, a part-level aggregation, a book-level synthesis, a cross-source meta-analysis. At every level: explore freely first, then verify completeness.
+
+### What to Extract and How
+
+- **Every entity gets a page.** Every person mentioned (author, subject, referenced individual) gets an entry in `knowledge/entities/`. The entry accumulates facts and links as more sources are added. A typical textbook chapter mentions 5–15 individuals.
 - **Relationships and influences are first-class.** When a source mentions who knew whom, who influenced whom, mentorship, correspondence, collaboration, or debate — record it in entity entries under `## Connections`, `## Influenced by`, and `## Influenced`. Include the mechanism (read their work, personal meeting, correspondence) and the date/location when stated. Over time this builds an influence graph showing how ideas propagated through people and places. Never fabricate connections — only record what the source explicitly states.
-- **Timeline is a navigable chain.** Each date entry links to prev/next at its level. Year entries have prev/next year. Month entries have prev/next month. Day entries have prev/next day. Each links up to parent (day→month→year).
+- **Practical insights are first-class.** Most sources contain actionable engineering knowledge: decision tables ("when X, use Y"), implementation patterns, common pitfalls with fixes, architecture trade-offs, design heuristics, deployment checklists, scaling considerations, debugging techniques. These are often MORE valuable than the theoretical concepts. Extract them as idea entries with tag `practical`. If a source has a "lessons learned", "common mistakes", "best practices", or "implementation" section — extract it exhaustively.
+- **Ideas ≠ Topics.** An idea is a specific intellectual contribution (attributable to a person/paper). A topic is a subject area. "Machine learning" is a topic. "Attention is all you need" is an idea.
 - **Controversies are first-class.** When you find contradicting information, create a dedicated entry in `knowledge/controversies/` — not just a note. Cross-reference from ALL involved entries.
+- **Timeline is a navigable chain.** Each date entry links to prev/next at its level. Year entries have prev/next year. Month entries have prev/next month. Day entries have prev/next day. Each links up to parent (day→month→year).
 - **Recursive deepening for books.** Process chapter by chapter → part summaries → book synthesis → comparison with existing KB. Each level wikilinks to the one below. The extracted knowledge IS the compaction — you don't need the raw text again.
-- **Practical insights are first-class.** Most books contain actionable engineering knowledge: decision tables ("when X, use Y"), implementation patterns, common pitfalls with fixes, architecture trade-offs, design heuristics, deployment checklists, scaling considerations, debugging techniques. These are often MORE valuable than the theoretical concepts. Extract them as idea entries with tag `practical`. If a chapter has a "lessons learned", "common mistakes", "best practices", or "implementation" section — extract it exhaustively.
+
+### What Makes a Good Entry
+
+- **Depth over breadth.** A good entry tells the reader something they wouldn't get from skimming the source or Wikipedia. Bad: "LinUCB is a UCB-based algorithm for contextual bandits." Good: "LinUCB's key insight: maintaining a confidence region over θ lets you explore efficiently in high dimensions — d features require only √d× more exploration, not d×." Every entry should have at least one sentence that makes the reader say "huh, I didn't know that."
+- **Find the hidden structure.** Authors bury insights in supporting paragraphs, worked examples, footnotes, and asides. The heading tells you the topic; the paragraph starting with "Interestingly..." or "A common mistake is..." contains the gem.
 - **Write for a staff/principal engineer, not a PhD student.** When the source uses dense math, always provide intuition FIRST, then the formula, then engineering implications. Translate "$O(\sqrt{KT \log T})$ regret" into "exploration cost grows as the square root of time — meaning it gets relatively cheaper to explore as you gather more data." Include the formula for precision, but never let it stand alone without a plain-language explanation of what it means in practice.
 
 ### Source ID Naming Convention
