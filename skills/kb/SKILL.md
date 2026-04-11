@@ -31,7 +31,7 @@ Knowledge Base — available operations:
 2. **open**   — Load an existing KB (do this at the start of every session)
 3. **add**    — Add a source and extract knowledge (articles, papers, books, URLs)
 4. **query**  — Search and answer questions from KB content
-5. **lint**   — Health check: find broken links, orphans, missing backlinks
+5. **lint**   — Health check, consolidate, prune: fix broken links, merge duplicates, strengthen connections
 6. **status** — Dashboard: file counts, link counts, pending tasks
 
 Which operation? (pick a number or describe what you need)
@@ -42,7 +42,7 @@ Which operation? (pick a number or describe what you need)
 - User says "open/load KB" or starts a session → **open**
 - User says "add/ingest/import" + file/URL/source → **add**
 - User says "search/find/query/what is/tell me about" → **query**
-- User says "check/lint/health/fix links" → **lint**
+- User says "check/lint/health/fix links/consolidate/merge/prune/deduplicate" → **lint**
 - User says "status/dashboard/stats/how many" → **status**
 - User provides a file path or URL without other context → **add** (assume they want to ingest it)
 

@@ -5,7 +5,7 @@
   },
   "metadata": {
     "description": "A collection of skills for Claude Code",
-    "version": "0.59.2"
+    "version": "0.59.3"
   },
   "plugins": [
     {
