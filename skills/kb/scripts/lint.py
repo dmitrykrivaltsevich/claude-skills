@@ -159,33 +159,95 @@ def lint_kb(kb_path: str) -> dict:
                     "message": f"'{stem}' links to '{target}' but '{target}' does not link back",
                 })
 
-    # Timeline gaps
-    for subdir, parse_fn in [
-        ("years", lambda s: int(s) if s.isdigit() else None),
-        ("months", lambda s: s),  # YYYY-MM format
-        ("days", lambda s: s),    # YYYY-MM-DD format
-    ]:
-        entries = _parse_timeline_entries(knowledge_dir, subdir)
-        if len(entries) >= 2:
-            for i in range(len(entries) - 1):
-                current = entries[i]
-                next_entry = entries[i + 1]
+    # Timeline gaps — years, months, and days
+    # Years: detect missing years between existing year entries.
+    # Months: detect missing YYYY-MM between consecutive month entries
+    #         that share the same year (or adjacent years).
+    # Days: detect missing YYYY-MM-DD between consecutive day entries
+    #        that share the same month.
+    year_entries = _parse_timeline_entries(knowledge_dir, "years")
+    if len(year_entries) >= 2:
+        nums = []
+        for s in year_entries:
+            try:
+                nums.append(int(s))
+            except ValueError:
+                pass
+        nums.sort()
+        for i in range(len(nums) - 1):
+            curr, nxt = nums[i], nums[i + 1]
+            if nxt - curr > 1:
+                for missing in range(curr + 1, nxt):
+                    issues.append({
+                        "type": "timeline-gap",
+                        "file": "knowledge/timeline/years/",
+                        "message": f"Missing year entry: {missing} (gap between {curr} and {nxt})",
+                        "details": {"between": [str(curr), str(nxt)], "missing": str(missing)},
+                    })
 
-                # For years, check if consecutive
-                if subdir == "years":
-                    try:
-                        curr_year = int(current)
-                        next_year = int(next_entry)
-                        if next_year - curr_year > 1:
-                            for missing_year in range(curr_year + 1, next_year):
-                                issues.append({
-                                    "type": "timeline-gap",
-                                    "file": f"knowledge/timeline/{subdir}/",
-                                    "message": f"Missing year entry: {missing_year} (gap between {current} and {next_entry})",
-                                    "details": {"between": [current, next_entry], "missing": str(missing_year)},
-                                })
-                    except ValueError:
-                        pass
+    month_entries = _parse_timeline_entries(knowledge_dir, "months")
+    if len(month_entries) >= 2:
+        valid_months: list[tuple[int, int]] = []
+        for s in month_entries:
+            parts = s.split("-")
+            if len(parts) == 2:
+                try:
+                    valid_months.append((int(parts[0]), int(parts[1])))
+                except ValueError:
+                    pass
+        valid_months.sort()
+        for i in range(len(valid_months) - 1):
+            cy, cm = valid_months[i]
+            ny, nm = valid_months[i + 1]
+            # Walk forward one month at a time
+            ty, tm = cy, cm
+            while True:
+                tm += 1
+                if tm > 12:
+                    tm = 1
+                    ty += 1
+                if (ty, tm) >= (ny, nm):
+                    break
+                missing_str = f"{ty:04d}-{tm:02d}"
+                issues.append({
+                    "type": "timeline-gap",
+                    "file": "knowledge/timeline/months/",
+                    "message": f"Missing month entry: {missing_str} (gap between {cy:04d}-{cm:02d} and {ny:04d}-{nm:02d})",
+                    "details": {
+                        "between": [f"{cy:04d}-{cm:02d}", f"{ny:04d}-{nm:02d}"],
+                        "missing": missing_str,
+                    },
+                })
+
+    day_entries = _parse_timeline_entries(knowledge_dir, "days")
+    if len(day_entries) >= 2:
+        from datetime import date, timedelta
+        valid_days: list[date] = []
+        for s in day_entries:
+            parts = s.split("-")
+            if len(parts) == 3:
+                try:
+                    valid_days.append(date(int(parts[0]), int(parts[1]), int(parts[2])))
+                except ValueError:
+                    pass
+        valid_days.sort()
+        for i in range(len(valid_days) - 1):
+            curr_day = valid_days[i]
+            next_day = valid_days[i + 1]
+            delta = (next_day - curr_day).days
+            if delta > 1:
+                for offset in range(1, delta):
+                    missing_day = curr_day + timedelta(days=offset)
+                    missing_str = missing_day.isoformat()
+                    issues.append({
+                        "type": "timeline-gap",
+                        "file": "knowledge/timeline/days/",
+                        "message": f"Missing day entry: {missing_str} (gap between {curr_day.isoformat()} and {next_day.isoformat()})",
+                        "details": {
+                            "between": [curr_day.isoformat(), next_day.isoformat()],
+                            "missing": missing_str,
+                        },
+                    })
 
     return {
         "issues": issues,

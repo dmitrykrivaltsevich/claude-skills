@@ -13,6 +13,8 @@ Schema, required frontmatter, and examples for each knowledge entry type. Linked
 7. [Citation](#citation)
 8. [Controversy](#controversy)
 9. [Meta](#meta)
+10. [Question](#question)
+11. [Custom Entry Types](#custom-entry-types)
 
 ---
 
@@ -78,6 +80,8 @@ German-born theoretical physicist. Developed the theory of relativity.
 - **Connections** — record who this person knew, collaborated with, debated, or corresponded with. Include: the nature of the relationship, when it occurred (wikilinked date), and what it produced. Only record what the source explicitly states — never infer relationships.
 - **Influenced by / Influenced** — record intellectual influence chains: who shaped this person's thinking (and how), and who this person influenced (and how). Include the mechanism when stated (read their work, personal mentorship, correspondence, attended lectures). These sections build the influence graph over time.
 - **Locations** — record where this person was at key moments, especially when the source ties location to intellectual output (e.g. "conceived idea X while at Y").
+- **Triangulation** — when adding information from a NEW source about a person who already has an entity entry, do NOT blindly append. Instead: (1) read the existing entry, (2) compare what the new source says against what's already there, (3) note agreements (shared facts reinforce confidence), (4) note disagreements or new facets (create controversy entries if contradictions are found), (5) add source attribution to every new fact. Over time, each entity builds a multi-source profile — like triangulating a position from multiple observations. The more sources that independently confirm a fact, the more reliable it is. Mark each section with its source: `(per [[source-analysis]])`. When sources disagree on a detail (dates, attribution, relationships), note both versions inline with their sources rather than picking one.
+- **Comprehensive profiles** — entity entries should grow into deep profiles, not remain stub-level summaries. After 3+ sources mention a person, the entry should include: biographical arc, intellectual contributions with specific attributions, relationship network, key locations and periods, influence chains (who influenced them, who they influenced), and a `## Source concordance` section showing which sources contributed what. A person mentioned across 10 sources should have a richly detailed entry, not 10 one-line additions.
 
 ---
 
@@ -434,3 +438,74 @@ Each step increased parallelism while preserving or improving quality.
 - `meta-kind` required.
 - Created when 2+ sources cover overlapping topics.
 - Link to all relevant source analyses and entries.
+
+---
+
+## Question
+
+**Path**: `knowledge/questions/<kebab-name>.md`
+**What**: An open question that a source raises but does not answer — or that emerges from cross-source analysis.
+
+```yaml
+---
+type: question
+created: 2025-01-15
+updated: 2025-01-15
+source-ids: [vaswani-2017]
+tags: [attention, scaling]
+status: open | partially-answered | answered
+raised-by: source | exploration | revisit
+---
+```
+
+```markdown
+# Does self-attention scale to sequences longer than training length?
+
+## Origin
+**Source**: [[vaswani-2017-analysis]]
+**Passage**: "We have not explored the limits of sequence length in our experiments; all evaluations used sequences of at most 512 tokens."
+
+## Why it matters
+Production use cases (legal documents, codebases, books) routinely exceed 512 tokens. If attention degrades at longer sequences, the architecture needs modification.
+
+## What we know
+- Original experiments capped at 512 tokens
+- Later work: [[dai-2019-analysis]] introduced relative position encodings, partially addressing this
+
+## What we don't know
+- Theoretical bounds on attention quality degradation with length
+- Whether linear attention variants preserve the same representation quality
+
+## Related
+- [[self-attention]], [[transformer-architecture]], [[positional-encoding]]
+```
+
+**Rules**:
+- `status` is required: `open` (no answer in KB), `partially-answered` (some evidence found), `answered` (resolved with source).
+- `raised-by` is required: `source` (explicitly raised in a source text), `exploration` (emerged during kb:explore), `revisit` (noticed during kb:revisit).
+- **Every question MUST cite a specific passage or observation.** The `## Origin` section MUST include a wikilink to the source analysis and the exact sentence/paragraph that prompted the question. Questions without grounding are hallucination risks.
+- When a later source answers the question: update `status` to `answered`, add the answer in a `## Resolution` section with source attribution, and wikilink from the answering source's entries back to this question.
+- Questions are NOT hypotheses or speculations. They are gaps, open problems, or unexplored directions that the source material itself indicates (explicitly or implicitly).
+
+---
+
+## Custom Entry Types
+
+The 10 built-in types above cover most knowledge domains. However, as a KB grows and covers new source types (codebases, experiments, design patterns, legal cases, recipes, etc.), new entry types may be needed.
+
+**How to add a custom type:**
+
+1. Propose the type in `rules.md` — include: name, directory (`knowledge/<type-name>/`), required frontmatter fields, and when to use it vs. existing types.
+2. Create the directory under `knowledge/`.
+3. Update `rules.md` with the type definition (the LLM reads rules.md via `open.py`).
+4. Custom types MUST follow the same conventions: YAML frontmatter with `type:`, `created:`, `updated:`, `source-ids:`, `tags:`, and any type-specific fields.
+5. `lint.py` recognizes any `.md` file under `knowledge/` — custom types get link checking, orphan detection, and frontmatter validation automatically.
+
+**Examples of custom types that might emerge:**
+- `experiments/` — for recording experimental results, parameters, and outcomes
+- `patterns/` — for design patterns, architectural patterns, anti-patterns
+- `code-analysis/` — for analysis of source code, algorithms, API surfaces
+- `case-studies/` — for detailed real-world cases with outcomes
+- `theorems/` — for formal mathematical results with proofs and implications
+
+**The rules.md file is the authoritative type registry for each KB.** When the LLM encounters a concept that doesn't fit the built-in types, it SHOULD propose a custom type to the user rather than forcing the entry into an ill-fitting category.

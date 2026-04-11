@@ -32,7 +32,9 @@ Knowledge Base — available operations:
 3. **add**    — Add a source and extract knowledge (articles, papers, books, URLs)
 4. **query**  — Search and answer questions from KB content
 5. **lint**   — Health check, consolidate, prune: fix broken links, merge duplicates, strengthen connections
-6. **status** — Dashboard: file counts, link counts, pending tasks
+6. **explore** — Free-form exploration: find surprising connections, synthesize, generate questions
+7. **revisit** — Re-read older entries through the lens of newer knowledge
+8. **status** — Dashboard: file counts, link counts, pending tasks
 
 Which operation? (pick a number or describe what you need)
 ```
@@ -44,6 +46,8 @@ Which operation? (pick a number or describe what you need)
 - User says "search/find/query/what is/tell me about" → **query**
 - User says "check/lint/health/fix links/consolidate/merge/prune/deduplicate" → **lint**
 - User says "status/dashboard/stats/how many" → **status**
+- User says "explore/connections/synthesize/what patterns/what's interesting" → **explore**
+- User says "revisit/refresh/update old/stale entries" → **revisit**
 - User provides a file path or URL without other context → **add** (assume they want to ingest it)
 
 ## Contents
@@ -70,7 +74,8 @@ Three layers per KB:
 ├─────────────────────────────────────────────────────────┤
 │  KNOWLEDGE LAYER    knowledge/                          │
 │  entities/ topics/ ideas/ locations/ timeline/           │
-│  sources/ citations/ controversies/ meta/ assets/       │
+│  sources/ citations/ controversies/ meta/ questions/     │
+│  assets/ + custom types defined in rules.md             │
 │  (LLM-curated markdown, interlinked via [[wikilinks]])  │
 ├─────────────────────────────────────────────────────────┤
 │  RAW LAYER    sources/                                  │
@@ -90,8 +95,9 @@ Three layers per KB:
 | "KB stats/dashboard" | `open.py --path DIR --stats` | Above + total files, total wikilinks |
 | "Add this file/source" | `add_source.py --kb-path DIR --source FILE --source-id ID` | Source copied, config updated |
 | "Add this URL as reference" | `add_source.py --kb-path DIR --source URL --reference --title "T" --source-id ID` | Reference stub created |
-| "Check KB health" | `lint.py --path DIR` | JSON: broken links, orphans, missing backlinks, timeline gaps |
-| "Search the KB for X" | `search.py --path DIR --query "X"` | JSON: matching files with context lines |
+| "Check KB health" | `lint.py --path DIR` | JSON: broken links, orphans, missing backlinks, timeline gaps (year/month/day) |
+| "Search the KB for X" | `search.py --path DIR --query "X" [--category CAT] [--first-only]` | JSON: scored file results with multi-match, term coverage |
+| "Find entries related to these topics" | `related.py --kb-path DIR --keywords "a,b,c"` | JSON: entries scored by keyword overlap |
 | "What's the task status?" | `state.py status --task-id ID` | JSON: phase, items done/pending/in-progress |
 | "Resume pending work" | `state.py pending --task-id ID` | JSON: next items to process |
 
@@ -117,6 +123,12 @@ uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/state.py init --task-id "add-pape
 
 # Search the KB:
 uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/search.py --path /path/to/kb --query "quantum computing"
+
+# Search only entities:
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/search.py --path /path/to/kb --query "feynman" --category entities
+
+# Find entries related to keywords (for cross-referencing):
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/related.py --kb-path /path/to/kb --keywords "attention,transformer,self-attention"
 
 # Lint the KB:
 uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/lint.py --path /path/to/kb
@@ -167,9 +179,13 @@ This is the intellectual core — for any source, any chunk, any level of granul
 
 Extract EVERY named person, EVERY in-text citation (formal `[N]` and inline URLs alike), EVERY date. The KB's value grows combinatorially with extraction coverage — a name mentioned in passing today becomes a central figure when its source is added later. A citation to an obscure 1972 paper becomes critical when that paper is added to the KB.
 
-The entry types: `entities/`, `topics/`, `ideas/`, `locations/`, `timeline/`, `citations/`, `controversies/`, `meta/`, `assets/`. Use all that apply — the quality gate (in add-workflow.md) catches missed categories.
+The entry types: `entities/`, `topics/`, `ideas/`, `locations/`, `timeline/`, `citations/`, `controversies/`, `meta/`, `assets/`, `questions/`. Use all that apply — the quality gate (in add-workflow.md) catches missed categories.
 
-After writing all entries for the chunk: **checkpoint**. `state.py update-item --item-id iN --status done --notes "+3E +2T +1I +5C: key-names; key-topics; key-ideas"`. The notes survive context compaction.
+After writing all entries for the chunk, do a **multi-perspective pass** — re-read the chunk through a deliberately different lens (practitioner, skeptic, engineer, or deep-diver depending on what your first pass emphasized). This second scan activates different attention patterns and typically yields 1-3 additional entries or significant enrichments. See [references/add-workflow.md](references/add-workflow.md) for lens selection rules.
+
+Then generate **1-3 grounded questions** — things the source raises but doesn't answer, gaps it exposes, or tensions with existing KB content. See [references/add-workflow.md](references/add-workflow.md) for what qualifies. Every question MUST cite a specific passage.
+
+After all entries + perspective pass + questions: **checkpoint**. `state.py update-item --item-id iN --status done --notes "+3E +2T +1I +5C +1Q [skeptic pass: +1 controversy]: key-names; key-topics; key-ideas"`. The notes survive context compaction.
 
 See [references/add-workflow.md](references/add-workflow.md) for quality gates and per-source-type guidance.
 
@@ -188,27 +204,37 @@ Mandatory for academic papers, textbooks, and any source that references other w
 
 **Phase 5 — Cross-Reference & Analyze** (you)
 1. Write per-source summary in `knowledge/sources/`
-2. Read existing KB entries related to this source's topics
-3. Add wikilinks from existing entries to new entries and vice versa
-4. **Detect contradictions** → create `knowledge/controversies/` entries with cross-refs from all involved
-5. If related sources exist → create `knowledge/meta/` entries (meta-analyses, comparisons)
+2. Run `related.py --kb-path DIR --keywords "key,terms,from,source"` to find existing entries that overlap with this source's topics — this saves tokens vs. reading everything
+3. Read the related entries. For entities already in KB: **triangulate** (see [references/entry-types.md](references/entry-types.md)) — compare, note agreements/disagreements, enrich
+4. Add wikilinks from existing entries to new entries and vice versa. **EVERY new wikilink MUST be reciprocal — no exceptions.**
+5. **Detect contradictions** → create `knowledge/controversies/` entries with cross-refs from all involved
+6. **Creative cross-linking (MANDATORY)** — read 10 existing entries chosen for DIVERSITY, not obvious topical overlap. Look for structural parallels, shared mechanisms, analogous problems. See [references/add-workflow.md](references/add-workflow.md) for the random walk protocol.
+7. If related sources exist → create `knowledge/meta/` entries (meta-analyses, comparisons)
 
-**Phase 6 — Index & Log** (you)
+**Phase 6 — Index, Log & Evolve** (you)
 1. Update `index.md` with all new entries (organized by type, one-line summaries)
-2. Append ONE line to `log.md`: `YYYY-MM-DD add <source-id> | +NE +NT +NI +NC +NTL` (E=entities, T=topics, I=ideas, C=citations, TL=timeline; omit zero counts; use `~N` for updated entries). Do NOT write multi-line narratives — details live in source analyses and task state.
-3. Mark task complete: `state.py update-phase --phase done`
+2. Append ONE line to `log.md`: `YYYY-MM-DD add <source-id> | +NE +NT +NI +NC +NTL +NQ` (E=entities, T=topics, I=ideas, C=citations, TL=timeline, Q=questions; omit zero counts; use `~N` for updated entries). Do NOT write multi-line narratives — details live in source analyses and task state.
+3. **Rules co-evolution check (MANDATORY)**: Read `.kb/rules.md`. After this source, should rules change? Check: (a) Did you encounter a new pattern that should become a rule? (b) Did the user correct your style or structure? (c) Is there a naming conflict or ambiguity that a rule would prevent? (d) Does this source suggest a new entry type? If YES to any: propose the specific change to the user. If NO to all: move on. This check costs 30 seconds and prevents gradual drift.
+4. Mark task complete: `state.py update-phase --phase done`
+5. **Offer exploration**: "Source ingested. Want me to explore the KB for new connections?" If user agrees → run `kb:explore`.
 
 ### kb:lint — Health Check, Repair & Consolidation
 
 1. Run `lint.py` — get JSON list of mechanical issues
-2. **Fix mechanical issues**: broken links (correct target or create missing entry), orphan pages (link from relevant entries), missing backlinks (add reciprocal links), timeline gaps (create missing entries), missing frontmatter (add it)
-3. **Consolidate knowledge**: scan entries for overlapping or redundant content:
+2. **Fix ALL mechanical issues — every single one, no matter the count.** If there are 2200 missing backlinks, fix all 2200. Batch them (50 at a time, save, repeat) but do NOT skip any or say "too many." This is mechanical work that scales with compute, not judgment.
+   - Broken links: correct target or create missing entry
+   - Orphan pages: link from relevant entries
+   - **Missing backlinks: add reciprocal links. ALL of them.** If A→B but B↛A, add the link to B. This is the #1 lint priority — without reciprocal links the knowledge graph is broken.
+   - Timeline gaps: create missing year/month/day entries
+   - Missing frontmatter: add it
+3. **Consolidate knowledge** (semantic — this is YOUR job, not a script's):
    - Find entries covering the same concept (e.g. `neural-network` and `neural-networks`, or two topic entries both explaining attention mechanisms)
    - Merge duplicates: combine content into the richer entry, redirect wikilinks from the removed entry, delete the weaker one
    - Absorb near-duplicates: when one entry is a strict subset of another, fold its unique content into the broader entry
    - Strengthen connections: if two entries reference the same ideas but don't link to each other, add wikilinks
-4. **Analyze**: look for undetected contradictions, stale claims, opportunities for new connections, entries that should be interlinked but aren't
-5. Update `index.md`. Append one line to `log.md`: `YYYY-MM-DD lint | N issues fixed, ~M files`
+4. **Analyze**: look for undetected contradictions, stale claims, entries that should be interlinked but aren't
+5. **Rules co-evolution check**: same as Phase 6 of kb:add. Read rules.md, propose changes if patterns emerged during lint.
+6. Update `index.md`. Append one line to `log.md`: `YYYY-MM-DD lint | N issues fixed, ~M files`
 
 ### kb:query — Answer from KB
 
@@ -224,6 +250,26 @@ Mandatory for academic papers, textbooks, and any source that references other w
 
 Run `open.py --stats` and present: file counts by category, total wikilinks, pending tasks, recent log entries.
 
+### kb:explore — Free Exploration & Synthesis
+
+Post-add (or on-demand) free-form wandering through the KB. The LLM follows wikilinks, reads entries, and looks for surprising connections, synthesis opportunities, and questions that only become visible when multiple sources coexist. This exploits the LLM's stochastic pattern recognition across domains.
+
+**Process**: prime context → wander through 15-20 entries → capture grounded insights → log.
+
+**Hallucination guardrail**: Every claim must trace to specific entry text. No entries from LLM memory. When uncertain, create a question entry rather than a meta entry, and ask the user.
+
+See [references/explore-workflow.md](references/explore-workflow.md) for the full protocol.
+
+### kb:revisit — Re-Read Old Entries Through New Eyes
+
+Periodic re-visitation of older entries through the lens of newer knowledge. Targets: multi-source entities with thin profiles, early entries with sparse links, open questions that may now be answerable, topics with single-source perspective.
+
+**Process**: select 5-10 high-value entries → read → compare against current KB depth → triangulate entities → enrich → fix links → log.
+
+**Hallucination guardrail**: Do NOT "improve" entries from world knowledge. Every new fact must trace to a `[[source-analysis]]`. Preserve original attributions.
+
+See [references/revisit-workflow.md](references/revisit-workflow.md) for the full protocol.
+
 ## Knowledge Extraction — Your Core Job
 
 You are not a filing clerk. You are a knowledge analyst. Your stochastic nature — the ability to notice unexpected patterns, make surprising connections, follow a buried footnote — is an asset. The design below harnesses it: you explore freely, the quality gate catches what you missed. This applies universally — to any source type, any chunk size, any level of the hierarchy.
@@ -238,11 +284,12 @@ This two-layer pattern is recursively composable: it works for a single article,
 
 ### What to Extract and How
 
-- **Every entity gets a page.** Every person mentioned (author, subject, referenced individual) gets an entry in `knowledge/entities/`. The entry accumulates facts and links as more sources are added. A typical textbook chapter mentions 5–15 individuals.
+- **Every entity gets a page.** Every person mentioned (author, subject, referenced individual) gets an entry in `knowledge/entities/`. The entry accumulates facts and links as more sources are added. A typical textbook chapter mentions 5–15 individuals. **When updating an existing entity from a new source, triangulate**: compare what the new source says against existing content, note agreements, note disagreements, add source attribution to every new fact. Over time, entities build comprehensive multi-source profiles — not stub-level summaries with appended bullet points. See [references/entry-types.md](references/entry-types.md) for triangulation rules.
 - **Relationships and influences are first-class.** When a source mentions who knew whom, who influenced whom, mentorship, correspondence, collaboration, or debate — record it in entity entries under `## Connections`, `## Influenced by`, and `## Influenced`. Include the mechanism (read their work, personal meeting, correspondence) and the date/location when stated. Over time this builds an influence graph showing how ideas propagated through people and places. Never fabricate connections — only record what the source explicitly states.
 - **Practical insights are first-class.** Most sources contain actionable engineering knowledge: decision tables ("when X, use Y"), implementation patterns, common pitfalls with fixes, architecture trade-offs, design heuristics, deployment checklists, scaling considerations, debugging techniques. These are often MORE valuable than the theoretical concepts. Extract them as idea entries with tag `practical`. If a source has a "lessons learned", "common mistakes", "best practices", or "implementation" section — extract it exhaustively.
 - **Ideas ≠ Topics.** An idea is a specific intellectual contribution (attributable to a person/paper). A topic is a subject area. "Machine learning" is a topic. "Attention is all you need" is an idea. Every idea entry MUST have `attributed-to: [entity-slugs]` and `year:` in frontmatter — these are required fields, not optional. See [references/entry-types.md](references/entry-types.md).
 - **Controversies are first-class.** When you find contradicting information, create a dedicated entry in `knowledge/controversies/` — not just a note. Cross-reference from ALL involved entries.
+- **Questions are first-class.** Every source raises things it doesn't answer. Create `knowledge/questions/` entries for gaps, open problems, and tensions between sources. Every question MUST cite the passage that raised it. Questions with `status: open` are the KB's "wanted" list — they guide future source acquisition and get resolved as more sources arrive. See [references/entry-types.md](references/entry-types.md).
 - **Timeline is a navigable chain.** Each date entry links to prev/next at its level. Year entries have prev/next year. Month entries have prev/next month. Day entries have prev/next day. Each links up to parent (day→month→year).
 - **Recursive deepening for books.** Process chapter by chapter → part summaries → book synthesis → comparison with existing KB. Each level wikilinks to the one below. The extracted knowledge IS the compaction — you don't need the raw text again.
 
@@ -423,21 +470,27 @@ Context compaction can cause the LLM to "forget" the extraction strategy and dri
 
 The file `.kb/rules.md` is the per-KB operating manual. It starts from a template but MUST evolve as the KB grows. Unlike SKILL.md (which is generic), rules.md captures decisions specific to THIS knowledge base.
 
+**This is NOT optional.** After 20+ sources, the rules.md should have grown significantly from its template. If it hasn't evolved, you're not doing this step. The mandatory check in Phase 6 of kb:add and step 5 of kb:lint exist precisely because LLMs tend to skip this — DO NOT SKIP IT.
+
 **When to update rules.md** (propose the change to the user first):
 
 | Trigger | What to add |
 |---|---|
 | User corrects your entry style or structure | Record the preference as a rule |
-| A new entry type pattern emerges (e.g. "recipe", "theorem") | Add it to the entry types table with directory and frontmatter |
+| A new entry type pattern emerges (e.g. "recipe", "theorem", "code-analysis") | Add it to the entry types in rules.md with directory and frontmatter. Create the directory. See [references/entry-types.md](references/entry-types.md) Custom Entry Types section |
 | User establishes a tagging convention | Document the tag taxonomy |
 | User sets a scope boundary ("this KB is only about X") | Add a scope section |
 | A naming conflict arises (two concepts with similar names) | Add a disambiguation rule |
 | The KB reaches a size where new conventions help | Add organizational rules (e.g. sub-directories, index sections) |
 | User requests a custom workflow | Document it as a named operation |
+| You notice a recurring extraction pattern | Codify it so future sessions follow it |
+| A source type is new to the KB (e.g. first codebase, first legal document) | Add source-type-specific extraction guidance |
 
 **How to update**: Read the current rules.md, propose the specific change to the user, and apply it only after approval. Never silently modify rules.md.
 
 ## Reference
 
-- [references/add-workflow.md](references/add-workflow.md) — Detailed `kb:add` checklists per source type, book processing pattern, citation tracking examples
-- [references/entry-types.md](references/entry-types.md) — Schema for each entry type with frontmatter, examples, and wikilink patterns
+- [references/add-workflow.md](references/add-workflow.md) — Detailed `kb:add` checklists per source type, multi-perspective extraction, question generation, creative cross-linking, backlink enforcement, book processing pattern, citation tracking examples
+- [references/entry-types.md](references/entry-types.md) — Schema for each entry type (including questions), custom entry types, entity triangulation rules, wikilink patterns
+- [references/explore-workflow.md](references/explore-workflow.md) — `kb:explore` protocol: post-add free exploration, hallucination guardrails, synthesis patterns
+- [references/revisit-workflow.md](references/revisit-workflow.md) — `kb:revisit` protocol: periodic re-visitation of older entries, selection strategy, triangulation

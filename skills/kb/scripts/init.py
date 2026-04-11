@@ -46,6 +46,7 @@ _KB_DIRS = [
     "knowledge/citations",
     "knowledge/controversies",
     "knowledge/meta",
+    "knowledge/questions",
     "knowledge/assets",
 ]
 
@@ -104,6 +105,7 @@ tags: []
 | citation | knowledge/citations/ | Citation graph (X cites Y in context Z) |
 | controversy | knowledge/controversies/ | Contradictions with cross-references |
 | meta | knowledge/meta/ | Cross-source meta-analyses |
+| question | knowledge/questions/ | Open questions, gaps, tensions between sources |
 
 ## Timeline Entries
 
@@ -193,6 +195,10 @@ _No entries yet._
 _No entries yet._
 
 ## Meta-Analyses
+
+_No entries yet._
+
+## Questions
 
 _No entries yet._
 

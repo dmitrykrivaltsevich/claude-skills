@@ -189,6 +189,76 @@ Events in 2027.
         # Should detect gap: 2025 has no next=2026, 2027 has no prev=2026
         assert len(timeline_issues) >= 1
 
+    def test_detects_month_gaps(self, kb_path: Path):
+        _write_entry(kb_path, "knowledge/timeline/months/2025-01.md", """---
+type: timeline
+created: 2026-04-07
+updated: 2026-04-07
+source-ids: []
+tags: []
+date: "2025-01"
+---
+
+# 2025-01
+""")
+        _write_entry(kb_path, "knowledge/timeline/months/2025-04.md", """---
+type: timeline
+created: 2026-04-07
+updated: 2026-04-07
+source-ids: []
+tags: []
+date: "2025-04"
+---
+
+# 2025-04
+""")
+        result = lint.lint_kb(str(kb_path))
+        month_gaps = [i for i in result["issues"]
+                      if i["type"] == "timeline-gap" and "months" in i["file"]]
+        missing = {i["details"]["missing"] for i in month_gaps}
+        assert "2025-02" in missing
+        assert "2025-03" in missing
+
+    def test_detects_month_gaps_across_year_boundary(self, kb_path: Path):
+        _write_entry(kb_path, "knowledge/timeline/months/2024-11.md", """---
+type: timeline
+date: "2024-11"
+---
+# 2024-11
+""")
+        _write_entry(kb_path, "knowledge/timeline/months/2025-02.md", """---
+type: timeline
+date: "2025-02"
+---
+# 2025-02
+""")
+        result = lint.lint_kb(str(kb_path))
+        month_gaps = [i for i in result["issues"]
+                      if i["type"] == "timeline-gap" and "months" in i["file"]]
+        missing = {i["details"]["missing"] for i in month_gaps}
+        assert "2024-12" in missing
+        assert "2025-01" in missing
+
+    def test_detects_day_gaps(self, kb_path: Path):
+        _write_entry(kb_path, "knowledge/timeline/days/2025-03-10.md", """---
+type: timeline
+date: "2025-03-10"
+---
+# 2025-03-10
+""")
+        _write_entry(kb_path, "knowledge/timeline/days/2025-03-13.md", """---
+type: timeline
+date: "2025-03-13"
+---
+# 2025-03-13
+""")
+        result = lint.lint_kb(str(kb_path))
+        day_gaps = [i for i in result["issues"]
+                    if i["type"] == "timeline-gap" and "days" in i["file"]]
+        missing = {i["details"]["missing"] for i in day_gaps}
+        assert "2025-03-11" in missing
+        assert "2025-03-12" in missing
+
 
 class TestSummary:
     def test_returns_summary_counts(self, kb_path: Path):

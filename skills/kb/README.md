@@ -12,6 +12,8 @@ Operations:
 - **kb:add** — register source + heavy analytical extraction (multi-session capable)
 - **kb:lint** — mechanical health checks (broken links, orphans, timeline gaps)
 - **kb:query** — search and answer from KB content
+- **kb:explore** — free-form exploration: find surprising connections, synthesize, generate questions
+- **kb:revisit** — re-read older entries through the lens of newer knowledge
 - **kb:status** — dashboard with file counts and pending tasks
 
 ## Scripts
@@ -21,8 +23,9 @@ Operations:
 | `init.py` | Scaffold KB folder structure, config, rules, index |
 | `open.py` | Load full KB context as JSON (config, rules, counts, pending tasks) |
 | `add_source.py` | Copy/reference a source file, assign ID, update config |
-| `lint.py` | Check broken wikilinks, orphans, missing backlinks, timeline gaps |
-| `search.py` | Full-text grep across KB markdown files |
+| `lint.py` | Check broken wikilinks, orphans, missing backlinks, timeline gaps (year/month/day) |
+| `search.py` | Full-text search with scoring, multi-match, category filter |
+| `related.py` | Find entries by keyword overlap (for cross-referencing) |
 | `state.py` | Multi-session task queue (init, add-items, update, status) |
 | `contracts.py` | Design-by-contract decorators (shared utility) |
 
@@ -47,6 +50,7 @@ my-kb/
     citations/         # Citation graph entries
     controversies/     # Contradictions and debates
     meta/              # Cross-source syntheses
+    questions/         # Open questions, gaps, tensions
   index.md             # Table of contents
   log.md               # Operation log
 ```
@@ -57,4 +61,4 @@ my-kb/
 uv run --no-config --with pytest --with pyyaml pytest skills/kb/tests/ -x --tb=short
 ```
 
-77 tests across 6 test files.
+110 tests across 7 test files.
