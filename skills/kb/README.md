@@ -14,6 +14,8 @@ Operations:
 - **kb:query** — search and answer from KB content
 - **kb:explore** — free-form exploration: find surprising connections, synthesize, generate questions
 - **kb:revisit** — re-read older entries through the lens of newer knowledge
+- **kb:iterate** — deep cyclic analysis: re-read entries iteratively until insights converge
+- **kb:topology** — graph structure analysis: find clusters, bridges, gaps, anomalies
 - **kb:status** — dashboard with file counts and pending tasks
 
 ## Scripts
@@ -26,6 +28,8 @@ Operations:
 | `lint.py` | Check broken wikilinks, orphans, missing backlinks, timeline gaps (year/month/day) |
 | `search.py` | Full-text search with scoring, multi-match, category filter |
 | `related.py` | Find entries by keyword overlap (for cross-referencing) |
+| `graph.py` | Extract wikilink graph: nodes, edges, degrees, components |
+| `topology.py` | Graph topology analysis: clusters, bridges, structural holes, anomalies |
 | `state.py` | Multi-session task queue (init, add-items, update, status) |
 | `contracts.py` | Design-by-contract decorators (shared utility) |
 
@@ -61,4 +65,4 @@ my-kb/
 uv run --no-config --with pytest --with pyyaml pytest skills/kb/tests/ -x --tb=short
 ```
 
-110 tests across 7 test files.
+135 tests across 9 test files.

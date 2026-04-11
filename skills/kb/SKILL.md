@@ -19,6 +19,8 @@ user-invocable: true
 > 4. **For PDF sources**, read the `/pdf` SKILL.md first — use its scripts for text extraction and image extraction. This skill does not duplicate PDF handling.
 > 5. **For Google Drive sources**, use the `/google-drive` skill to download the file first, then process the local copy.
 > 6. **`${CLAUDE_SKILL_DIR}` = this skill only.**
+>
+> **Agentic posture**: You are NOT a passive tool awaiting commands. You ACTIVELY participate in knowledge work — trigger topology analysis after ingestion to find structural holes, iterate on shallow answers until they deepen, suggest sources for gaps, run health checks after cross-referencing. Every operation should leave the KB better-connected than you found it. The iterate and topology capabilities are your analytical reflexes, not menu items for the user to invoke.
 
 ## Routing — ALWAYS Do This First
 
@@ -34,7 +36,9 @@ Knowledge Base — available operations:
 5. **lint**   — Health check, consolidate, prune: fix broken links, merge duplicates, strengthen connections
 6. **explore** — Free-form exploration: find surprising connections, synthesize, generate questions
 7. **revisit** — Re-read older entries through the lens of newer knowledge
-8. **status** — Dashboard: file counts, link counts, pending tasks
+8. **iterate** — Deep cyclic analysis: re-read entries iteratively until insights converge
+9. **topology** — Graph structure analysis: find clusters, bridges, gaps, anomalies
+10. **status** — Dashboard: file counts, link counts, pending tasks
 
 Which operation? (pick a number or describe what you need)
 ```
@@ -48,6 +52,8 @@ Which operation? (pick a number or describe what you need)
 - User says "status/dashboard/stats/how many" → **status**
 - User says "explore/connections/synthesize/what patterns/what's interesting" → **explore**
 - User says "revisit/refresh/update old/stale entries" → **revisit**
+- User says "iterate/dig deeper/think harder/cycles" or asks a deep analytical question → **iterate** *(usually auto-triggered during add/query/explore; manual invocation also works)*
+- User says "topology/graph/structure/gaps/clusters/what's missing" → **topology** *(usually auto-triggered after add/lint/explore; manual invocation also works)*
 - User provides a file path or URL without other context → **add** (assume they want to ingest it)
 
 ## Contents
@@ -58,10 +64,9 @@ Which operation? (pick a number or describe what you need)
 4. [Operations](#operations)
 5. [Knowledge Extraction — Your Core Job](#knowledge-extraction--your-core-job)
 6. [Citation Tracking](#citation-tracking)
-7. [Multi-Session Continuity](#multi-session-continuity)
-8. [Context Management](#context-management)
-9. [Rules Co-Evolution](#rules-co-evolution)
-10. [Reference](#reference)
+7. [Long-Horizon Autonomous Work](#long-horizon-autonomous-work)
+8. [Rules Co-Evolution](#rules-co-evolution)
+9. [Reference](#reference)
 
 ## Architecture
 
@@ -98,6 +103,8 @@ Three layers per KB:
 | "Check KB health" | `lint.py --path DIR` | JSON: broken links, orphans, missing backlinks, timeline gaps (year/month/day) |
 | "Search the KB for X" | `search.py --path DIR --query "X" [--category CAT] [--first-only]` | JSON: scored file results with multi-match, term coverage |
 | "Find entries related to these topics" | `related.py --kb-path DIR --keywords "a,b,c"` | JSON: entries scored by keyword overlap |
+| "Show me the KB graph" | `graph.py --path DIR` | JSON: nodes, edges, degrees, components, dangling targets |
+| "Analyze KB structure/gaps" | `topology.py --path DIR` | JSON: clusters, bridges, structural holes, degree anomalies, betweenness |
 | "What's the task status?" | `state.py status --task-id ID` | JSON: phase, items done/pending/in-progress |
 | "Resume pending work" | `state.py pending --task-id ID` | JSON: next items to process |
 
@@ -132,6 +139,12 @@ uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/related.py --kb-path /path/to/kb 
 
 # Lint the KB:
 uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/lint.py --path /path/to/kb
+
+# Extract KB graph:
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/graph.py --path /path/to/kb
+
+# Analyze KB topology (clusters, bridges, gaps):
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/topology.py --path /path/to/kb
 ```
 
 ## Operations
@@ -210,13 +223,15 @@ Mandatory for academic papers, textbooks, and any source that references other w
 5. **Detect contradictions** → create `knowledge/controversies/` entries with cross-refs from all involved
 6. **Creative cross-linking (MANDATORY)** — read 10 existing entries chosen for DIVERSITY, not obvious topical overlap. Look for structural parallels, shared mechanisms, analogous problems. See [references/add-workflow.md](references/add-workflow.md) for the random walk protocol.
 7. If related sources exist → create `knowledge/meta/` entries (meta-analyses, comparisons)
+8. **Auto-topology**: Run `topology.py`. If structural holes touch this source's topics → note them in the source analysis and suggest sources to fill them. If degree anomalies appear → enrich the affected entries now while context is fresh.
 
 **Phase 6 — Index, Log & Evolve** (you)
 1. Update `index.md` with all new entries (organized by type, one-line summaries)
 2. Append ONE line to `log.md`: `YYYY-MM-DD add <source-id> | +NE +NT +NI +NC +NTL +NQ` (E=entities, T=topics, I=ideas, C=citations, TL=timeline, Q=questions; omit zero counts; use `~N` for updated entries). Do NOT write multi-line narratives — details live in source analyses and task state.
 3. **Rules co-evolution check (MANDATORY)**: Read `.kb/rules.md`. After this source, should rules change? Check: (a) Did you encounter a new pattern that should become a rule? (b) Did the user correct your style or structure? (c) Is there a naming conflict or ambiguity that a rule would prevent? (d) Does this source suggest a new entry type? If YES to any: propose the specific change to the user. If NO to all: move on. This check costs 30 seconds and prevents gradual drift.
 4. Mark task complete: `state.py update-phase --phase done`
-5. **Offer exploration**: "Source ingested. Want me to explore the KB for new connections?" If user agrees → run `kb:explore`.
+5. **Auto-iterate**: If the source raised deep analytical questions or exposed tensions with existing KB content, auto-trigger a `kb:iterate` cycle on the most promising 1-2 questions. Don't ask — just do it.
+6. **Offer exploration**: "Source ingested. Want me to explore the KB for new connections?" If user agrees → run `kb:explore`.
 
 ### kb:lint — Health Check, Repair & Consolidation
 
@@ -234,7 +249,8 @@ Mandatory for academic papers, textbooks, and any source that references other w
    - Strengthen connections: if two entries reference the same ideas but don't link to each other, add wikilinks
 4. **Analyze**: look for undetected contradictions, stale claims, entries that should be interlinked but aren't
 5. **Rules co-evolution check**: same as Phase 6 of kb:add. Read rules.md, propose changes if patterns emerged during lint.
-6. Update `index.md`. Append one line to `log.md`: `YYYY-MM-DD lint | N issues fixed, ~M files`
+6. **Auto-topology**: After fixing mechanical issues, run `topology.py`. Act on findings immediately: fill structural holes with stub entries + suggest sources, enrich degree anomalies, note bridge entries in `rules.md` so they're protected from accidental pruning.
+7. Update `index.md`. Append one line to `log.md`: `YYYY-MM-DD lint | N issues fixed, ~M files`
 
 ### kb:query — Answer from KB
 
@@ -243,8 +259,9 @@ Mandatory for academic papers, textbooks, and any source that references other w
 3. Read relevant knowledge entries, follow `[[wikilinks]]` as needed
 4. **Answer strictly from KB content** — cite which entries your answer draws from
 5. If gaps found: tell user what's missing, suggest sources to add
-6. If user approves: trigger `kb:add` pipeline to fill the gap
-7. User can ask to save a useful answer as a new KB entry — preserve the question context in the entry
+6. **Auto-deepen**: If the first-pass answer is thin (fewer than 3 entries contribute), auto-escalate: run `search.py` with broader terms, then if still thin, trigger a `kb:iterate` cycle on the question to extract a deeper answer from inter-entry connections.
+7. If user approves gap-filling: trigger `kb:add` pipeline
+8. User can ask to save a useful answer as a new KB entry — preserve the question context in the entry
 
 ### kb:status — Dashboard
 
@@ -254,7 +271,9 @@ Run `open.py --stats` and present: file counts by category, total wikilinks, pen
 
 Post-add (or on-demand) free-form wandering through the KB. The LLM follows wikilinks, reads entries, and looks for surprising connections, synthesis opportunities, and questions that only become visible when multiple sources coexist. This exploits the LLM's stochastic pattern recognition across domains.
 
-**Process**: prime context → wander through 15-20 entries → capture grounded insights → log.
+**Auto-triggers**: Run `topology.py` at the START to identify where exploration is most needed — structural holes and low-density clusters are the highest-value targets. If a surprising pattern emerges during wandering, auto-trigger `kb:iterate` to deepen it rather than noting it superficially.
+
+**Process**: topology scan → prime context → wander through 15-20 entries (prioritize topology-indicated areas) → capture grounded insights → iterate on best pattern → log.
 
 **Hallucination guardrail**: Every claim must trace to specific entry text. No entries from LLM memory. When uncertain, create a question entry rather than a meta entry, and ask the user.
 
@@ -262,13 +281,33 @@ See [references/explore-workflow.md](references/explore-workflow.md) for the ful
 
 ### kb:revisit — Re-Read Old Entries Through New Eyes
 
-Periodic re-visitation of older entries through the lens of newer knowledge. Targets: multi-source entities with thin profiles, early entries with sparse links, open questions that may now be answerable, topics with single-source perspective.
+Periodic re-visitation of older entries through the lens of newer knowledge. **Auto-target selection**: Run `topology.py` to select targets — degree anomalies (isolated entities, under-linked authorities, orphan hubs) and entries in structural holes are highest priority. Supplement with: multi-source entities with thin profiles, early entries with sparse links, open questions that may now be answerable.
 
-**Process**: select 5-10 high-value entries → read → compare against current KB depth → triangulate entities → enrich → fix links → log.
+**Process**: topology scan → select 5-10 high-value entries → read → compare against current KB depth → triangulate entities → enrich → fix links → log.
 
 **Hallucination guardrail**: Do NOT "improve" entries from world knowledge. Every new fact must trace to a `[[source-analysis]]`. Preserve original attributions.
 
 See [references/revisit-workflow.md](references/revisit-workflow.md) for the full protocol.
+
+### kb:iterate — Cyclic Deep Analysis
+
+The KB is a graph. A single-pass read produces linear understanding. Iterative re-reading through enriched context activates different LLM attention patterns on each pass, producing deeper synthesis. This is **message passing over a knowledge graph** using the context window as the propagation medium.
+
+**Process**: formulate driving question → seed 3-5 entries → iterate (read → crystallize → expand along wikilinks → check convergence) → 3-5 iterations → final synthesis.
+
+**Key constraint**: context is finite. Each iteration **crystallizes** findings into a compact working document that replaces raw readings — the extracted insight IS the compaction.
+
+See [references/iterate-workflow.md](references/iterate-workflow.md) for the full protocol.
+
+### kb:topology — Graph Structure Analysis
+
+Runs `graph.py` + `topology.py` to compute topological metrics, then the LLM interprets what they mean for the knowledge domain. Finds clusters (well-covered areas), bridges (valuable cross-domain entries), structural holes (blind spots between clusters), and degree anomalies (under-extracted or orphaned entries).
+
+**Process**: extract graph → compute topology → interpret each finding → recommend concrete actions (add sources, enrich entries, fix links) → log.
+
+**Self-diagnosis**: topology patterns reveal systematic extraction biases (e.g. entities always isolated = stubs not connected to ideas). Use findings to update `.kb/rules.md`.
+
+See [references/topology-workflow.md](references/topology-workflow.md) for the full protocol.
 
 ## Knowledge Extraction — Your Core Job
 
@@ -357,114 +396,17 @@ This KB is Obsidian-compatible. Clicking a wikilink MUST open an existing file i
 
 ## Citation Tracking
 
-For every source that references external works, you MUST build a citation graph. This applies to academic papers (always), textbooks (always), practitioner books (usually — even without formal bibliographies), and articles/blog posts (when they link to sources). Inline URLs, hyperlinks, and footnotes count as references.
+For every source that references external works, you MUST build a citation graph — forward citations (what this source cites), backward citations (what cites this source), entries for works not yet in sources, and unreferenced bibliography tracking. This applies to ALL source types: academic papers, textbooks, practitioner books, articles, blog posts. Inline URLs, hyperlinks, and footnotes count as references.
 
-### Forward Citations (what this source cites)
-
-For each reference — whether `[1]`, `(Author, Year)`, an inline URL, or a footnote:
-
-1. Identify the exact sentence containing the citation
-2. Identify which bibliography entries [1], [2] refer to
-3. Create/update citation entry: `knowledge/citations/<source-id>-cites-<ref-slug>.md`
-4. Content MUST include:
-   - `**Citing source**: [[<source-id>-analysis]]` — mandatory navigable wikilink back to the source
-   - `**Context**:` — the exact sentence containing the citation
-   - `**Claims supported**:` — what the citation is used for
-   - `**Significance**:` — one sentence: why this citation matters (foundational? competing? methodological?)
-   - `**See also**:` — wikilinks to related KB entries (entities, topics, ideas)
-
-### Backward Citations (what cites this source)
-
-When a referenced work Y already has an entry in the KB (from a previous source):
-- Update Y's entry with the new incoming citation context
-- Add wikilink to Y in the citation's **See also** — this enables "show me everything that cites Y" via backlink navigation
-- Over time, Y accumulates all sentences from all sources that reference it
-
-### Entries for Works NOT in Sources
-
-Create entries for referenced works even if they're not in your `sources/` directory. These entries:
-- Start with just the bibliographic info and incoming citation contexts
-- Accumulate more context as more sources are added that reference them
-- Serve as "wanted" items — user can decide to add them as full sources later
-
-### Unreferenced Bibliography
-
-If a source lists items in its bibliography but NEVER cites them in the text:
-- Record them in the source analysis entry as "listed but unreferenced"
-- These may indicate background reading or padding — useful signal for the user
+See [references/citation-tracking.md](references/citation-tracking.md) for the full protocol: forward citation format, backward citation accumulation, entries for works not in sources, unreferenced bibliography handling.
 
 ## Long-Horizon Autonomous Work
 
-Large sources require sustained work across many context windows. Context compaction, session breaks, and tool errors WILL happen. This skill is designed for resilience — the LLM must be able to lose its entire context and fully recover from disk state alone.
+Large sources require sustained work across many context windows. Context compaction, session breaks, and tool errors WILL happen. The LLM must be able to lose its entire context and fully recover from disk state alone. **Core principle: everything on disk** — your context window is volatile, the KB's files and task state are permanent.
 
-### Core Principle: Everything on Disk
+Key protocols: checkpoint discipline (write entries → write notes → mark done), resumption protocol (open.py → state.py status → state.py pending → calibrate density → continue), hierarchical processing (chunk → group → source → cross-source), and trajectory drift prevention (7 defenses against compaction-induced summarization drift).
 
-Your context window is volatile. The KB's files and task state are permanent. Every decision, every extraction, every checkpoint MUST be written to disk before moving on. If you crash after writing, no work is lost. If you crash before writing, you redo only that one chunk.
-
-### Checkpoint Discipline
-
-When you finish processing any work item (chapter, section, batch):
-
-1. **Write all entries to disk first** — entity, topic, idea, citation, timeline files
-2. **Write checkpoint notes** via `state.py update-item --notes "..."` — a compact tally of what you extracted (e.g. `+5E +3T +2I +8C: dijkstra, parnas, brooks; waterfall, incremental; lehman-laws; 1968-1975 timeline`)
-3. **Then** mark the item done
-
-The notes field is your breadcrumb trail. When context compacts, `state.py pending` returns the last 5 completed items with their notes — enough to reconstruct what was done and what comes next.
-
-### Resumption Protocol
-
-After ANY interruption (context compaction, session break, error recovery):
-
-```
-1. Run open.py              → reload KB structure, index, rules, pending tasks
-2. Run state.py status      → see current phase, done/pending counts
-3. Run state.py pending     → see next items + checkpoint notes from recent items
-4. Calibrate extraction density:
-   - Read checkpoint notes from the FIRST 3 completed items (not just recent ones)
-   - These set the extraction density floor for all remaining items
-   - If recent items show declining counts vs early items, you ARE drifting
-5. For book chapters: re-read the per-chapter quality gate in add-workflow.md
-6. Continue from the next pending item — do NOT re-process done items
-```
-
-This protocol works whether you lost context 5 minutes ago or 5 days ago. The disk state is the single source of truth.
-
-### Hierarchical Processing for Large Sources
-
-Any source too large for one pass requires hierarchical processing. This applies to books, collections, large reports — anything with internal structure.
-
-**Processing levels** (bottom-up):
-
-| Level | Unit | What you do | Checkpoint |
-|-------|------|------------|------------|
-| **Chunk** | Chapter, section, essay | Exhaustive extraction: entities, topics, ideas, citations, dates | `update-item --notes` with extraction tally |
-| **Group** | Part, section cluster | Cross-chunk connections, part-level themes | Notes in source analysis under `## Part N` |
-| **Source** | Whole book/collection | Source-level synthesis, overarching themes, bibliography analysis | Full source analysis file |
-| **Cross-source** | Related KB content | Meta-analyses, contradiction detection | `knowledge/meta/` and `knowledge/controversies/` entries |
-
-Each level builds on the one below. Do NOT skip levels — the synthesis quality depends on having exhaustive chunk-level extraction first.
-
-### Preventing Trajectory Drift
-
-Context compaction can cause the LLM to "forget" the extraction strategy and drift into summarization. Defenses:
-
-1. **Task items are your todo list.** Process them in order. Don't improvise.
-2. **Checkpoint notes anchor your approach.** When resuming, read the notes from recent items — they show the extraction pattern you were following (e.g. "+8E +3T +12C" tells you to maintain that density, not drop to "+1T").
-3. **The quality gate is mandatory.** Every chunk MUST pass the quality gate checklist before marking done. This prevents drift toward skimming.
-4. **Checkpoint notes are your narrative.** After each chunk, write a `--notes` that captures both the extraction tally AND the key themes. This is your running narrative — it survives compaction and anchors your trajectory. Do NOT write incremental progress into knowledge files.
-5. **NEVER bulk-read after compaction.** When resuming after context compaction, process ONE chapter/section at a time — exactly as you did before compaction. The temptation to "catch up" by reading multiple remaining chapters at once produces shallow, summary-level extraction. Each chapter deserves the same exhaustive treatment regardless of how many remain. If 15 chapters are left, process them one by one across 15 cycles. There are no shortcuts.
-6. **Density drop = drift alarm.** After writing checkpoint notes, compare your extraction tally against TWO baselines: (a) the density expectations table in add-workflow.md (5-15 entities, 5-20 citations per chapter), and (b) the first 3 chapters you processed in this task. Do NOT compare only against the previous 2-3 chapters — if those were already degraded by drift, you'll anchor to a bad baseline. If your counts are below 50% of EITHER baseline (e.g. early chapters averaged `+5E +3I +8C` but you just wrote `+1T`), you ARE drifting. STOP. Re-read the quality gate. Re-read the chapter. Extract what you missed. Do NOT mark the chapter done until density recovers.
-7. **Minimum viable extraction per chapter.** Every book chapter checkpoint MUST include at least 3 distinct extraction categories from {E, T, I, C, TL}. A checkpoint with only `+1T` or any single category is ALWAYS incomplete — no exceptions. Most non-trivial textbook chapters contain named people (→ E), in-text references (→ C), and at least one date or topic alongside ideas. If your checkpoint shows `+0E` or `+0C` for a textbook chapter, re-read the chapter — you skimmed it. The per-chapter quality gate in add-workflow.md has specific minimums.
-
-### Context Management
-
-- **Start every session** with `open.py` to load the KB context
-- **Read `index.md` first** when searching for information — it's your table of contents
-- **Follow wikilinks** rather than reading all files — targeted navigation over full scans
-- **Use `search.py`** for keyword lookup when index isn't enough
-- **Don't re-read processed chunks** — read your own extracted entries instead
-- **Write entries incrementally** — don't try to hold an entire book in context
-- **If context feels full**, finish the current item, write checkpoint notes, mark done, then continue — the resumption protocol handles the rest
+See [references/long-horizon.md](references/long-horizon.md) for the full protocol: checkpoint format, resumption steps, hierarchical processing table, all 7 drift defenses, and context management rules.
 
 ## Rules Co-Evolution
 
@@ -492,5 +434,9 @@ The file `.kb/rules.md` is the per-KB operating manual. It starts from a templat
 
 - [references/add-workflow.md](references/add-workflow.md) — Detailed `kb:add` checklists per source type, multi-perspective extraction, question generation, creative cross-linking, backlink enforcement, book processing pattern, citation tracking examples
 - [references/entry-types.md](references/entry-types.md) — Schema for each entry type (including questions), custom entry types, entity triangulation rules, wikilink patterns
-- [references/explore-workflow.md](references/explore-workflow.md) — `kb:explore` protocol: post-add free exploration, hallucination guardrails, synthesis patterns
-- [references/revisit-workflow.md](references/revisit-workflow.md) — `kb:revisit` protocol: periodic re-visitation of older entries, selection strategy, triangulation
+- [references/citation-tracking.md](references/citation-tracking.md) — Full citation tracking protocol: forward citations format, backward citation accumulation, entries for works not in sources, unreferenced bibliography
+- [references/long-horizon.md](references/long-horizon.md) — Full long-horizon protocol: everything-on-disk principle, checkpoint discipline, resumption protocol, hierarchical processing, all 7 trajectory drift defenses, context management
+- [references/explore-workflow.md](references/explore-workflow.md) — `kb:explore` protocol: topology-guided exploration, hallucination guardrails, synthesis patterns
+- [references/revisit-workflow.md](references/revisit-workflow.md) — `kb:revisit` protocol: topology-guided target selection, re-visitation, triangulation
+- [references/iterate-workflow.md](references/iterate-workflow.md) — `kb:iterate` protocol: cyclic latent semantic iterations, convergence criteria, crystallization rules
+- [references/topology-workflow.md](references/topology-workflow.md) — `kb:topology` protocol: graph metrics interpretation, action patterns, self-diagnosis
