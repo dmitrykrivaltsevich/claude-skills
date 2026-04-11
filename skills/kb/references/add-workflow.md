@@ -129,6 +129,7 @@ If your extraction doesn't meet these minimums, **go back and look specifically 
 - [ ] Figures/tables extracted as visual assets and embedded in entries
 - [ ] Practical insights captured: decision tables, pitfalls, implementation patterns, heuristics
 - [ ] Entries interlinked with `[[wikilinks]]`
+- [ ] Idea entries have `attributed-to:` and `year:` in frontmatter (required — see entry-types.md)
 - [ ] Math has plain-language intuition alongside formulas
 - [ ] At least one entry contains something non-obvious — if every entry reads like a Wikipedia summary, you filed without thinking
 
