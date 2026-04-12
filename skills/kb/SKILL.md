@@ -184,6 +184,8 @@ This is the most complex operation. It combines mechanical source registration w
 
 **Phase 3 — Extract Knowledge** (you, per chunk)
 
+1. Run `state.py update-phase --phase extracting` (transition out of analyzing — critical for resumption)
+
 This is the intellectual core — for any source, any chunk, any level of granularity.
 
 **Create entries as you read, in whatever order your understanding dictates.** Don't scan for "all entities" then "all topics" then "all ideas" — that assembly line fragments your attention and produces Wikipedia summaries. Instead, follow what grabs you: the surprising claim, the buried insight, the unexpected connection. Your stochastic attention is an asset — it catches things a mechanical pass would miss.
@@ -206,6 +208,8 @@ See [references/add-workflow.md](references/add-workflow.md) for quality gates a
 
 **Phase 4 — Citation Graph** (you, for any source that references external works)
 
+1. Run `state.py update-phase --phase citing`
+
 Mandatory for academic papers, textbooks, and any source that references other works — whether via formal bibliography, numbered citations, inline URLs, footnotes, or informal mentions. A practitioner book with 30 inline URLs has 30 citations, not zero.
 
 1. Find every reference: `[1][2]`, `(Author, Year)`, `as shown by Author (Year)`, inline hyperlinks/URLs, footnotes to external works, informal references ("see the scikit-learn docs")
@@ -216,22 +220,24 @@ Mandatory for academic papers, textbooks, and any source that references other w
 6. See [Citation Tracking](#citation-tracking) for detailed rules
 
 **Phase 5 — Cross-Reference & Analyze** (you)
-1. Write per-source summary in `knowledge/sources/`
-2. Run `related.py --kb-path DIR --keywords "key,terms,from,source"` to find existing entries that overlap with this source's topics — this saves tokens vs. reading everything
-3. Read the related entries. For entities already in KB: **triangulate** (see [references/entry-types.md](references/entry-types.md)) — compare, note agreements/disagreements, enrich
-4. Add wikilinks from existing entries to new entries and vice versa. **EVERY new wikilink MUST be reciprocal — no exceptions.**
-5. **Detect contradictions** → create `knowledge/controversies/` entries with cross-refs from all involved
-6. **Creative cross-linking (MANDATORY)** — read 10 existing entries chosen for DIVERSITY, not obvious topical overlap. Look for structural parallels, shared mechanisms, analogous problems. See [references/add-workflow.md](references/add-workflow.md) for the random walk protocol.
-7. If related sources exist → create `knowledge/meta/` entries (meta-analyses, comparisons)
-8. **Auto-topology**: Run `topology.py`. If structural holes touch this source's topics → note them in the source analysis and suggest sources to fill them. If degree anomalies appear → enrich the affected entries now while context is fresh.
+1. Run `state.py update-phase --phase cross-ref`
+2. Write per-source summary in `knowledge/sources/`
+3. Run `related.py --kb-path DIR --keywords "key,terms,from,source"` to find existing entries that overlap with this source's topics — this saves tokens vs. reading everything
+4. Read the related entries. For entities already in KB: **triangulate** (see [references/entry-types.md](references/entry-types.md)) — compare, note agreements/disagreements, enrich
+5. Add wikilinks from existing entries to new entries and vice versa. **EVERY new wikilink MUST be reciprocal — no exceptions.**
+6. **Detect contradictions** → create `knowledge/controversies/` entries with cross-refs from all involved
+7. **Creative cross-linking (MANDATORY)** — read 10 existing entries chosen for DIVERSITY, not obvious topical overlap. Look for structural parallels, shared mechanisms, analogous problems. See [references/add-workflow.md](references/add-workflow.md) for the random walk protocol.
+8. If related sources exist → create `knowledge/meta/` entries (meta-analyses, comparisons)
+9. **Auto-topology**: Run `topology.py`. If structural holes touch this source's topics → note them in the source analysis and suggest sources to fill them. If degree anomalies appear → enrich the affected entries now while context is fresh.
 
 **Phase 6 — Index, Log & Evolve** (you)
-1. Update `index.md` with all new entries (organized by type, one-line summaries)
-2. Append ONE line to `log.md`: `YYYY-MM-DD add <source-id> | +NE +NT +NI +NC +NTL +NQ` (E=entities, T=topics, I=ideas, C=citations, TL=timeline, Q=questions; omit zero counts; use `~N` for updated entries). Do NOT write multi-line narratives — details live in source analyses and task state.
-3. **Rules co-evolution check (MANDATORY)**: Read `.kb/rules.md`. After this source, should rules change? Check: (a) Did you encounter a new pattern that should become a rule? (b) Did the user correct your style or structure? (c) Is there a naming conflict or ambiguity that a rule would prevent? (d) Does this source suggest a new entry type? If YES to any: propose the specific change to the user. If NO to all: move on. This check costs 30 seconds and prevents gradual drift.
-4. Mark task complete: `state.py update-phase --phase done`
-5. **Auto-iterate**: If the source raised deep analytical questions or exposed tensions with existing KB content, auto-trigger a `kb:iterate` cycle on the most promising 1-2 questions. Don't ask — just do it.
-6. **Offer exploration**: "Source ingested. Want me to explore the KB for new connections?" If user agrees → run `kb:explore`.
+1. Run `state.py update-phase --phase indexing`
+2. Update `index.md` with all new entries (organized by type, one-line summaries)
+3. Append ONE line to `log.md`: `YYYY-MM-DD add <source-id> | +NE +NT +NI +NC +NTL +NQ` (E=entities, T=topics, I=ideas, C=citations, TL=timeline, Q=questions; omit zero counts; use `~N` for updated entries). Do NOT write multi-line narratives — details live in source analyses and task state.
+4. **Rules co-evolution check (MANDATORY)**: Read `.kb/rules.md`. After this source, should rules change? Check: (a) Did you encounter a new pattern that should become a rule? (b) Did the user correct your style or structure? (c) Is there a naming conflict or ambiguity that a rule would prevent? (d) Does this source suggest a new entry type? If YES to any: propose the specific change to the user. If NO to all: move on. This check costs 30 seconds and prevents gradual drift.
+5. Mark task complete: `state.py update-phase --phase done`
+6. **Auto-iterate**: If the source raised deep analytical questions or exposed tensions with existing KB content, auto-trigger a `kb:iterate` cycle on the most promising 1-2 questions. Don't ask — just do it.
+7. **Offer exploration**: "Source ingested. Want me to explore the KB for new connections?" If user agrees → run `kb:explore`.
 
 ### kb:lint — Health Check, Repair & Consolidation
 
