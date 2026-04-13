@@ -40,7 +40,13 @@ After ANY interruption (context compaction, session break, error recovery):
    - These set the extraction density floor for all remaining items
    - If recent items show declining counts vs early items, you ARE drifting
 5. For book chapters: re-read the per-chapter quality gate in add-workflow.md
-6. Continue from the next pending item — do NOT re-process done items
+6. **Reading method reminder**: For text-layer PDFs, use `read.py --output /tmp/file.json`
+   then read the JSON. For scanned PDFs, render and view one page at a time (never
+   accumulate multiple page images in context — process each fully before loading
+   the next). Even if rendered page images exist on disk from a prior session,
+   do not bulk-load them — the 413 overflow that crashed the prior session will
+   recur. One image at a time, always.
+7. Continue from the next pending item — do NOT re-process done items
 ```
 
 This protocol works whether you lost context 5 minutes ago or 5 days ago. The disk state is the single source of truth.

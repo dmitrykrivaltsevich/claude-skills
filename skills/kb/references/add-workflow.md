@@ -84,25 +84,29 @@ Always has citation tracking. Often fits in one session.
 
 Multi-session. Use task state for continuity. Books — especially textbooks — are the densest source type. A 26-chapter textbook can yield 50–100+ entities, 100+ citations, 20+ timeline entries, and multiple controversies. Skimming is the #1 failure mode.
 
-### PDF Reading Strategy — Text First, Render Never (for full pages)
+### PDF Reading Strategy — Text First, Images One at a Time
 
-**Default: `read.py` with `--output`.** For each chapter, extract text to a temp file:
+**Step 0: Run `info.py` to classify the PDF.** Check per-page `has_text` flags. This determines your reading method for the entire book.
+
+**Text-layer PDFs (most pages have text):** Use `read.py` with `--output`:
 ```bash
 uv run --no-config ${CLAUDE_SKILL_DIR}/../pdf/scripts/read.py book.pdf --page-start 43 --page-end 72 --output /tmp/ch3.json
 ```
-Then read `/tmp/ch3.json`. This captures all text including math formulas. Math in text form (Unicode, LaTeX fragments, garbled symbols) looks ugly but is readable by the LLM — do NOT switch to page rendering just because formulas are dense.
+Then read `/tmp/ch3.json`. This captures all text including math formulas. Math in text form (Unicode, LaTeX fragments) looks ugly but is readable — do NOT switch to page rendering just because formulas are dense.
 
-**For visual assets only: `render.py` on INDIVIDUAL pages.** When a chapter has a key architecture diagram, a complex figure, or a chart that `extract_images.py` didn't capture (vector graphics, formatted visual tables), render that ONE page:
+**Scanned/image-only PDFs (most pages lack text):** Use `render.py` + vision, but **one page at a time**:
+```bash
+uv run --no-config ${CLAUDE_SKILL_DIR}/../pdf/scripts/render.py book.pdf --page-start 51 --page-end 51 --output-dir /tmp/ocr --dpi 400
+```
+View the single page image → extract text/data into a working markdown file on disk → move to the next page. The working file on disk IS your memory. NEVER load multiple page images into context simultaneously — each page image costs 1-5MB of context, and accumulating them causes 413 overflow.
+
+**For visual assets: `render.py` on INDIVIDUAL pages.** When a chapter has a key architecture diagram, a complex figure, a chart, or a table rendered as an image, render that ONE page:
 ```bash
 uv run --no-config ${CLAUDE_SKILL_DIR}/../pdf/scripts/render.py book.pdf --page-start 51 --page-end 51 --output-dir /tmp/assets
 ```
-Then view the image, name it descriptively, and copy to `knowledge/assets/<source-id>/`.
+View the image, name it descriptively, copy to `knowledge/assets/<source-id>/`, embed in the relevant entry, then continue.
 
-**NEVER do any of these:**
-- Render an entire chapter as images — a 30-page chapter at 400 DPI = ~100MB of images, guaranteed 413 overflow
-- Render pages "because they have math" — text extraction handles math, vision is for diagrams
-- Batch-render pages and then try to view them all — process one at a time
-- Use `render.py` as a substitute for `read.py` — text is 100× cheaper in tokens than images
+**The ONE rule: never accumulate multiple page images in context.** Process each image fully (OCR it, extract the asset, whatever) before loading the next one. This applies whether you rendered the images yourself or found pre-existing renders on disk from a prior session.
 
 ### Session 1 — Plan
 
@@ -116,7 +120,9 @@ Each chapter has three phases: explore, file, verify. The explore phase is stoch
 
 #### Explore — read and think (stochastic, YOUR judgment)
 
-Read the full chapter. Do not skim. As you read, notice what grabs your attention — the surprising claim, the counterintuitive result, the aside that contradicts conventional wisdom, the footnote with a key reference, the diagram that crystallizes a concept, the passage that would change how an engineer approaches a problem.
+**Reading method: text extraction, or one-at-a-time OCR for scans.** For text-layer PDFs: use `/pdf` `read.py --output /tmp/chN.json`, then read the JSON file. If the chapter is long (>15 pages), split into 10-15 page sub-ranges and process each: read text → extract entries → write to disk → read next sub-range. For scanned PDFs: render and view one page at a time, extract text to a working file, then move on. **Never accumulate multiple page images in context** — this is what causes 413 overflow on large chapters.
+
+Read the full chapter text. Do not skim. As you read, notice what grabs your attention — the surprising claim, the counterintuitive result, the aside that contradicts conventional wisdom, the footnote with a key reference, the diagram that crystallizes a concept, the passage that would change how an engineer approaches a problem.
 
 **Do NOT plan your extraction before reading.** Do not think "I need to find entities, then topics, then ideas." That fragments your attention into category-scanning instead of understanding. Just read and think.
 
