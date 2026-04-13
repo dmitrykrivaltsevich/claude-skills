@@ -84,6 +84,26 @@ Always has citation tracking. Often fits in one session.
 
 Multi-session. Use task state for continuity. Books — especially textbooks — are the densest source type. A 26-chapter textbook can yield 50–100+ entities, 100+ citations, 20+ timeline entries, and multiple controversies. Skimming is the #1 failure mode.
 
+### PDF Reading Strategy — Text First, Render Never (for full pages)
+
+**Default: `read.py` with `--output`.** For each chapter, extract text to a temp file:
+```bash
+uv run --no-config ${CLAUDE_SKILL_DIR}/../pdf/scripts/read.py book.pdf --page-start 43 --page-end 72 --output /tmp/ch3.json
+```
+Then read `/tmp/ch3.json`. This captures all text including math formulas. Math in text form (Unicode, LaTeX fragments, garbled symbols) looks ugly but is readable by the LLM — do NOT switch to page rendering just because formulas are dense.
+
+**For visual assets only: `render.py` on INDIVIDUAL pages.** When a chapter has a key architecture diagram, a complex figure, or a chart that `extract_images.py` didn't capture (vector graphics, formatted visual tables), render that ONE page:
+```bash
+uv run --no-config ${CLAUDE_SKILL_DIR}/../pdf/scripts/render.py book.pdf --page-start 51 --page-end 51 --output-dir /tmp/assets
+```
+Then view the image, name it descriptively, and copy to `knowledge/assets/<source-id>/`.
+
+**NEVER do any of these:**
+- Render an entire chapter as images — a 30-page chapter at 400 DPI = ~100MB of images, guaranteed 413 overflow
+- Render pages "because they have math" — text extraction handles math, vision is for diagrams
+- Batch-render pages and then try to view them all — process one at a time
+- Use `render.py` as a substitute for `read.py` — text is 100× cheaper in tokens than images
+
 ### Session 1 — Plan
 
 1. Read table of contents, preface, and any "guided reading" sections
