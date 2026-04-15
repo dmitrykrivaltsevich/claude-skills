@@ -166,17 +166,19 @@ chapters: [10, 11, 12, 13, 14, 15]
 
 | Section | What to write |
 |---------|--------------|
+| `## Chapter briefs` | Wikilink every chapter analysis brief this part is built from: `[[<id>-ch10-analysis]]`, `[[<id>-ch11-analysis]]`, etc. This is the traceability chain — readers must be able to drill down from part to chapter. |
 | `## Argument arc` | How the part's chapters build on each other — the narrative progression, not a chapter-by-chapter summary. |
 | `## Cross-chapter themes` | Themes that emerge only when you see multiple chapters together. Not themes visible in any single chapter. |
 | `## Tensions and contradictions` | Where chapters disagree, present competing approaches, or leave unresolved debates. These are often the most analytically valuable findings. |
-| `## Relationship to prior parts` | How this part extends, deepens, or redirects what came before. Wikilink to prior part analyses. |
+| `## Relationship to other parts` | How this part extends, deepens, or redirects other parts. Wikilink to their part analyses (`[[<id>-part1-analysis]]`, etc.). For prior parts: how this part builds on or diverges from them. For later parts (if already processed): update this section when you reach them. Cross-part links MUST be reciprocal — if Part 3 references Part 1, Part 1's analysis MUST link back. |
 | `## Open threads` | What this part raises for the remainder of the book. Threads that should be tracked through later parts. |
 | `## Entry summary` | Aggregate tallies and notable entries from all chapters in the part. |
 
 3. **Create or update topic entries** for cross-chapter themes within the part — these are themes that span multiple chapters, not chapter-level topics
 4. **Create cross-chapter idea entries** for patterns visible only at the part level
 5. **Identify inter-chapter connections within the part** → add wikilinks
-6. **Checkpoint**: `state.py update-item --notes "Part 2: dependability vs security trade-off, Reason's Swiss cheese model as unifying pattern across Ch 10-15"`
+6. **Update prior part analyses**: if this part connects to earlier parts (and it almost always does), go back and add reciprocal wikilinks in their `## Relationship to other parts` sections. Part analyses are living documents until synthesis.
+7. **Checkpoint**: `state.py update-item --notes "Part 2: dependability vs security trade-off, Reason's Swiss cheese model as unifying pattern across Ch 10-15"`
 
 **Why part analysis documents exist**: They are the intermediate representation between chapter briefs and book-level synthesis. Without them, the book analysis must read 26 chapter briefs at once — too many for the context window. Part analyses compress 4-6 chapter briefs into one coherent document, making the book-level synthesis manageable.
 
@@ -246,10 +248,11 @@ Session N+P+1: read part analyses → write source analysis → cross-book meta 
 
 **Part-level aggregation session:**
 1. Read chapter analysis briefs for all chapters in this part — these are your primary input
-2. Write part analysis document (`knowledge/sources/<id>-partN-analysis.md`, see format above)
+2. Write part analysis document (`knowledge/sources/<id>-partN-analysis.md`, see format above). MUST wikilink every chapter brief in `## Chapter briefs`.
 3. Create/update topic entries for cross-chapter themes within the part
 4. Add inter-chapter wikilinks within the part
-5. Checkpoint and mark done
+5. Update prior part analyses with reciprocal cross-part links in `## Relationship to other parts`
+6. Checkpoint and mark done
 
 **Synthesis session:**
 1. Read part analysis documents — these are your primary input (NOT raw chapters, NOT individual entries)
