@@ -57,14 +57,14 @@ Any source too large for one pass requires hierarchical processing. This applies
 
 **Processing levels** (bottom-up):
 
-| Level | Unit | What you do | Checkpoint |
-|-------|------|------------|------------|
-| **Chunk** | Chapter, section, essay | Exhaustive extraction: entities, topics, ideas, citations, dates | `update-item --notes` with extraction tally |
-| **Group** | Part, section cluster | Cross-chunk connections, part-level themes | Notes in source analysis under `## Part N` |
-| **Source** | Whole book/collection | Source-level synthesis, overarching themes, bibliography analysis | Full source analysis file |
-| **Cross-source** | Related KB content | Meta-analyses, contradiction detection | `knowledge/meta/` and `knowledge/controversies/` entries |
+| Level | Unit | What you do | Artifact |
+|-------|------|------------|----------|
+| **Chunk** | Chapter, section, essay | Exhaustive extraction: entities, topics, ideas, citations, dates | Entries + **chapter analysis brief** (`<id>-ch01-analysis.md`) + checkpoint tally in `update-item --notes` |
+| **Group** | Part, section cluster | Cross-chunk themes, argument arc, tensions | **Part analysis document** (`<id>-part1-analysis.md`) — reads chapter briefs |
+| **Source** | Whole book/collection | Source-level synthesis, overarching themes, bibliography analysis | **Source analysis** (`<id>-analysis.md`) — reads part analyses |
+| **Cross-source** | Related KB content | Meta-analyses, contradiction detection | `knowledge/meta/` and `knowledge/controversies/` entries — reads source analyses |
 
-Each level builds on the one below. Do NOT skip levels — the synthesis quality depends on having exhaustive chunk-level extraction first.
+Each level reads ONLY the level directly below — never raw chapters during synthesis. The chapter briefs, part analyses, and source analysis form a compression pipeline: 26 chapters → 5 part docs → 1 source analysis → cross-book meta.
 
 ## Preventing Trajectory Drift
 

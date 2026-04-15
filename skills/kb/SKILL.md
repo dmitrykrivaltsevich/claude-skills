@@ -186,9 +186,13 @@ This is the most complex operation. It combines mechanical source registration w
 5. For large sources (books): identify chapters/sections → add as task items via `state.py add-items`
 6. Run `state.py update-phase --phase analyzing`
 
+> **HARD GATE — books (>50 pages):** Phase 2 MUST end with `state.py add-items` creating one task item per chapter + part-aggregation items + one final synthesis item. This is NOT optional. If you skip this and proceed to Phase 3 on the whole book at once, you WILL produce a TOC summary with ~10 entries — that is a catastrophic failure. Do NOT write source analysis during Phase 2 — the source analysis is the LAST thing you write (synthesis session, after ALL chapters are extracted). Do NOT create entries during Phase 2 — that happens in Phase 3, one chapter at a time.
+
 **Phase 3 — Extract Knowledge** (you, per chunk)
 
 1. Run `state.py update-phase --phase extracting` (transition out of analyzing — critical for resumption)
+
+> **BOOK SELF-CHECK — before ANY extraction on a book:** Verify `state.py status` shows task items. If there are NO chapter-level task items, STOP — go back to Phase 2 step 5. Books are processed ONE CHAPTER AT A TIME, each through the full explore → file → verify → chapter analysis brief → checkpoint cycle in [book-workflow.md](references/book-workflow.md). Reading "a few chapters" and creating a handful of entries is not book processing — it's skimming. See [Anti-Patterns](references/book-workflow.md#anti-patterns--guaranteed-failures) for what failure looks like.
 
 This is the intellectual core — for any source, any chunk, any level of granularity.
 
@@ -213,7 +217,7 @@ After all entries + perspective pass + questions: **checkpoint**. `state.py upda
 
 See [references/add-workflow.md](references/add-workflow.md) for quality gates and per-source-type guidance.
 
-> **Books & textbooks**: Do NOT skim. Extract EVERY named person, EVERY in-text citation, EVERY date. A 26-chapter textbook should yield 50–150 entity entries, 50–200 citations, 15–40 timeline entries. Run the per-chapter quality gate from add-workflow.md before marking any chapter done. The KB's value grows combinatorially with extraction coverage — a name mentioned in passing today becomes a central figure when its source is added later.
+> **Books & textbooks**: Do NOT skim. Do NOT treat the book as one chunk. Process ONE CHAPTER AT A TIME — each through the full explore → file → verify → **chapter analysis brief** → checkpoint cycle. Extract EVERY named person, EVERY in-text citation, EVERY date. Each chapter produces a brief analysis document (`<id>-chNN-analysis.md`) that feeds part-level synthesis. Each part produces a part analysis document (`<id>-partN-analysis.md`) that feeds book-level synthesis. A 26-chapter textbook should yield 50–150 entity entries, 50–200 citations, 15–40 timeline entries. If your total for a book is under 20 entries, you failed — go back and reprocess chapter by chapter. Run the per-chapter quality gate from [book-workflow.md](references/book-workflow.md) before marking any chapter done. See [Anti-Patterns](references/book-workflow.md#anti-patterns--guaranteed-failures).
 
 **Phase 4 — Citation Graph** (you, for any source that references external works)
 
@@ -230,7 +234,7 @@ Mandatory for academic papers, textbooks, and any source that references other w
 
 **Phase 5 — Cross-Reference & Analyze** (you)
 1. Run `state.py update-phase --phase cross-ref`
-2. Write per-source summary in `knowledge/sources/`
+2. Write per-source summary in `knowledge/sources/`. **For books:** Do NOT write the source analysis until ALL chapter task items and part aggregation items are done. If chapters or parts are still pending, this step is premature — you are still in Phase 3. The source analysis for a book synthesizes from your per-part analysis documents (the "synthesis session" in add-workflow.md), NOT from raw chapters or checkpoint tallies.
 3. Run `related.py --kb-path DIR --keywords "key,terms,from,source"` to find existing entries that overlap with this source's topics — this saves tokens vs. reading everything
 4. Read the related entries. For entities already in KB: **triangulate** (see [references/entry-types.md](references/entry-types.md)) — compare, note agreements/disagreements, enrich
 5. Add wikilinks from existing entries to new entries and vice versa. **EVERY new wikilink MUST be reciprocal — no exceptions.**
@@ -419,7 +423,7 @@ See [references/citation-tracking.md](references/citation-tracking.md) for the f
 
 Large sources require sustained work across many context windows. Context compaction, session breaks, and tool errors WILL happen. The LLM must be able to lose its entire context and fully recover from disk state alone. **Core principle: everything on disk** — your context window is volatile, the KB's files and task state are permanent.
 
-Key protocols: checkpoint discipline (write entries → write notes → mark done), resumption protocol (open.py → state.py status → state.py pending → calibrate density → continue), hierarchical processing (chunk → group → source → cross-source), and trajectory drift prevention (7 defenses against compaction-induced summarization drift).
+Key protocols: checkpoint discipline (write entries → write chapter analysis brief → write notes → mark done), resumption protocol (open.py → state.py status → state.py pending → calibrate density → continue), hierarchical processing (chapter briefs → part analyses → source analysis → cross-source meta), and trajectory drift prevention (7 defenses against compaction-induced summarization drift).
 
 See [references/long-horizon.md](references/long-horizon.md) for the full protocol: checkpoint format, resumption steps, hierarchical processing table, all 7 drift defenses, and context management rules.
 
@@ -447,9 +451,13 @@ The file `.kb/rules.md` is the per-KB operating manual. It starts from a templat
 
 ## Reference
 
-- [references/add-workflow.md](references/add-workflow.md) — Detailed `kb:add` checklists per source type, multi-perspective extraction, question generation, creative cross-linking, backlink enforcement, book processing pattern, citation tracking examples
+- [references/add-workflow.md](references/add-workflow.md) — Generic `kb:add` framework: universal checklist, source-type routing, multi-perspective extraction, question generation, creative cross-linking, backlink enforcement
+- [references/book-workflow.md](references/book-workflow.md) — Book/textbook processing: PDF reading, per-chapter explore/file/verify/analysis cycle, part-level aggregation, synthesis, anti-patterns, completion sanity check
+- [references/article-workflow.md](references/article-workflow.md) — Article/blog post single-session extraction checklist
+- [references/paper-workflow.md](references/paper-workflow.md) — Academic paper extraction with mandatory citation graph
+- [references/video-url-workflow.md](references/video-url-workflow.md) — Video/podcast transcript and URL reference stubs
 - [references/entry-types.md](references/entry-types.md) — Schema for each entry type (including questions), custom entry types, entity triangulation rules, wikilink patterns
-- [references/citation-tracking.md](references/citation-tracking.md) — Full citation tracking protocol: forward citations format, backward citation accumulation, entries for works not in sources, unreferenced bibliography
+- [references/citation-tracking.md](references/citation-tracking.md) — Full citation tracking protocol with examples: forward citations, backward citations, entries for works not in sources, unreferenced bibliography
 - [references/long-horizon.md](references/long-horizon.md) — Full long-horizon protocol: everything-on-disk principle, checkpoint discipline, resumption protocol, hierarchical processing, all 7 trajectory drift defenses, context management
 - [references/explore-workflow.md](references/explore-workflow.md) — `kb:explore` protocol: topology-guided exploration, hallucination guardrails, synthesis patterns
 - [references/revisit-workflow.md](references/revisit-workflow.md) — `kb:revisit` protocol: topology-guided target selection, re-visitation, triangulation
