@@ -55,6 +55,7 @@ def register_source(
     source_id: str,
     is_reference: bool = False,
     title: str = "",
+    identifiers: dict[str, str] | None = None,
 ) -> dict:
     """Register a source in the KB.
 
@@ -81,6 +82,19 @@ def register_source(
             f"source_id '{source_id}' already registered", kind="precondition"
         )
 
+    # Build identifiers section for stubs (frontmatter + body)
+    ids = identifiers or {}
+    ids_fm_line = ""
+    ids_body_lines = ""
+    if ids:
+        # YAML inline dict for frontmatter
+        ids_yaml = yaml.dump({"identifiers": ids}, default_flow_style=False, sort_keys=True).strip()
+        ids_fm_line = f"\n{ids_yaml}"
+        # Human-readable lines for stub body
+        ids_body_lines = "\n" + "\n".join(
+            f"- **{k.upper()}**: {v}" for k, v in sorted(ids.items())
+        )
+
     if is_reference:
         # Create reference stub
         stub_path = root / "sources" / "references" / f"{source_id}.md"
@@ -90,7 +104,7 @@ def register_source(
 type: source-reference
 source-id: {source_id}
 location: "{source}"
-title: "{effective_title}"
+title: "{effective_title}"{ids_fm_line}
 ---
 
 # {effective_title}
@@ -99,28 +113,34 @@ External source reference.
 
 - **Location**: {source}
 - **Source ID**: {source_id}
-- **Analysis**: [[{source_id}-analysis]]
+- **Analysis**: [[{source_id}-analysis]]{ids_body_lines}
 """
         stub_path.write_text(stub_content, encoding="utf-8")
 
         # Update config
-        config["sources"].append({
+        entry: dict = {
             "id": source_id,
             "type": "reference",
             "location": source,
             "title": effective_title,
             "original_name": "",
-        })
+        }
+        if ids:
+            entry["identifiers"] = ids
+        config["sources"].append(entry)
         config_path.write_text(
             yaml.dump(config, default_flow_style=False, sort_keys=False),
             encoding="utf-8",
         )
 
-        return {
+        result: dict = {
             "source_id": source_id,
             "type": "reference",
             "stub_path": str(stub_path),
         }
+        if ids:
+            result["identifiers"] = ids
+        return result
 
     else:
         # Local file — must exist
@@ -142,35 +162,41 @@ External source reference.
         stub_content = f"""---
 type: source-file
 source-id: {source_id}
-title: "{effective_title}"
+title: "{effective_title}"{ids_fm_line}
 ---
 
 # {effective_title}
 
 - **File**: {source_id}/{source_path.name}
-- **Analysis**: [[{source_id}-analysis]]
+- **Analysis**: [[{source_id}-analysis]]{ids_body_lines}
 """
         stub_path.write_text(stub_content, encoding="utf-8")
 
         # Update config
-        config["sources"].append({
+        entry = {
             "id": source_id,
             "type": "file",
             "location": str(dest_file),
             "title": effective_title,
             "original_name": source_path.name,
-        })
+        }
+        if ids:
+            entry["identifiers"] = ids
+        config["sources"].append(entry)
         config_path.write_text(
             yaml.dump(config, default_flow_style=False, sort_keys=False),
             encoding="utf-8",
         )
 
-        return {
+        result = {
             "source_id": source_id,
             "type": "file",
             "copied_to": str(dest_file),
             "original_name": source_path.name,
         }
+        if ids:
+            result["identifiers"] = ids
+        return result
 
 
 # ---------------------------------------------------------------------------
@@ -186,12 +212,28 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--reference", action="store_true",
                         help="Create a reference stub instead of copying")
     parser.add_argument("--title", default="", help="Human-readable source title")
+    parser.add_argument(
+        "--identifier", action="append", default=[],
+        metavar="TYPE:VALUE",
+        help="Bibliographic identifier (repeatable). Format: type:value. "
+             "Common types: isbn, doi, issn, arxiv, pmid, url",
+    )
 
     args = parser.parse_args(argv)
+
+    # Parse identifier flags into dict
+    identifiers: dict[str, str] = {}
+    for raw in args.identifier:
+        if ":" not in raw:
+            parser.error(f"Invalid identifier format (expected TYPE:VALUE): {raw}")
+        key, value = raw.split(":", 1)
+        identifiers[key.strip().lower()] = value.strip()
+
     result = register_source(
         args.kb_path, args.source,
         source_id=args.source_id,
         is_reference=args.reference, title=args.title,
+        identifiers=identifiers or None,
     )
     print(json.dumps(result, ensure_ascii=False, indent=2))
 

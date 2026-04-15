@@ -161,6 +161,123 @@ class TestRegisterReference:
         assert fm["title"] == "Infrastructure: More, Better, Faster (Tang et al., 2010)"
 
 
+class TestIdentifiers:
+    def test_identifiers_stored_in_config(self, kb_path: Path, sample_pdf: Path):
+        add_source.register_source(
+            str(kb_path), str(sample_pdf), source_id="knuth-1997",
+            identifiers={"isbn": "978-0-201-89683-1"},
+        )
+        config = yaml.safe_load(
+            (kb_path / ".kb" / "config.yaml").read_text(encoding="utf-8")
+        )
+        assert config["sources"][0]["identifiers"] == {"isbn": "978-0-201-89683-1"}
+
+    def test_multiple_identifiers(self, kb_path: Path, sample_pdf: Path):
+        add_source.register_source(
+            str(kb_path), str(sample_pdf), source_id="vaswani-2017",
+            identifiers={"doi": "10.5555/3295222.3295349", "arxiv": "1706.03762"},
+        )
+        config = yaml.safe_load(
+            (kb_path / ".kb" / "config.yaml").read_text(encoding="utf-8")
+        )
+        ids = config["sources"][0]["identifiers"]
+        assert ids["doi"] == "10.5555/3295222.3295349"
+        assert ids["arxiv"] == "1706.03762"
+
+    def test_identifiers_in_reference_stub_frontmatter(self, kb_path: Path):
+        add_source.register_source(
+            str(kb_path), "https://example.com/paper",
+            source_id="smith-2024", is_reference=True, title="A Paper",
+            identifiers={"doi": "10.1234/example"},
+        )
+        stub = kb_path / "sources" / "references" / "smith-2024.md"
+        content = stub.read_text(encoding="utf-8")
+        parts = content.split("---", 2)
+        fm = yaml.safe_load(parts[1])
+        assert fm["identifiers"] == {"doi": "10.1234/example"}
+
+    def test_identifiers_in_file_stub_frontmatter(self, kb_path: Path, sample_pdf: Path):
+        add_source.register_source(
+            str(kb_path), str(sample_pdf), source_id="knuth-1997",
+            identifiers={"isbn": "978-0-201-89683-1"},
+        )
+        stub = kb_path / "sources" / "files" / "knuth-1997.md"
+        content = stub.read_text(encoding="utf-8")
+        parts = content.split("---", 2)
+        fm = yaml.safe_load(parts[1])
+        assert fm["identifiers"] == {"isbn": "978-0-201-89683-1"}
+
+    def test_identifiers_in_reference_stub_body(self, kb_path: Path):
+        add_source.register_source(
+            str(kb_path), "https://example.com/paper",
+            source_id="smith-2024", is_reference=True, title="A Paper",
+            identifiers={"doi": "10.1234/example", "isbn": "978-0-13-468599-1"},
+        )
+        stub = kb_path / "sources" / "references" / "smith-2024.md"
+        content = stub.read_text(encoding="utf-8")
+        assert "**DOI**: 10.1234/example" in content
+        assert "**ISBN**: 978-0-13-468599-1" in content
+
+    def test_identifiers_in_file_stub_body(self, kb_path: Path, sample_pdf: Path):
+        add_source.register_source(
+            str(kb_path), str(sample_pdf), source_id="knuth-1997",
+            identifiers={"isbn": "978-0-201-89683-1"},
+        )
+        stub = kb_path / "sources" / "files" / "knuth-1997.md"
+        content = stub.read_text(encoding="utf-8")
+        assert "**ISBN**: 978-0-201-89683-1" in content
+
+    def test_no_identifiers_omits_field(self, kb_path: Path, sample_pdf: Path):
+        """When no identifiers provided, config entry and stub have no identifiers key."""
+        add_source.register_source(
+            str(kb_path), str(sample_pdf), source_id="real-2020",
+        )
+        config = yaml.safe_load(
+            (kb_path / ".kb" / "config.yaml").read_text(encoding="utf-8")
+        )
+        assert "identifiers" not in config["sources"][0]
+        stub = kb_path / "sources" / "files" / "real-2020.md"
+        content = stub.read_text(encoding="utf-8")
+        assert "identifiers" not in content.lower().split("---", 2)[1]
+
+    def test_identifiers_returned_in_result(self, kb_path: Path, sample_pdf: Path):
+        result = add_source.register_source(
+            str(kb_path), str(sample_pdf), source_id="knuth-1997",
+            identifiers={"isbn": "978-0-201-89683-1"},
+        )
+        assert result["identifiers"] == {"isbn": "978-0-201-89683-1"}
+
+    def test_identifiers_absent_from_result_when_empty(self, kb_path: Path, sample_pdf: Path):
+        result = add_source.register_source(
+            str(kb_path), str(sample_pdf), source_id="real-2020",
+        )
+        assert "identifiers" not in result
+
+
+class TestIdentifiersCli:
+    def test_identifier_cli_flag(self, kb_path: Path, sample_pdf: Path, capsys):
+        add_source.main([
+            "--kb-path", str(kb_path),
+            "--source", str(sample_pdf),
+            "--source-id", "knuth-1997",
+            "--identifier", "isbn:978-0-201-89683-1",
+        ])
+        out = json.loads(capsys.readouterr().out)
+        assert out["identifiers"] == {"isbn": "978-0-201-89683-1"}
+
+    def test_multiple_identifier_flags(self, kb_path: Path, sample_pdf: Path, capsys):
+        add_source.main([
+            "--kb-path", str(kb_path),
+            "--source", str(sample_pdf),
+            "--source-id", "vaswani-2017",
+            "--identifier", "doi:10.5555/3295222.3295349",
+            "--identifier", "arxiv:1706.03762",
+        ])
+        out = json.loads(capsys.readouterr().out)
+        assert out["identifiers"]["doi"] == "10.5555/3295222.3295349"
+        assert out["identifiers"]["arxiv"] == "1706.03762"
+
+
 class TestCli:
     def test_register_file_cli(self, kb_path: Path, sample_pdf: Path, capsys):
         add_source.main([

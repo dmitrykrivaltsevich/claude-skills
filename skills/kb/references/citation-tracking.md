@@ -29,6 +29,7 @@ Create entries for referenced works even if they're not in your `sources/` direc
 - Start with just the bibliographic info and incoming citation contexts
 - Accumulate more context as more sources are added that reference them
 - Serve as "wanted" items — user can decide to add them as full sources later
+- When the bibliography entry includes a DOI, ISBN, arXiv ID, URL, or other identifier, record it in `cited-identifiers` frontmatter. This makes the entry findable and acquirable later without manual searching.
 
 ## Unreferenced Bibliography
 
@@ -51,6 +52,8 @@ created: 2025-01-15
 source-ids: [chen-2023]
 cited-work: "Author et al., 2020, Title of Paper"
 cite-key: "[3]"
+cited-identifiers:
+  doi: "10.1234/example-2020"
 ---
 
 # chen-2023 cites Author et al. 2020
@@ -79,6 +82,8 @@ created: 2025-01-15
 source-ids: [sweet-2023]
 cited-work: "Eckles & Kaptein, 2014, Thompson Sampling with the Online Bootstrap"
 cite-url: "https://arxiv.org/abs/1410.4009"
+cited-identifiers:
+  arxiv: "1410.4009"
 ---
 
 # sweet-2023 cites Eckles & Kaptein 2014

@@ -275,6 +275,8 @@ updated: 2025-01-15
 source-ids: [isaacson-2007]
 tags: [biography, physics]
 source-type: book | paper | article | transcript | reference
+identifiers:
+  isbn: "978-0-7432-6473-0"
 ---
 ```
 
@@ -310,6 +312,7 @@ Comprehensive biography covering Einstein's personal life, scientific contributi
 
 **Rules**:
 - One per source. Named `<source-id>-analysis.md`.
+- `identifiers` — optional. Record all bibliographic identifiers found on or inside the source: ISBN (books), DOI (papers/articles), ISSN (journals/magazines), arXiv ID (preprints), PMID (biomedical), URL. Pass the same identifiers to `add_source.py --identifier` when registering the source so the stub and config also carry them.
 - **MUST wikilink to the registered source**: `**Source**: [[<source-id>]]`. This is a wikilink — NOT a file path. Write `**Source**: [[lamport-1978]]`, NEVER `Source: sources/references/lamport-1978.md`. Do not mention whether the source is a reference or a file — that's an implementation detail irrelevant to the knowledge graph. The `add_source.py` script creates a navigable `.md` stub for every source, so `[[source-id]]` always resolves.
 - Must include summary, key extractions (what entries were created/updated), bibliography analysis (for academic sources). MUST NOT contain progress checklists, session logs, or chapter-by-chapter extraction checkboxes — that operational state belongs in task state (`state.py --notes`), not in knowledge files.
 - If visual assets were extracted, add a `## Figures & Tables` section. Each asset MUST be an Obsidian image embed — `![[knowledge/assets/<source-id>/<name>.png]]` on its own line, followed by an italicized caption on the next line. NEVER list assets as plain text or code-formatted paths.
@@ -329,6 +332,8 @@ source-ids: [vaswani-2017]
 cited-work: "Bahdanau et al., 2015, Neural Machine Translation by Jointly Learning to Align and Translate"
 cite-key: "[14]"
 tags: [attention, nmt]
+cited-identifiers:
+  arxiv: "1409.0473"
 ---
 ```
 
@@ -349,6 +354,7 @@ tags: [attention, nmt]
 **Rules**:
 - `cited-work` is the full bibliographic reference.
 - `cite-key` is the in-text citation marker from the source.
+- `cited-identifiers` — optional. Record any DOI, ISBN, arXiv ID, URL, or other identifier found in the bibliography entry or inline link. These make "works not in sources" entries findable and acquirable later.
 - Context must be the exact sentence(s) containing the citation.
 - **`Citing source` wikilink is MANDATORY** — must link to `[[<source-id>-analysis]]` so the citation is navigable back to its origin. Without this link, citations are dead ends.
 - **`Significance`** — one sentence explaining why this citation matters in the context of the citing paper. Not every citation needs equal weight.

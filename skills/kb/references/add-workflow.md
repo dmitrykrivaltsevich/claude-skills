@@ -17,7 +17,7 @@ Generic extraction framework for all source types. Source-type-specific workflow
 
 Every `kb:add` regardless of source type:
 
-- [ ] Register source (`add_source.py`)
+- [ ] Register source (`add_source.py`) — pass `--identifier TYPE:VALUE` for every bibliographic identifier found (ISBN, DOI, ISSN, arXiv, PMID, URL). Check copyright page (books), header/footer (papers), masthead (journals), metadata block (web articles).
 - [ ] Create task (`state.py init`)
 - [ ] Read the source (use `/pdf` skill for PDFs)
 - [ ] Extract visual assets (figures, tables, diagrams, charts) → `knowledge/assets/<source-id>/`
