@@ -105,7 +105,7 @@ If your extraction doesn't meet these minimums, **go back and look specifically 
 
 ### Chapter Analysis Brief (mandatory — after quality gate)
 
-After the quality gate passes, write a chapter analysis brief to `knowledge/sources/<source-id>-ch<NN>-analysis.md` (zero-padded chapter number, e.g. `lowe-2025-ch03-analysis.md`). This is a working document — richer than a checkpoint tally, lighter than a source analysis. It feeds the part-level and book-level synthesis.
+After the quality gate passes, write a chapter analysis brief to `knowledge/sources/<source-id>-ch<NN>-analysis.md` (zero-padded chapter number, e.g. `lowe-2025-ch03-analysis.md`). This is **analytical writing** — your job is to THINK about the material, not summarize the table of contents. It feeds the part-level and book-level synthesis.
 
 ```yaml
 ---
@@ -118,15 +118,17 @@ pages: 176-204
 ---
 ```
 
-**Required sections** (keep each to 2-5 sentences):
+**Required sections** (keep each to 3-8 sentences):
 
-| Section | What to write |
-|---------|--------------|
-| `## Core argument` | What this chapter argues or teaches. One paragraph. |
-| `## Key insight` | The single most valuable thing — the insight the reader would miss by reading only the heading. |
-| `## Connections to prior chapters` | Which threads this chapter picks up, extends, or contradicts from earlier chapters. Wikilink to those chapter analyses. |
-| `## Open threads` | What this chapter raises but doesn't resolve — tensions, unanswered questions, foreshadowing. These feed part-level and book-level synthesis. |
-| `## Entry summary` | Extraction tally and key entry names: `+5E +2T +1I +8C +3TL: [[dijkstra]], [[parnas]]; [[software-processes]]; [[lehman-laws]]`. Wikilink to entries. |
+| Section | What to write | What NOT to write |
+|---------|--------------|-------------------|
+| `## Core argument` | The chapter's **thesis** — what it ARGUES, not what it covers. "The author argues that X because Y, which implies Z." If the chapter doesn't argue, state what position it takes and what evidence supports it. | NOT "This chapter covers topics A, B, and C." That's a ToC entry, not analysis. |
+| `## Key insight` | The non-obvious takeaway — something a reader would miss from the heading alone. What surprised you? What contradicts common assumptions? What would change how someone thinks about this topic? | NOT a summary sentence. NOT the chapter's first paragraph rephrased. |
+| `## Critical questions` | 2-5 questions that a thoughtful reader of this chapter would ask. These are NOT comprehension questions ("What is X?"). They are analytical: "Why does the author choose approach A over B?", "What evidence would falsify this claim?", "How does this interact with [concept from another field]?", "What are the second-order consequences of this being true?" | NOT quiz questions. NOT "What did the author say about X?" |
+| `## Connections to prior chapters` | Which threads this chapter picks up, extends, or **contradicts** from earlier chapters. How does the author's argument develop? Where does this chapter strengthen or weaken earlier claims? Wikilink to those chapter analyses. | NOT "Chapter 2 discussed X, and this chapter discusses Y." That's sequential listing, not connection. |
+| `## Open threads` | What this chapter raises but doesn't resolve — tensions, unanswered questions, foreshadowing. What should a careful reader hold in mind going forward? | NOT a preview of the next chapter's ToC. |
+
+**The acid test**: if your chapter brief could have been written by reading ONLY the table of contents and chapter headings, it's worthless. Delete it and re-read the actual chapter text before trying again.
 
 **Why this exists**: Checkpoint tallies (`+5E +3T`) are too terse for synthesis. Without chapter analysis briefs, the book-level synthesis must jump from `+5E +3T +2I` × 26 chapters to one coherent analysis — producing shallow output. These briefs are the intermediate representation that makes hierarchical synthesis work.
 
@@ -164,15 +166,17 @@ chapters: [10, 11, 12, 13, 14, 15]
 
 **Required sections** (each 3-8 sentences):
 
-| Section | What to write |
-|---------|--------------|
-| `## Chapter briefs` | Wikilink every chapter analysis brief this part is built from: `[[<id>-ch10-analysis]]`, `[[<id>-ch11-analysis]]`, etc. This is the traceability chain — readers must be able to drill down from part to chapter. |
-| `## Argument arc` | How the part's chapters build on each other — the narrative progression, not a chapter-by-chapter summary. |
-| `## Cross-chapter themes` | Themes that emerge only when you see multiple chapters together. Not themes visible in any single chapter. |
-| `## Tensions and contradictions` | Where chapters disagree, present competing approaches, or leave unresolved debates. These are often the most analytically valuable findings. |
-| `## Relationship to other parts` | How this part extends, deepens, or redirects other parts. Wikilink to their part analyses (`[[<id>-part1-analysis]]`, etc.). For prior parts: how this part builds on or diverges from them. For later parts (if already processed): update this section when you reach them. Cross-part links MUST be reciprocal — if Part 3 references Part 1, Part 1's analysis MUST link back. |
-| `## Open threads` | What this part raises for the remainder of the book. Threads that should be tracked through later parts. |
-| `## Entry summary` | Aggregate tallies and notable entries from all chapters in the part. |
+| Section | What to write | What NOT to write |
+|---------|--------------|-------------------|
+| `## Chapter briefs` | Wikilink every chapter analysis brief this part is built from: `[[<id>-ch10-analysis]]`, `[[<id>-ch11-analysis]]`, etc. One-sentence annotation per link saying what that chapter's core argument was. | NOT just a link list. The annotations let a reader decide which chapter to drill into. |
+| `## Argument arc` | How does the author's argument DEVELOP across these chapters? What does Ch 10 establish that Ch 13 depends on? Where does the reasoning build, turn, or shift? This is about **logical progression**, not sequential coverage. | NOT "Chapter 10 covers X. Chapter 11 covers Y. Chapter 12 covers Z." That's a ToC, not an arc. If you can re-order your sentences without losing meaning, you wrote a list, not an arc. |
+| `## Emergent themes` | Themes visible ONLY when you see multiple chapters together — patterns the author may not have flagged explicitly. What does the juxtaposition of these chapters reveal? What would a reader miss by reading chapters in isolation? | NOT themes already stated in any single chapter heading. Those are chapter-level themes, not emergent. |
+| `## Tensions and contradictions` | Where chapters disagree, present competing approaches, or leave unresolved debates. Where does the author's advice in Ch 11 conflict with Ch 14's examples? These are often the most analytically valuable findings. | NOT "there are no contradictions." Every non-trivial part has tensions — if you found none, you read too superficially. |
+| `## Critical questions` | 3-5 analytical questions raised by the COMBINATION of chapters. Not questions from any single chapter — those belong in chapter briefs. These are synthesis-level: "If the author's framework from Ch 10 is correct, why does the case study in Ch 13 succeed despite violating it?" | NOT comprehension questions. NOT single-chapter questions repeated. |
+| `## Relationship to other parts` | How this part extends, deepens, or redirects other parts. Wikilink to their part analyses (`[[<id>-part1-analysis]]`, etc.). For prior parts: how this part builds on or diverges from them. For later parts (if already processed): update this section when you reach them. Cross-part links MUST be reciprocal — if Part 3 references Part 1, Part 1's analysis MUST link back. | NOT "Part 1 covered different topics." State the INTELLECTUAL relationship. |
+| `## Open threads` | What this part raises for the remainder of the book. Threads that should be tracked through later parts. | NOT a preview of later chapter ToCs. |
+
+**The acid test**: if your part analysis could have been written by reading ONLY the chapter titles and their yield tallies, it's worthless. Delete it, re-read the chapter analysis briefs (especially Critical questions, Open threads, and Connections sections), and write actual synthesis.
 
 3. **Create or update topic entries** for cross-chapter themes within the part — these are themes that span multiple chapters, not chapter-level topics
 4. **Create cross-chapter idea entries** for patterns visible only at the part level
@@ -291,11 +295,17 @@ These are the named failure modes for book processing. If you recognize yourself
 
 ### Anti-pattern 1: "TOC-as-analysis"
 
-**What happens**: You read the table of contents, write a source analysis that reformats the TOC into prose ("Chapter 1 covers X, Chapter 2 covers Y..."), create a handful of topic entries from chapter titles, and declare the book done.
+**What happens**: Analysis documents at EVERY level — chapter briefs, part analyses, source analysis — restate the table of contents as prose. Chapter briefs say "This chapter covers X, Y, Z." Part analyses list what each chapter covers sequentially. No critical questions, no tensions found, no actual thinking.
 
-**Why it happens**: The TOC gives a false sense of "understanding" the whole book. Writing it as prose feels like analysis. It isn't — it's reformatting.
+**Why it happens**: Summarizing is easier than analyzing. The ToC gives structure, and restating that structure feels productive. Yield tallies (`+5E +3T +2I`) feel like substance. They aren't — they're operational bookkeeping, not intellectual work.
 
-**The fix**: The source analysis is the LAST thing you write, during the synthesis session, AFTER all chapters are extracted. During Phase 2, you create task items from the TOC — that's the only use for it. If you catch yourself writing `knowledge/sources/<id>-analysis.md` before all chapter task items are done, you are in this anti-pattern. Delete the premature analysis and go back to per-chapter extraction.
+**How to detect it**: Read your chapter brief aloud. Could someone have written it from the chapter TITLE alone? Then it's a ToC entry, not analysis. Read your part analysis. Can you re-order the paragraphs without losing coherence? Then you wrote a list, not a synthesis. Does your part analysis contain a "Yield summary" table? That's operational metadata — it belongs in checkpoint notes, not in analytical documents.
+
+**The fix**:
+- Chapter briefs MUST contain `## Critical questions` — 2-5 non-obvious analytical questions. If you can't formulate questions, you didn't engage with the material.
+- Part analyses MUST contain `## Emergent themes` (not restated chapter themes) and `## Critical questions` (synthesis-level, not from individual chapters).
+- Every "Core argument" section must state a THESIS ("the author argues X because Y"), not a topic ("this chapter covers X").
+- Delete any yield summary tables from analysis documents. Put tallies in checkpoint notes where they belong.
 
 ### Anti-pattern 2: "One-chunk book"
 

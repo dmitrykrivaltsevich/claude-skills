@@ -66,15 +66,15 @@ pages: 28-35
 ---
 ```
 
-**Required sections** (keep each to 2-5 sentences):
+**Required sections** (keep each to 3-8 sentences):
 
-| Section | What to write |
-|---------|--------------|
-| `## Core argument` | What this article argues. One paragraph. |
-| `## Key insight` | The single most valuable takeaway. |
-| `## Author perspective` | What lens does this author bring? Academic, practitioner, contrarian? |
-| `## Connections to other articles in this issue` | Where this article agrees, disagrees, or complements other articles in the same collection. Wikilink to those article analysis briefs. |
-| `## Entry summary` | Extraction tally: `+3E +1T +2I +5C: [[chen]], [[park]]; [[distributed-scaling]]; [[cap-theorem-revisited]]`. |
+| Section | What to write | What NOT to write |
+|---------|--------------|-------------------|
+| `## Core argument` | What this article ARGUES — its thesis, not its topic. "The author argues X because Y, which implies Z." | NOT "This article covers X and Y." |
+| `## Key insight` | The non-obvious takeaway. What would a reader miss from the title alone? What surprised you? | NOT a summary sentence restating the abstract. |
+| `## Author perspective` | What lens does this author bring? Academic vs practitioner, senior vs emerging, insider vs outsider? How does their position shape their argument? | NOT just a label. Explain HOW their perspective shapes what they see and miss. |
+| `## Critical questions` | 2-4 analytical questions this article raises. "Why does the author ignore X?", "What evidence would falsify this?", "How does this interact with [concept]?" | NOT comprehension questions. NOT "What did the author say about X?" |
+| `## Connections to other articles in this issue` | Where this article agrees, disagrees, or complements other articles in the same collection. What conversation are they having, even if unintentionally? Wikilink to those article analysis briefs. | NOT "Article 1 discusses X and this article discusses Y." State the intellectual relationship. |
 
 ### Checkpoint
 
