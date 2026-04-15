@@ -50,6 +50,7 @@ Determine the source type, then read the matching workflow file:
 | Book / textbook | [book-workflow.md](book-workflow.md) | Multi-session, chapter-by-chapter with hierarchical analysis documents |
 | Video / podcast | [video-url-workflow.md](video-url-workflow.md) | Transcripts with speaker attribution |
 | URL reference | [video-url-workflow.md](video-url-workflow.md#url-reference) | External link, no full text available |
+| Collection (magazine / journal / proceedings / anthology) | [collection-workflow.md](collection-workflow.md) | Multiple independent articles by different authors, grouped into an issue or volume |
 
 For citation examples, see [citation-tracking.md](citation-tracking.md#examples).
 

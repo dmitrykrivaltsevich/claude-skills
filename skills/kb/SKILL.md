@@ -456,6 +456,7 @@ The file `.kb/rules.md` is the per-KB operating manual. It starts from a templat
 - [references/article-workflow.md](references/article-workflow.md) — Article/blog post single-session extraction checklist
 - [references/paper-workflow.md](references/paper-workflow.md) — Academic paper extraction with mandatory citation graph
 - [references/video-url-workflow.md](references/video-url-workflow.md) — Video/podcast transcript and URL reference stubs
+- [references/collection-workflow.md](references/collection-workflow.md) — Collection processing (magazines, journals, proceedings, anthologies): per-article extraction, article analysis briefs, issue-level synthesis, cross-issue analysis
 - [references/entry-types.md](references/entry-types.md) — Schema for each entry type (including questions), custom entry types, entity triangulation rules, wikilink patterns
 - [references/citation-tracking.md](references/citation-tracking.md) — Full citation tracking protocol with examples: forward citations, backward citations, entries for works not in sources, unreferenced bibliography
 - [references/long-horizon.md](references/long-horizon.md) — Full long-horizon protocol: everything-on-disk principle, checkpoint discipline, resumption protocol, hierarchical processing, all 7 trajectory drift defenses, context management
