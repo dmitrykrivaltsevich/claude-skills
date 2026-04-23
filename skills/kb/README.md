@@ -1,10 +1,10 @@
 # Knowledge Base Skill
 
-LLM-curated local knowledge bases — persistent collections of interlinked Obsidian-compatible markdown files. Extracts knowledge from sources (articles, papers, books, videos), creates richly interlinked entries, tracks citations, and detects contradictions.
+LLM-curated local knowledge bases — persistent collections of interlinked Obsidian-compatible markdown files. Extracts knowledge from sources (articles, papers, books, videos), including know-how and hidden gems, creates richly interlinked entries, tracks citations, and detects contradictions.
 
 ## What It Does
 
-This skill manages the scaffolding and mechanical operations. **The LLM does all the intellectual work**: knowledge extraction, summarization, cross-linking, citation graph building, controversy detection, and meta-analysis.
+This skill manages the scaffolding and mechanical operations. **The LLM does all the intellectual work**: knowledge extraction, know-how capture, summarization, cross-linking, citation graph building, controversy detection, and meta-analysis.
 
 Operations:
 - **kb:init** — scaffold a new KB with folder structure and config
@@ -26,7 +26,7 @@ Operations:
 | `open.py` | Load full KB context as JSON (config, rules, counts, pending tasks) |
 | `add_source.py` | Copy/reference a source file, assign ID, update config |
 | `lint.py` | Check broken wikilinks, orphans, missing backlinks, timeline gaps (year/month/day) |
-| `search.py` | Full-text search with scoring, multi-match, category filter |
+| `search.py` | Full-text search with scoring, multi-match, category filter, and frontmatter filters for `idea-kind` / tags |
 | `related.py` | Find entries by keyword overlap (for cross-referencing) |
 | `graph.py` | Extract wikilink graph: nodes, edges, degrees, components |
 | `topology.py` | Graph topology analysis: clusters, bridges, structural holes, anomalies |
@@ -47,7 +47,7 @@ my-kb/
   knowledge/
     entities/          # People, organizations
     topics/            # Subject areas, fields
-    ideas/             # Specific attributable contributions
+    ideas/             # Specific attributable contributions and know-how
     locations/         # Geographic places
     timeline/          # Navigable year→month→day chain
     sources/           # Per-source analysis summaries
@@ -65,4 +65,4 @@ my-kb/
 uv run --no-config --with pytest --with pyyaml pytest skills/kb/tests/ -x --tb=short
 ```
 
-135 tests across 9 test files.
+The KB tests cover scaffolding, search, state handling, and documentation guardrails.

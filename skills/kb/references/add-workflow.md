@@ -7,11 +7,12 @@ Generic extraction framework for all source types. Source-type-specific workflow
 1. [Universal Checklist](#universal-checklist)
 2. [Source Type Routing](#source-type-routing)
 3. [Any Large Source (Generic Pattern)](#any-large-source-generic-pattern)
-4. [Compaction](#compaction)
-5. [Multi-Perspective Extraction](#multi-perspective-extraction)
-6. [Question Generation](#question-generation)
-7. [Creative Cross-Linking](#creative-cross-linking)
-8. [Backlink Enforcement](#backlink-enforcement)
+4. [Know-How Extraction](#know-how-extraction)
+5. [Compaction](#compaction)
+6. [Multi-Perspective Extraction](#multi-perspective-extraction)
+7. [Question Generation](#question-generation)
+8. [Creative Cross-Linking](#creative-cross-linking)
+9. [Backlink Enforcement](#backlink-enforcement)
 
 ## Universal Checklist
 
@@ -24,10 +25,12 @@ Every `kb:add` regardless of source type:
 - [ ] Extract ALL named entities → `knowledge/entities/`
 - [ ] Extract ALL topics → `knowledge/topics/`
 - [ ] Extract ALL concrete ideas → `knowledge/ideas/`
+- [ ] Extract know-how → `idea-kind: practical` idea entries (see [practical-extraction.md](practical-extraction.md))
 - [ ] Extract ALL locations mentioned → `knowledge/locations/`
 - [ ] Extract ALL dates/events → `knowledge/timeline/`
 - [ ] Build citation graph (if applicable) → `knowledge/citations/`
 - [ ] Write source analysis → `knowledge/sources/`
+- [ ] Add `## Hidden Gems` and `## Know-How` to analysis docs, or write `No practical insight justified from this chunk/source.`
 - [ ] Cross-reference with existing KB entries → add reciprocal `[[wikilinks]]`
 - [ ] Check for contradictions with existing KB → `knowledge/controversies/`
 - [ ] **Multi-perspective pass** — re-read source through a different lens (see [Multi-Perspective Extraction](#multi-perspective-extraction))
@@ -73,6 +76,15 @@ Signs a source needs this pattern:
 - The user says to process it "thoroughly" or "exhaustively"
 
 When in doubt, use this pattern. The overhead of task items + checkpoint notes is tiny compared to losing work to context compaction.
+
+## Know-How Extraction
+
+This workflow captures source-backed know-how during reading and can be repeated during lint/revisit when later context makes the guidance clearer.
+
+- Run the workflow in [practical-extraction.md](practical-extraction.md) while reading the source.
+- Promote heuristics, decision rules, deployment constraints, debugging tactics, and failure modes into `idea-kind: practical` entries immediately.
+- If the source or chunk has no honest practical lesson, record `No practical insight justified from this chunk/source.` in the analysis document.
+- Re-run the same workflow during lint/revisit when a source analysis feels summary-heavy or an older conceptual idea now has clear operational guidance.
 
 ## Compaction
 

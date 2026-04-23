@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 # /// script
 # requires-python = ">=3.11"
-# dependencies = []
+# dependencies = [
+#   "pyyaml >= 6.0",
+# ]
 # ///
 """KB search — full-text search across knowledge base files.
 
@@ -11,7 +13,8 @@ relevance (hit density).
 
 Supports:
   - Multiple matches per file (default) or first-match-only (--first-only)
-  - Category filtering (--category entities, topics, ideas, etc.)
+    - Category filtering (--category entities, topics, ideas, etc.)
+    - Frontmatter filters for idea kind and tags (--kind practical, --tag debugging)
   - Multi-term queries scored by term coverage per file
   - Paragraph-aware context (extends to nearest blank lines)
 
@@ -27,6 +30,8 @@ import re
 import sys
 from pathlib import Path
 
+import yaml
+
 sys.path.insert(0, os.path.dirname(__file__))
 from contracts import ContractViolationError, precondition
 
@@ -40,6 +45,8 @@ _VALID_CATEGORIES = frozenset({
     "sources", "citations", "controversies", "meta", "assets",
     "questions",
 })
+
+_VALID_IDEA_KINDS = frozenset({"conceptual", "practical"})
 
 
 # ---------------------------------------------------------------------------
@@ -88,6 +95,48 @@ def _paragraph_context(lines: list[str], match_idx: int) -> str:
     return "\n".join(lines[start:end])
 
 
+def _load_frontmatter(text: str) -> dict:
+    """Parse YAML frontmatter from a markdown document when present."""
+    if not text.startswith("---\n"):
+        return {}
+
+    end_idx = text.find("\n---\n", 4)
+    if end_idx == -1:
+        return {}
+
+    try:
+        frontmatter = yaml.safe_load(text[4:end_idx])
+    except yaml.YAMLError:
+        return {}
+
+    return frontmatter if isinstance(frontmatter, dict) else {}
+
+
+def _matches_filters(frontmatter: dict, kind: str | None, tag: str | None) -> bool:
+    """Return True when frontmatter satisfies the requested filters."""
+    if kind:
+        if frontmatter.get("idea-kind") != kind:
+            return False
+
+    if tag:
+        tags = frontmatter.get("tags", [])
+        if isinstance(tags, str):
+            normalized_tags = {tags.strip().lower()} if tags.strip() else set()
+        elif isinstance(tags, list):
+            normalized_tags = {
+                str(item).strip().lower()
+                for item in tags
+                if str(item).strip()
+            }
+        else:
+            normalized_tags = set()
+
+        if tag.lower() not in normalized_tags:
+            return False
+
+    return True
+
+
 def _score_file(hit_count: int, total_lines: int, term_hits: int, total_terms: int) -> float:
     """Score a file's relevance.  Higher = more relevant.
 
@@ -119,6 +168,8 @@ def search_kb(
     limit: int | None = None,
     category: str | None = None,
     first_only: bool = False,
+    kind: str | None = None,
+    tag: str | None = None,
 ) -> dict:
     """Search all KB .md files for a query string (case-insensitive).
 
@@ -129,11 +180,19 @@ def search_kb(
         limit: Maximum number of file results to return.
         category: If set, restrict search to ``knowledge/<category>/`` files.
         first_only: If True, return only the first match per file (legacy).
+        kind: If set, restrict results to entries with matching ``idea-kind``.
+        tag: If set, restrict results to entries whose frontmatter tags contain it.
 
     Returns a dict with ``matches`` (list sorted by score descending),
     ``truncated``, and ``total_scanned``.
     """
     root = Path(kb_path)
+
+    if kind is not None and kind not in _VALID_IDEA_KINDS:
+        raise ContractViolationError(
+            f"kind must be one of: {', '.join(sorted(_VALID_IDEA_KINDS))}",
+            kind="precondition",
+        )
 
     # Split query into individual terms for scoring.  Each term is
     # compiled as a separate pattern so "quantum computing" matches
@@ -177,6 +236,10 @@ def search_kb(
             text = fpath.read_text(encoding="utf-8")
             lines = text.splitlines()
         except (OSError, UnicodeDecodeError):
+            continue
+
+        frontmatter = _load_frontmatter(text)
+        if (kind or tag) and not _matches_filters(frontmatter, kind, tag):
             continue
 
         # Find all matching lines
@@ -244,6 +307,17 @@ def main(argv: list[str] | None = None) -> None:
         action="store_true",
         help="Return only first match per file",
     )
+    parser.add_argument(
+        "--kind",
+        default=None,
+        choices=sorted(_VALID_IDEA_KINDS),
+        help="Restrict results to entries with a matching idea-kind",
+    )
+    parser.add_argument(
+        "--tag",
+        default=None,
+        help="Restrict results to entries whose frontmatter tags contain this tag",
+    )
 
     args = parser.parse_args(argv)
     result = search_kb(
@@ -252,6 +326,8 @@ def main(argv: list[str] | None = None) -> None:
         limit=args.limit,
         category=args.category,
         first_only=args.first_only,
+        kind=args.kind,
+        tag=args.tag,
     )
     print(json.dumps(result, ensure_ascii=False, indent=2))
 

@@ -142,6 +142,91 @@ class TestSearch:
         assert full[0]["term_coverage"] == "2/2"
         assert partial[0]["term_coverage"] == "1/2"
 
+    def test_kind_filter_for_practical_ideas(self, kb_path: Path):
+        """--kind restricts results to ideas with matching idea-kind frontmatter."""
+        _write_entry(
+            kb_path,
+            "knowledge/ideas/debugging-playbook.md",
+            "---\n"
+            "type: idea\n"
+            "created: 2026-04-23\n"
+            "updated: 2026-04-23\n"
+            "source-ids: [smith-2026]\n"
+            "tags: [debugging]\n"
+            "attributed-to: [jane-smith]\n"
+            "year: 2026\n"
+            "idea-kind: practical\n"
+            "---\n\n"
+            "# Debugging Playbook\n\n"
+            "Look for rollback signals before changing configuration.\n",
+        )
+        _write_entry(
+            kb_path,
+            "knowledge/ideas/theory.md",
+            "---\n"
+            "type: idea\n"
+            "created: 2026-04-23\n"
+            "updated: 2026-04-23\n"
+            "source-ids: [smith-2026]\n"
+            "tags: [theory]\n"
+            "attributed-to: [jane-smith]\n"
+            "year: 2026\n"
+            "idea-kind: conceptual\n"
+            "---\n\n"
+            "# Theory\n\n"
+            "Look for rollback signals in conceptual models.\n",
+        )
+
+        result = search.search_kb(
+            str(kb_path),
+            "rollback signals",
+            category="ideas",
+            kind="practical",
+        )
+
+        files = [r["file"] for r in result["results"]]
+        assert files == ["knowledge/ideas/debugging-playbook.md"]
+
+    def test_tag_filter(self, kb_path: Path):
+        """--tag restricts results to entries whose frontmatter tags contain the tag."""
+        _write_entry(
+            kb_path,
+            "knowledge/ideas/debugging-playbook.md",
+            "---\n"
+            "type: idea\n"
+            "created: 2026-04-23\n"
+            "updated: 2026-04-23\n"
+            "source-ids: [smith-2026]\n"
+            "tags: [debugging, practical]\n"
+            "attributed-to: [jane-smith]\n"
+            "year: 2026\n"
+            "idea-kind: practical\n"
+            "---\n\n"
+            "# Debugging Playbook\n\n"
+            "Look for rollback signals before changing configuration.\n",
+        )
+        _write_entry(
+            kb_path,
+            "knowledge/ideas/deployment.md",
+            "---\n"
+            "type: idea\n"
+            "created: 2026-04-23\n"
+            "updated: 2026-04-23\n"
+            "source-ids: [smith-2026]\n"
+            "tags: [deployment]\n"
+            "attributed-to: [jane-smith]\n"
+            "year: 2026\n"
+            "idea-kind: practical\n"
+            "---\n\n"
+            "# Deployment\n\n"
+            "Look for rollback signals during rollout.\n",
+        )
+
+        result = search.search_kb(str(kb_path), "rollback signals", tag="debugging")
+
+        files = [r["file"] for r in result["results"]]
+        assert files == ["knowledge/ideas/debugging-playbook.md"]
+
 
 class TestCli:
     def test_search_cli(self, kb_path: Path, capsys):
@@ -158,3 +243,33 @@ class TestCli:
                       "--category", "entities"])
         out = json.loads(capsys.readouterr().out)
         assert len(out["results"]) >= 1
+
+    def test_search_cli_with_kind_and_tag(self, kb_path: Path, capsys):
+        _write_entry(
+            kb_path,
+            "knowledge/ideas/debugging-playbook.md",
+            "---\n"
+            "type: idea\n"
+            "created: 2026-04-23\n"
+            "updated: 2026-04-23\n"
+            "source-ids: [smith-2026]\n"
+            "tags: [debugging, practical]\n"
+            "attributed-to: [jane-smith]\n"
+            "year: 2026\n"
+            "idea-kind: practical\n"
+            "---\n\n"
+            "# Debugging Playbook\n\n"
+            "Look for rollback signals before changing configuration.\n",
+        )
+
+        search.main([
+            "--path", str(kb_path),
+            "--query", "rollback signals",
+            "--category", "ideas",
+            "--kind", "practical",
+            "--tag", "debugging",
+        ])
+        out = json.loads(capsys.readouterr().out)
+        assert [r["file"] for r in out["results"]] == [
+            "knowledge/ideas/debugging-playbook.md"
+        ]

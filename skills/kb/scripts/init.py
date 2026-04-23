@@ -92,6 +92,16 @@ tags: []
 ---
 ```
 
+Idea entries MUST also declare:
+
+```yaml
+idea-kind: conceptual | practical
+```
+
+Use `conceptual` for theories, models, and attributable claims. Use `practical`
+for know-how: heuristics, decision rules, debugging tactics,
+implementation patterns, deployment checklists, and other operator-grade notes.
+
 ### Entry types and their directories:
 
 | Type | Directory | Description |
@@ -106,6 +116,24 @@ tags: []
 | controversy | knowledge/controversies/ | Contradictions with cross-references |
 | meta | knowledge/meta/ | Cross-source meta-analyses |
 | question | knowledge/questions/ | Open questions, gaps, tensions between sources |
+
+## Know-How
+
+Keep practical knowledge inside `knowledge/ideas/` using `idea-kind: practical`.
+
+- If a chunk or source contains actionable advice, create at least one practical idea entry.
+- If it does not, say `No practical insight justified from this chunk/source.` in the analysis doc.
+- Practical idea entries MUST include these sections:
+    - `## Rule of thumb`
+    - `## Use when`
+    - `## Avoid when`
+    - `## Trade-offs`
+    - `## Failure Modes`
+    - `## Implementation Notes`
+- Analysis docs SHOULD include these sections when relevant:
+    - `## Hidden Gems` — non-obvious takeaways worth remembering
+    - `## Know-How` — wikilinks to practical idea entries or the explicit none-case note
+    - `## Pitfalls / Failure Modes` — concrete ways the guidance breaks or misleads
 
 ## Timeline Entries
 
@@ -175,6 +203,10 @@ _No entries yet._
 _No entries yet._
 
 ## Ideas
+
+_No entries yet._
+
+## Know-How
 
 _No entries yet._
 

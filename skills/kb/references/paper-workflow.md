@@ -11,14 +11,16 @@ Single-session extraction. Always has citation tracking.
    - Skip: decorative headers, journal logos, page numbers
 4. Create entity entries for ALL authors
 5. Extract methodology → topic or meta entry if novel
-6. Extract findings → idea entries (attribute to authors + paper). Embed relevant figures: `![[knowledge/assets/<source-id>/<name>.png]]`
-7. Extract limitations acknowledged by authors → note in source analysis
-8. **Citation graph** (mandatory for papers):
+6. Extract findings → conceptual idea entries (attribute to authors + paper). Embed relevant figures: `![[knowledge/assets/<source-id>/<name>.png]]`
+7. Run [practical-extraction.md](practical-extraction.md) during the first pass: capture implementation constraints, failure modes, debugging lessons, negative lessons, and decision rules as `idea-kind: practical` entries when the paper genuinely supports them
+8. Extract limitations acknowledged by authors → note in source analysis and surface them under `## Pitfalls / Failure Modes`
+9. **Citation graph** (mandatory for papers):
    - For each in-text citation: record exact sentence + reference
    - Create citation entries in `knowledge/citations/`
    - Create stub entries for referenced works not yet in KB
    - Flag bibliography items never cited in text
-9. Cross-reference with existing KB
-10. If this paper contradicts another in KB → controversy entry
+10. Cross-reference with existing KB
+11. If this paper contradicts another in KB → controversy entry
+12. In the source analysis, include `## Hidden Gems`, `## Know-How`, and when relevant `## Pitfalls / Failure Modes`. If the paper is purely theoretical and yields no honest practical lesson, write `No practical insight justified from this source.`
 
 Then complete the universal checklist from [add-workflow.md](add-workflow.md): multi-perspective pass, question generation, creative cross-linking, backlink enforcement.

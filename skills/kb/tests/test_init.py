@@ -57,11 +57,16 @@ class TestScaffoldKb:
         rules = (kb_path / ".kb" / "rules.md").read_text()
         assert len(rules) > 100  # Non-trivial rules doc
         assert "wikilink" in rules.lower() or "[[" in rules
+        assert "idea-kind: conceptual | practical" in rules
+        assert "Know-How" in rules
+        assert "Hidden Gems" in rules
+        assert "Pitfalls / Failure Modes" in rules
 
     def test_index_md_has_header(self, kb_path: Path):
         init.scaffold_kb(str(kb_path), "My Knowledge Base")
         index = (kb_path / "index.md").read_text()
         assert "# " in index
+        assert "## Know-How" in index
 
     def test_log_md_has_header(self, kb_path: Path):
         init.scaffold_kb(str(kb_path), "My Knowledge Base")

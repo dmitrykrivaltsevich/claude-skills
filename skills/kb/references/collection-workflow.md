@@ -36,7 +36,7 @@ Each article is an independent extraction unit. Process it like a standalone art
 1. Run `state.py pending` to see next article
 2. Read the full article text (use PDF reading strategy from [book-workflow.md](book-workflow.md#pdf-reading-strategy--text-first-images-one-at-a-time) if needed)
 3. **Create entity entries for ALL authors** of this article — not just the collection editors. Each article may have different authors; this is a primary difference from books.
-4. Extract using the standard two-layer pattern: stochastic exploration first, then quality gate
+4. Extract using the standard two-layer pattern: stochastic exploration first, then quality gate. Run [practical-extraction.md](practical-extraction.md) during this first pass so heuristics, deployment constraints, pitfalls, and failure modes become `idea-kind: practical` entries while the article is fresh.
 5. **Cross-link with prior articles in this collection** — if article 5 discusses something article 2 covered, add wikilinks. These cross-article links are the collection's intellectual structure.
 6. Citation tracking: each article has its own citation graph. Create citation entries attributed to the article-level source-id (e.g. `acm-queue-2024-vol22-3-chen-cites-...`).
 
@@ -49,6 +49,8 @@ Same hard minimums as book chapters. For short articles (1-3 pages), relax to �
 | Entities (E) | ≥ 3 | ≥ 1 |
 | Citations (C) | ≥ 3 | ≥ 1 |
 | Distinct categories | ≥ 3 of {E, T, I, C, TL} | ≥ 3 of {E, T, I, C, TL} |
+
+If an article contains implementation advice, debugging lessons, checklists, or failure analysis, it MUST produce at least one `idea-kind: practical` entry. If it does not, the article analysis brief MUST state `No practical insight justified from this article.`
 
 ### Article Analysis Brief
 
@@ -76,6 +78,8 @@ pages: 28-35
 | `## Critical questions` | 2-4 analytical questions this article raises. "Why does the author ignore X?", "What evidence would falsify this?", "How does this interact with [concept]?" | NOT comprehension questions. NOT "What did the author say about X?" |
 | `## Connections to other articles in this issue` | Where this article agrees, disagrees, or complements other articles in the same collection. What conversation are they having, even if unintentionally? Wikilink to those article analysis briefs. | NOT "Article 1 discusses X and this article discusses Y." State the intellectual relationship. |
 
+Every article analysis brief should also include `## Hidden Gems`, `## Know-How`, and when relevant `## Pitfalls / Failure Modes`. Link practical idea entries from `## Know-How`. If the article yields no honest operational guidance, write `No practical insight justified from this article.`
+
 ### Checkpoint
 
 ```bash
@@ -100,8 +104,11 @@ After ALL article task items are done, process the "issue-synthesis" item:
 | `## Actual themes` | What themes ACTUALLY emerge from the articles — which may diverge from the editorial framing. Group articles by theme. |
 | `## Conversation map` | Where articles agree, where they disagree, where they talk past each other. This is the analytical core — it reveals the intellectual structure the editors may not have articulated. |
 | `## Author landscape` | Who contributed, what perspectives they brought. Which authors are already in the KB from other sources? How does this enrich their entity profiles? |
+| `## Know-How` | Cross-article practical entries worth resurfacing. Link the strongest `idea-kind: practical` entries and note which article analysis brief contributed each one. |
 | `## Gaps and silences` | What topics are conspicuously absent? What questions do the articles collectively raise but none answer? |
 | `## Bibliography patterns` | Do the articles cite overlapping references? Are there works that multiple articles rely on but none analyze deeply? These are candidates for future source acquisition. |
+
+If the issue-level synthesis surfaces recurring operational warnings, add a `## Pitfalls / Failure Modes` section as well.
 
 4. **Create topic entries** for issue-level themes — themes that span multiple articles
 5. **Create controversy entries** if articles disagree on a topic

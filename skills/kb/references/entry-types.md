@@ -144,6 +144,7 @@ source-ids: [vaswani-2017]
 tags: [deep-learning, architecture]
 attributed-to: [vaswani-et-al]
 year: 2017
+idea-kind: conceptual
 ---
 ```
 
@@ -177,10 +178,59 @@ Sequence-to-sequence models can achieve state-of-the-art results using only atte
 - [[sequence-to-sequence]] — problem domain
 ```
 
+Practical ideas use the same directory and type, but switch `idea-kind` to
+`practical` and store know-how explicitly:
+
+```yaml
+---
+type: idea
+created: 2025-01-15
+updated: 2025-01-15
+source-ids: [duarte-2024]
+tags: [debugging, rollout]
+attributed-to: [camila-duarte]
+year: 2024
+idea-kind: practical
+---
+```
+
+```markdown
+# Freeze writes before a live schema migration
+
+## Rule of thumb
+Freeze writes before applying irreversible schema changes.
+
+## Use when
+- The migration rewrites primary data
+- Rollback requires restoring data consistency
+
+## Avoid when
+- The change is metadata-only and rollback is trivial
+
+## Trade-offs
+- Short operational pause reduces risk of split-brain data repair later
+
+## Failure modes
+- Partial write freezes create inconsistent replicas and false rollback confidence
+
+## Implementation notes
+- Announce the freeze window, verify queue drain, apply migration, then unfreeze writes
+```
+
 **Rules**:
 - `attributed-to` is required. Lists entity slugs.
 - `year` is required when known.
+- Required frontmatter line for idea entries: `idea-kind: conceptual | practical`.
+- `idea-kind` is required: `conceptual` or `practical`.
 - Distinguish from topics: ideas have specific authors and claims.
+- Practical ideas capture know-how, not just a tagged summary. They MUST include:
+  - `## Rule of thumb`
+  - `## Use when`
+  - `## Avoid when`
+  - `## Trade-offs`
+  - `## Failure modes`
+  - `## Implementation notes`
+- If a source yields actionable guidance, create at least one practical idea entry or record `No practical insight justified from this chunk/source.` in the relevant analysis document.
 - Embed extracted figures/tables inline using `![[knowledge/assets/<source-id>/<name>.png]]` with an italicized caption on the next line. Place each figure next to the text it supports.
 
 ---
@@ -296,6 +346,15 @@ Comprehensive biography covering Einstein's personal life, scientific contributi
 - [[special-relativity]], [[general-relativity]] — detailed explanations
 - [[mileva-maric]] — first wife, collaborator debate
 
+## Hidden Gems
+- Einstein's patent-office constraints shaped the thought-experiment style that later defined his explanatory writing.
+
+## Know-How
+- [[freeze-writes-before-live-schema-migration]]
+
+## Pitfalls / Failure Modes
+- Biography chapters often bury operational lessons in anecdotes; if no know-how survives extraction, write `No practical insight justified from this source.` here instead of inventing one.
+
 ## Bibliography analysis
 - 42 items in bibliography
 - 38 cited in text
@@ -315,6 +374,7 @@ Comprehensive biography covering Einstein's personal life, scientific contributi
 - `identifiers` — optional. Record all bibliographic identifiers found on or inside the source: ISBN (books), DOI (papers/articles), ISSN (journals/magazines), arXiv ID (preprints), PMID (biomedical), URL. Pass the same identifiers to `add_source.py --identifier` when registering the source so the stub and config also carry them.
 - **MUST wikilink to the registered source**: `**Source**: [[<source-id>]]`. This is a wikilink — NOT a file path. Write `**Source**: [[lamport-1978]]`, NEVER `Source: sources/references/lamport-1978.md`. Do not mention whether the source is a reference or a file — that's an implementation detail irrelevant to the knowledge graph. The `add_source.py` script creates a navigable `.md` stub for every source, so `[[source-id]]` always resolves.
 - Must include summary, key extractions (what entries were created/updated), bibliography analysis (for academic sources). MUST NOT contain progress checklists, session logs, or chapter-by-chapter extraction checkboxes — that operational state belongs in task state (`state.py --notes`), not in knowledge files.
+- If the source yields operational guidance, include `## Hidden Gems`, `## Know-How`, and when relevant `## Pitfalls / Failure Modes`. Link practical idea entries from `## Know-How`. If the source is historical, purely formal, or otherwise yields no honest practical lesson, write `No practical insight justified from this source.` instead of hallucinating one.
 - If visual assets were extracted, add a `## Figures & Tables` section. Each asset MUST be an Obsidian image embed — `![[knowledge/assets/<source-id>/<name>.png]]` on its own line, followed by an italicized caption on the next line. NEVER list assets as plain text or code-formatted paths.
 
 ---

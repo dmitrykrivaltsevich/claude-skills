@@ -69,6 +69,8 @@ Create entries from what you found. Work in whatever order your understanding su
 
 You will naturally produce entries across multiple categories — entities, topics, ideas, citations, timeline, practical insights, locations, visual assets. The quality gate (below) catches if you missed a category. But the ORDER and EMPHASIS come from your reading, not from a checklist.
 
+Run [practical-extraction.md](practical-extraction.md) during this first pass, not later. Practical guidance belongs in `knowledge/ideas/` as `idea-kind: practical` entries while the chapter is still in working memory.
+
 **References**: Every reference you encounter — `(Author, Year)`, `[N]`, inline URL, footnote, "see the X documentation" — gets a citation entry. These accumulate over time and become the KB's citation graph.
 
 **Visual assets**: When you encounter a figure, table, or diagram worth preserving, extract it using `/pdf` tools (`render.py` for page renders, `extract_images.py` for embedded images). Embed in the entry where it belongs: `![[knowledge/assets/<source-id>/<name>.png]]`.
@@ -95,6 +97,7 @@ If your extraction doesn't meet these minimums, **go back and look specifically 
 - [ ] Years/dates mentioned have timeline entries
 - [ ] Figures/tables extracted as visual assets and embedded in entries
 - [ ] Practical insights captured: decision tables, pitfalls, implementation patterns, heuristics
+- [ ] If the chapter contains operational guidance, at least one `idea-kind: practical` entry exists; otherwise the chapter analysis brief says `No practical insight justified from this chapter.`
 - [ ] Entries interlinked with `[[wikilinks]]`
 - [ ] Idea entries have `attributed-to:` and `year:` in frontmatter (required — see entry-types.md)
 - [ ] Math has plain-language intuition alongside formulas
@@ -127,6 +130,9 @@ pages: 176-204
 | `## Critical questions` | 2-5 questions that a thoughtful reader of this chapter would ask. These are NOT comprehension questions ("What is X?"). They are analytical: "Why does the author choose approach A over B?", "What evidence would falsify this claim?", "How does this interact with [concept from another field]?", "What are the second-order consequences of this being true?" | NOT quiz questions. NOT "What did the author say about X?" |
 | `## Connections to prior chapters` | Which threads this chapter picks up, extends, or **contradicts** from earlier chapters. How does the author's argument develop? Where does this chapter strengthen or weaken earlier claims? Wikilink to those chapter analyses. | NOT "Chapter 2 discussed X, and this chapter discusses Y." That's sequential listing, not connection. |
 | `## Open threads` | What this chapter raises but doesn't resolve — tensions, unanswered questions, foreshadowing. What should a careful reader hold in mind going forward? | NOT a preview of the next chapter's ToC. |
+| `## Hidden gems` | The buried details, side remarks, or non-obvious observations that are worth remembering even if they are not the chapter thesis. | NOT a restatement of the chapter summary. |
+| `## Know-How` | Wikilinks to `idea-kind: practical` entries created from this chapter, or the explicit none-case note `No practical insight justified from this chapter.` | NOT vague advice without supporting entries. |
+| `## Pitfalls / Failure modes` | Concrete ways the chapter's advice breaks, misleads, or fails under real constraints. Include warning signs when the text supports them. | NOT generic cautionary prose. |
 
 **The acid test**: if your chapter brief could have been written by reading ONLY the table of contents and chapter headings, it's worthless. Delete it and re-read the actual chapter text before trying again.
 
@@ -172,6 +178,7 @@ chapters: [10, 11, 12, 13, 14, 15]
 | `## Argument arc` | How does the author's argument DEVELOP across these chapters? What does Ch 10 establish that Ch 13 depends on? Where does the reasoning build, turn, or shift? This is about **logical progression**, not sequential coverage. | NOT "Chapter 10 covers X. Chapter 11 covers Y. Chapter 12 covers Z." That's a ToC, not an arc. If you can re-order your sentences without losing meaning, you wrote a list, not an arc. |
 | `## Emergent themes` | Themes visible ONLY when you see multiple chapters together — patterns the author may not have flagged explicitly. What does the juxtaposition of these chapters reveal? What would a reader miss by reading chapters in isolation? | NOT themes already stated in any single chapter heading. Those are chapter-level themes, not emergent. |
 | `## Tensions and contradictions` | Where chapters disagree, present competing approaches, or leave unresolved debates. Where does the author's advice in Ch 11 conflict with Ch 14's examples? These are often the most analytically valuable findings. | NOT "there are no contradictions." Every non-trivial part has tensions — if you found none, you read too superficially. |
+| `## Know-How` | Cross-chapter operational guidance that survives beyond a single example. Link the best `idea-kind: practical` entries and note which chapters contributed them. | NOT a duplicate of per-chapter notes. This section should synthesize. |
 | `## Critical questions` | 3-5 analytical questions raised by the COMBINATION of chapters. Not questions from any single chapter — those belong in chapter briefs. These are synthesis-level: "If the author's framework from Ch 10 is correct, why does the case study in Ch 13 succeed despite violating it?" | NOT comprehension questions. NOT single-chapter questions repeated. |
 | `## Relationship to other parts` | How this part extends, deepens, or redirects other parts. Wikilink to their part analyses (`[[<id>-part1-analysis]]`, etc.). For prior parts: how this part builds on or diverges from them. For later parts (if already processed): update this section when you reach them. Cross-part links MUST be reciprocal — if Part 3 references Part 1, Part 1's analysis MUST link back. | NOT "Part 1 covered different topics." State the INTELLECTUAL relationship. |
 | `## Open threads` | What this part raises for the remainder of the book. Threads that should be tracked through later parts. | NOT a preview of later chapter ToCs. |
@@ -195,7 +202,7 @@ Book-level analysis — the top of the hierarchy for this single source. This se
 1. **Read part analysis documents** — these are your primary input. They contain: argument arc, cross-chapter themes, tensions, open threads. If the book has 5 parts, read all 5 part analyses. This IS manageable in one context window (each part analysis is ~1 page).
 2. **Read checkpoint notes** from all completed items — these supplement the part analyses with extraction tallies and specific entry names
 3. **Read the topic/idea/entity entries** created during extraction (NOT the raw source) — browse key entries to refresh your understanding
-4. **Write the source analysis** (`knowledge/sources/<source-id>-analysis.md`) — this is a **finished analytical document**: book summary, overarching thesis, cross-part themes, how the argument develops across parts, key extractions list, bibliography analysis, figures & tables. No checklists, no progress tracking, no session logs. The source analysis wikilinks to each part analysis (`[[<id>-part1-analysis]]`, etc.) and they link back.
+4. **Write the source analysis** (`knowledge/sources/<source-id>-analysis.md`) — this is a **finished analytical document**: book summary, overarching thesis, cross-part themes, how the argument develops across parts, key extractions list, bibliography analysis, figures & tables. Include `## Hidden Gems`, `## Know-How`, and when relevant `## Pitfalls / Failure Modes`. If the book yields no honest operational guidance, write `No practical insight justified from this source.` No checklists, no progress tracking, no session logs. The source analysis wikilinks to each part analysis (`[[<id>-part1-analysis]]`, etc.) and they link back.
 5. Create cross-part topic connections (themes that span the entire book)
 6. Review the complete timeline extracted — fill any gaps
 7. Identify controversies/debates the book discusses across parts → controversy entries

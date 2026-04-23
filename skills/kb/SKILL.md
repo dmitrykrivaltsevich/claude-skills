@@ -1,6 +1,6 @@
 ---
 name: kb
-description: Builds, curates, and queries local knowledge bases — persistent collections of interlinked Obsidian-compatible markdown files. Extracts knowledge from sources (articles, papers, books, videos), creates richly interlinked entries (entities, topics, ideas, locations, timeline, citations, controversies, meta-analyses), detects contradictions, and tracks citation graphs. Use when the user asks to create a knowledge base, add sources to a KB, query a KB, lint/maintain a KB, or manage a personal wiki or external brain.
+description: Builds, curates, and queries local knowledge bases — persistent collections of interlinked Obsidian-compatible markdown files. Extracts knowledge from sources (articles, papers, books, videos), including know-how and hidden gems, creates richly interlinked entries (entities, topics, ideas, locations, timeline, citations, controversies, meta-analyses), detects contradictions, and tracks citation graphs. Use when the user asks to create a knowledge base, add sources to a KB, query a KB, lint/maintain a KB, or manage a personal wiki or external brain.
 allowed-tools:
   - Bash(uv run *)
   - Bash(cat *)
@@ -101,7 +101,7 @@ Three layers per KB:
 | "Add this file/source" | `add_source.py --kb-path DIR --source FILE --source-id ID` | Source copied, config updated |
 | "Add this URL as reference" | `add_source.py --kb-path DIR --source URL --reference --title "T" --source-id ID` | Reference stub created |
 | "Check KB health" | `lint.py --path DIR` | JSON: broken links, orphans, missing backlinks, timeline gaps (year/month/day) |
-| "Search the KB for X" | `search.py --path DIR --query "X" [--category CAT] [--first-only]` | JSON: scored file results with multi-match, term coverage |
+| "Search the KB for X" | `search.py --path DIR --query "X" [--category CAT] [--kind KIND] [--tag TAG] [--first-only]` | JSON: scored file results with multi-match, term coverage |
 | "Find entries related to these topics" | `related.py --kb-path DIR --keywords "a,b,c"` | JSON: entries scored by keyword overlap |
 | "Show me the KB graph" | `graph.py --path DIR` | JSON: nodes, edges, degrees, components, dangling targets |
 | "Analyze KB structure/gaps" | `topology.py --path DIR` | JSON: clusters, bridges, structural holes, degree anomalies, betweenness |
@@ -133,6 +133,12 @@ uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/search.py --path /path/to/kb --qu
 
 # Search only entities:
 uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/search.py --path /path/to/kb --query "feynman" --category entities
+
+# Search practical idea entries only:
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/search.py --path /path/to/kb --query "rollback signals" --category ideas --kind practical
+
+# Search entries carrying a tag:
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/search.py --path /path/to/kb --query "debugging" --tag debugging
 
 # Find entries related to keywords (for cross-referencing):
 uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/related.py --kb-path /path/to/kb --keywords "attention,transformer,self-attention"
@@ -209,6 +215,8 @@ Extract EVERY named person, EVERY in-text citation (formal `[N]` and inline URLs
 
 The entry types: `entities/`, `topics/`, `ideas/`, `locations/`, `timeline/`, `citations/`, `controversies/`, `meta/`, `assets/`, `questions/`. Use all that apply — the quality gate (in add-workflow.md) catches missed categories.
 
+Run [references/practical-extraction.md](references/practical-extraction.md) during the primary extraction pass. Practical know-how stays in `knowledge/ideas/` as `idea-kind: practical` entries, and the relevant analysis docs should expose those entries under `## Hidden Gems` and `## Know-How`. If a chunk or source has no honest operational takeaway, write `No practical insight justified from this chunk/source.` rather than inventing one.
+
 After writing all entries for the chunk, do a **multi-perspective pass** — re-read the chunk through a deliberately different lens (practitioner, skeptic, engineer, or deep-diver depending on what your first pass emphasized). This second scan activates different attention patterns and typically yields 1-3 additional entries or significant enrichments. See [references/add-workflow.md](references/add-workflow.md) for lens selection rules.
 
 Then generate **1-3 grounded questions** — things the source raises but doesn't answer, gaps it exposes, or tensions with existing KB content. See [references/add-workflow.md](references/add-workflow.md) for what qualifies. Every question MUST cite a specific passage.
@@ -234,7 +242,7 @@ Mandatory for academic papers, textbooks, and any source that references other w
 
 **Phase 5 — Cross-Reference & Analyze** (you)
 1. Run `state.py update-phase --phase cross-ref`
-2. Write per-source summary in `knowledge/sources/`. **For books:** Do NOT write the source analysis until ALL chapter task items and part aggregation items are done. If chapters or parts are still pending, this step is premature — you are still in Phase 3. The source analysis for a book synthesizes from your per-part analysis documents (the "synthesis session" in add-workflow.md), NOT from raw chapters or checkpoint tallies.
+2. Write per-source summary in `knowledge/sources/`. Include `## Hidden Gems`, `## Know-How`, and when relevant `## Pitfalls / Failure Modes`. If the source has no honest practical lesson, write `No practical insight justified from this source.` **For books:** Do NOT write the source analysis until ALL chapter task items and part aggregation items are done. If chapters or parts are still pending, this step is premature — you are still in Phase 3. The source analysis for a book synthesizes from your per-part analysis documents (the "synthesis session" in add-workflow.md), NOT from raw chapters or checkpoint tallies.
 3. Run `related.py --kb-path DIR --keywords "key,terms,from,source"` to find existing entries that overlap with this source's topics — this saves tokens vs. reading everything
 4. Read the related entries. For entities already in KB: **triangulate** (see [references/entry-types.md](references/entry-types.md)) — compare, note agreements/disagreements, enrich
 5. Add wikilinks from existing entries to new entries and vice versa. **EVERY new wikilink MUST be reciprocal — no exceptions.**
@@ -267,6 +275,7 @@ Mandatory for academic papers, textbooks, and any source that references other w
    - Absorb near-duplicates: when one entry is a strict subset of another, fold its unique content into the broader entry
    - Strengthen connections: if two entries reference the same ideas but don't link to each other, add wikilinks
 4. **Analyze**: look for undetected contradictions, stale claims, entries that should be interlinked but aren't
+   - If source analyses or idea entries feel summary-heavy, rerun [references/practical-extraction.md](references/practical-extraction.md) and promote any source-backed heuristics, pitfalls, or failure modes into `idea-kind: practical` entries.
 5. **Rules co-evolution check**: same as Phase 6 of kb:add. Read rules.md, propose changes if patterns emerged during lint.
 6. **Auto-topology**: After fixing mechanical issues, run `topology.py`. Act on findings immediately: fill structural holes with stub entries + suggest sources, enrich degree anomalies, note bridge entries in `rules.md` so they're protected from accidental pruning.
 7. Update `index.md`. Append one line to `log.md`: `YYYY-MM-DD lint | N issues fixed, ~M files`
@@ -274,7 +283,7 @@ Mandatory for academic papers, textbooks, and any source that references other w
 ### kb:query — Answer from KB
 
 1. Read `index.md` for navigation
-2. Run `search.py` for keyword matching
+2. Run `search.py` for keyword matching. When the user asks for heuristics, playbooks, debugging tactics, pitfalls, or reusable guidance, optionally use `--kind practical` or `--tag <tag>` to narrow the search space.
 3. Read relevant knowledge entries, follow `[[wikilinks]]` as needed
 4. **Answer strictly from KB content** — cite which entries your answer draws from
 5. If gaps found: tell user what's missing, suggest sources to add
@@ -344,7 +353,7 @@ This two-layer pattern is recursively composable: it works for a single article,
 
 - **Every entity gets a page.** Every person mentioned (author, subject, referenced individual) gets an entry in `knowledge/entities/`. The entry accumulates facts and links as more sources are added. A typical textbook chapter mentions 5–15 individuals. **When updating an existing entity from a new source, triangulate**: compare what the new source says against existing content, note agreements, note disagreements, add source attribution to every new fact. Over time, entities build comprehensive multi-source profiles — not stub-level summaries with appended bullet points. See [references/entry-types.md](references/entry-types.md) for triangulation rules.
 - **Relationships and influences are first-class.** When a source mentions who knew whom, who influenced whom, mentorship, correspondence, collaboration, or debate — record it in entity entries under `## Connections`, `## Influenced by`, and `## Influenced`. Include the mechanism (read their work, personal meeting, correspondence) and the date/location when stated. Over time this builds an influence graph showing how ideas propagated through people and places. Never fabricate connections — only record what the source explicitly states.
-- **Practical insights are first-class.** Most sources contain actionable engineering knowledge: decision tables ("when X, use Y"), implementation patterns, common pitfalls with fixes, architecture trade-offs, design heuristics, deployment checklists, scaling considerations, debugging techniques. These are often MORE valuable than the theoretical concepts. Extract them as idea entries with tag `practical`. If a source has a "lessons learned", "common mistakes", "best practices", or "implementation" section — extract it exhaustively.
+- **Practical insights are first-class.** Most sources contain actionable engineering knowledge: decision tables ("when X, use Y"), implementation patterns, common pitfalls with fixes, architecture trade-offs, design heuristics, deployment checklists, scaling considerations, debugging techniques. These are often MORE valuable than the theoretical concepts. Extract them as `idea-kind: practical` idea entries using [references/practical-extraction.md](references/practical-extraction.md). Tag `practical` is optional metadata, not the primary schema. If a source has a "lessons learned", "common mistakes", "best practices", or "implementation" section — extract it exhaustively and surface the best entries from `## Hidden Gems` / `## Know-How` in the analysis docs.
 - **Ideas ≠ Topics.** An idea is a specific intellectual contribution (attributable to a person/paper). A topic is a subject area. "Machine learning" is a topic. "Attention is all you need" is an idea. Every idea entry MUST have `attributed-to: [entity-slugs]` and `year:` in frontmatter — these are required fields, not optional. See [references/entry-types.md](references/entry-types.md).
 - **Controversies are first-class.** When you find contradicting information, create a dedicated entry in `knowledge/controversies/` — not just a note. Cross-reference from ALL involved entries.
 - **Questions are first-class.** Every source raises things it doesn't answer. Create `knowledge/questions/` entries for gaps, open problems, and tensions between sources. Every question MUST cite the passage that raised it. Questions with `status: open` are the KB's "wanted" list — they guide future source acquisition and get resolved as more sources arrive. See [references/entry-types.md](references/entry-types.md).
@@ -384,6 +393,8 @@ source-ids: [real-2020]
 tags: [relevant, tags]
 ---
 ```
+
+Idea entries additionally require `idea-kind:`. Use `conceptual` for theories and attributable claims, and `practical` for know-how. See [references/entry-types.md](references/entry-types.md) and [references/practical-extraction.md](references/practical-extraction.md).
 
 See [references/entry-types.md](references/entry-types.md) for type-specific fields and examples.
 
