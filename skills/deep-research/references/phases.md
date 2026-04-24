@@ -51,10 +51,20 @@ Questions:
 **Steps per round** (3–5 questions per round):
 1. Select unexplored questions
 2. For each, choose the best script from the capability map
-3. Execute searches via duckduckgo scripts (NEVER built-in Web Search)
-4. Write sources JSON to temp file → `state.py add-sources --file /tmp/sources.json`
-5. Write facts JSON to temp file → `state.py add-facts --file /tmp/facts.json`
-6. Update question status: `state.py update-question --status partially`
+3. Execute searches via duckduckgo scripts into a discovery artifact using native `--output` when available (NEVER built-in Web Search)
+4. Build a smaller working-set artifact from that discovery artifact
+5. Write sources JSON for only the shortlisted sources → `state.py add-sources --file /tmp/sources.json`
+6. Write facts JSON for only accepted preliminary facts → `state.py add-facts --file /tmp/facts.json`
+7. Update question status: `state.py update-question --status partially`
+
+**State/environment pattern per round**:
+- Discovery artifact: `/tmp/<research-id>-qN-discovery.json`
+- Working-set artifact: `/tmp/<research-id>-qN-working-set.json`
+- Research state: `state.py`
+
+The transcript should carry only the artifact paths and a short summary, not the full search payload.
+
+When a later step needs only part of a saved JSON artifact, use `json_query.py` rather than reopening the full file.
 
 **Routing pattern** (read each skill's SKILL.md to get correct `${CLAUDE_SKILL_DIR}` paths):
 ```
@@ -83,12 +93,14 @@ For each question:
 4. Aggregators and secondary coverage (use for leads, not as primary sources)
 
 **Steps**:
-1. For each `partially` covered question, pick top 2–3 sources
-2. Download full text using duckduckgo's `download.py <url> --format md`. **NEVER use built-in Fetch** — it gets 403 errors because it doesn't mimic a browser. `download.py` handles this.
+1. For each `partially` covered question, pick top 2–3 sources from the latest working-set artifact
+2. Download full text using duckduckgo's `download.py <url> --format md --output /tmp/<research-id>/pages/<slug>.md`. **NEVER use built-in Fetch** — it gets 403 errors because it doesn't mimic a browser. `download.py` handles this.
 3. Read the downloaded content
 4. Extract facts with confidence levels and source attribution
 5. Write facts JSON to temp file → `state.py add-facts --file /tmp/facts.json`
 6. If the article mentions something unexpected, generate a new question
+
+The downloaded page directory is part of the research environment. Reopen the specific page file you need; do not keep whole articles live in prompt context once facts were extracted.
 
 **Confidence levels**:
 - `high`: Multiple independent quality sources agree; or official primary source
@@ -101,13 +113,16 @@ For each question:
 
 **Steps**:
 1. Run `state.py export` — review all facts
-2. Group facts by theme
-3. For each theme, check:
+2. Reopen only the smallest relevant working-set or page artifacts for the theme under review
+3. Group facts by theme
+4. For each theme, check:
    - Do sources agree? → Mark as high confidence
    - Do sources disagree? → Search for resolution, or flag as contested
    - Is there only one source? → Search for corroboration
-4. For remaining `unexplored` questions: try alternative search strategies
-5. Record any new facts or updated confidence levels
+5. For remaining `unexplored` questions: try alternative search strategies
+6. Record any new facts or updated confidence levels
+
+Use `json_query.py` on exported state files or working-set artifacts when you only need one theme, one question subset, or one source subset.
 
 **Contradiction resolution**:
 - Search for the specific disagreement point

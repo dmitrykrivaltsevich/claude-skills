@@ -18,18 +18,22 @@ This skill does NOT fetch data itself. It orchestrates other skills (duckduckgo,
 |---|---|
 | `discover.py` | Scans installed skills, outputs JSON capability map |
 | `state.py` | Research state CRUD — tracks questions, sources, facts, phases |
+| `json_query.py` | Reopens narrow slices from saved JSON artifacts |
 
 ## State Persistence
 
 - **Default**: `~/.cache/deep-research/<research-id>.json`
 - **Custom**: Pass `--state-dir /path/to/dir` to any `state.py` subcommand
 - **Resume**: Re-running `state.py init` with existing research-id returns current state
+- **Round artifacts**: Keep discovery sets, working sets, and downloaded pages in temp files or a user-chosen directory; treat them as the research environment, not the transcript. Prefer source-skill native `--output` artifact mode when available.
+- **Narrow reopen**: Use `json_query.py` to load only the specific slice you need from a saved JSON artifact.
 
 ## Usage
 
 ```bash
 # Discover available skills:
 uv run --no-config scripts/discover.py
+uv run --no-config scripts/discover.py --output /tmp/discover.json
 
 # Start research:
 uv run --no-config scripts/state.py init --research-id "quantum-2026" --goal "Current state of quantum computing"
@@ -50,6 +54,9 @@ uv run --no-config scripts/state.py status --research-id "quantum-2026"
 
 # Export full state:
 uv run --no-config scripts/state.py export --research-id "quantum-2026"
+
+# Reopen only the first discovered skill name:
+uv run --no-config scripts/json_query.py --file /tmp/discover.json --selector [0] --fields name
 ```
 
 ## Testing
@@ -70,8 +77,10 @@ skills/deep-research/
 ├── scripts/
 │   ├── contracts.py      # Design by Contract decorators
 │   ├── discover.py       # Skill capability scanner
+│   ├── json_query.py     # Narrow selector/query helper for JSON artifacts
 │   └── state.py          # Research state manager
 └── tests/
     ├── test_discover.py
+  ├── test_json_query.py
     └── test_state.py
 ```

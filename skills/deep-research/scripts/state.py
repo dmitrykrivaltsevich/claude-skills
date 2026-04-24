@@ -6,12 +6,13 @@
 """Research state manager — CRUD operations for persistent research state.
 
 Manages a JSON state file that tracks the progress of a deep research session:
-questions, sources, facts, and current phase.  Supports resume — re-initializing
+questions, sources, facts, and current phase. Supports resume — re-initializing
 an existing research ID returns the current state without overwriting.
 
-State location: ~/.cache/deep-research/<research-id>.json  (overridable)
+State location: ~/.cache/deep-research/<research-id>.json (overridable)
 
-Output: JSON to stdout.  Errors to stderr.
+Output: JSON to stdout, or file-backed JSON plus a compact envelope when
+``--output`` is provided. Errors go to stderr.
 """
 
 from __future__ import annotations
@@ -24,6 +25,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(__file__))
+from artifact_output import emit_json_result
 from contracts import ContractViolationError, precondition
 
 # Default state directory — user-scoped cache.
@@ -34,6 +36,17 @@ VALID_PHASES = ("scope", "sweep", "deep-read", "cross-reference", "synthesise")
 
 # Valid question statuses.
 VALID_QUESTION_STATUSES = ("unexplored", "partially", "covered")
+
+_ARTIFACT_KINDS = {
+    "init": "deep-research-state-init",
+    "add-questions": "deep-research-state-add-questions",
+    "update-question": "deep-research-state-update-question",
+    "add-sources": "deep-research-state-add-sources",
+    "add-facts": "deep-research-state-add-facts",
+    "update-phase": "deep-research-state-update-phase",
+    "status": "deep-research-state-status",
+    "export": "deep-research-state-export",
+}
 
 
 # ---------------------------------------------------------------------------
@@ -295,6 +308,10 @@ def _add_common_args(p: argparse.ArgumentParser) -> None:
         "--state-dir", type=Path, default=_DEFAULT_STATE_DIR,
         help="Directory for state files.",
     )
+    p.add_argument(
+        "--output", "-o", type=Path,
+        help="Write full JSON results to this file and emit a compact artifact envelope on stdout",
+    )
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -392,7 +409,11 @@ def main(argv: list[str] | None = None) -> None:
         parser.print_help()
         sys.exit(1)
 
-    print(json.dumps(result, ensure_ascii=False, indent=2))
+    emit_json_result(
+        result,
+        output_path=args.output,
+        artifact_kind=_ARTIFACT_KINDS[args.command],
+    )
 
 
 if __name__ == "__main__":

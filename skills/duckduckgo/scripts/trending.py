@@ -24,8 +24,11 @@ import argparse
 import concurrent.futures
 import json
 import sys
+from pathlib import Path
 
 from ddgs import DDGS
+
+from artifact_output import emit_json_result
 
 # Discovery seeds — broad categories that surface whatever is generating
 # the most coverage right now.
@@ -164,6 +167,10 @@ def main() -> None:
         "--discover", "-d", action="store_true",
         help="Auto-discover trending topics via DDG suggestions",
     )
+    parser.add_argument(
+        "--output", "-o", type=Path,
+        help="Write full JSON results to this file and emit a compact artifact envelope on stdout",
+    )
     args = parser.parse_args()
 
     if args.discover:
@@ -171,7 +178,7 @@ def main() -> None:
         topics = _discover_topics()
         if not topics:
             print("No topics discovered.", file=sys.stderr)
-            json.dump([], sys.stdout)
+            emit_json_result([], output_path=args.output, artifact_kind="duckduckgo-trending-results")
             return
         print(f"Discovered {len(topics)} candidate topics.", file=sys.stderr)
     elif args.topics:
@@ -183,8 +190,11 @@ def main() -> None:
     results = gather_trends(topics)
 
     print(f"Done. {len(results)} topics analysed.", file=sys.stderr)
-    json.dump(results, sys.stdout, ensure_ascii=False, indent=None)
-    print(file=sys.stdout)
+    emit_json_result(
+        results,
+        output_path=args.output,
+        artifact_kind="duckduckgo-trending-results",
+    )
 
 
 if __name__ == "__main__":

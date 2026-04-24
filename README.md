@@ -35,8 +35,8 @@ See the [Claude Code plugin docs](https://code.claude.com/docs/en/discover-plugi
 
 | Skill | Description |
 |-------|-------------|
-| [deep-research](skills/deep-research/) | Multi-phase autonomous research across all available skills. Discovers skill capabilities, manages persistent research state, and guides through scope → sweep → deep-read → cross-reference → synthesise phases. |
-| [duckduckgo](skills/duckduckgo/) | Internet search via DuckDuckGo — text, image, and news search. No auth required. |
+| [deep-research](skills/deep-research/) | Multi-phase autonomous research across all available skills. Uses persistent research state, round-level artifacts, native artifact mode, and JSON slice queries to drive scope → sweep → deep-read → cross-reference → synthesise phases without relying on transcript memory. |
+| [duckduckgo](skills/duckduckgo/) | Internet search via DuckDuckGo — text, image, and news search using external state/environment artifacts for broad discovery, narrowing, and targeted deep reads. No auth required. |
 | [google-drive](skills/drive/) | Search, list, download/export, upload, create, update, share, and comment on Google Drive files. Supports My Drive and Shared Drives. |
 | [pdf](skills/pdf/) | Reads and writes PDF documents. Extracts text as markdown, searches content, extracts embedded images, and renders pages to high-DPI PNG for LLM vision OCR. Writes beautiful PDFs from Typst markup with proper typography, math, and New Computer Modern fonts. |
 | [review-consistency](skills/review-consistency/) | Reviews internal consistency of code, documents, diffs, or any structured content. Catches contradictions, forgotten propagation, semantic drift, stale references, and convention breaks. |

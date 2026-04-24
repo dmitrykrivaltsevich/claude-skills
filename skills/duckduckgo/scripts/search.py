@@ -20,10 +20,12 @@ import argparse
 import json
 import os
 import sys
+from pathlib import Path
 
 from ddgs import DDGS
 
 sys.path.insert(0, os.path.dirname(__file__))
+from artifact_output import emit_json_result
 from contracts import precondition
 
 # Default result counts — overridable at runtime via --max-results.
@@ -147,6 +149,10 @@ def main():
     parser.add_argument("type", choices=["text", "image", "news"], help="Search type")
     parser.add_argument("--query", "-q", required=True, help="Search query (min 2 chars)")
     parser.add_argument("--max-results", "-n", type=int, default=None, help="Maximum number of results to return")
+    parser.add_argument(
+        "--output", "-o", type=Path,
+        help="Write full JSON results to this file and emit a compact artifact envelope on stdout",
+    )
     parser.add_argument("--size", help="Image size: Small, Medium, Large, Wallpaper")
     parser.add_argument(
         "--type", dest="image_type",
@@ -181,8 +187,11 @@ def main():
         results = search_news(args.query, **news_kwargs)
 
     print(f"Found {len(results)} results.", file=sys.stderr)
-    json.dump(results, sys.stdout, ensure_ascii=False, indent=None)
-    print(file=sys.stdout)  # trailing newline
+    emit_json_result(
+        results,
+        output_path=args.output,
+        artifact_kind="duckduckgo-search-results",
+    )
 
 
 if __name__ == "__main__":

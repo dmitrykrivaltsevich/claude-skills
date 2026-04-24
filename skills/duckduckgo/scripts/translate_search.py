@@ -25,10 +25,12 @@ import json
 import os
 import re
 import sys
+from pathlib import Path
 
 from ddgs import DDGS
 
 sys.path.insert(0, os.path.dirname(__file__))
+from artifact_output import emit_json_result
 from contracts import precondition
 
 # Common DDG region codes → human-readable language labels.
@@ -172,6 +174,10 @@ def main() -> None:
         "--max-results", "-n", type=int, default=_PER_QUERY,
         help=f"Results per query (default {_PER_QUERY})",
     )
+    parser.add_argument(
+        "--output", "-o", type=Path,
+        help="Write full JSON results to this file and emit a compact artifact envelope on stdout",
+    )
     args = parser.parse_args()
 
     print(f"Searching {len(args.queries)} queries across regions…", file=sys.stderr)
@@ -181,8 +187,11 @@ def main() -> None:
         max_results=args.max_results,
     )
     print(f"Found {len(results)} unique results.", file=sys.stderr)
-    json.dump(results, sys.stdout, ensure_ascii=False, indent=None)
-    print(file=sys.stdout)
+    emit_json_result(
+        results,
+        output_path=args.output,
+        artifact_kind="duckduckgo-translate-search-results",
+    )
 
 
 if __name__ == "__main__":

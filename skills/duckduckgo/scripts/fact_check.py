@@ -23,10 +23,12 @@ import json
 import os
 import re
 import sys
+from pathlib import Path
 
 from ddgs import DDGS
 
 sys.path.insert(0, os.path.dirname(__file__))
+from artifact_output import emit_json_result
 from contracts import precondition
 
 # Source tiers for cross-referencing — ordered by editorial reliability.
@@ -181,6 +183,10 @@ def main() -> None:
         "--tiers", "-t", nargs="*",
         help=f"Tiers to check (default: all). Choices: {list(SOURCE_TIERS)}",
     )
+    parser.add_argument(
+        "--output", "-o", type=Path,
+        help="Write full JSON results to this file and emit a compact artifact envelope on stdout",
+    )
     args = parser.parse_args()
 
     print(f"Cross-referencing: {args.claim}", file=sys.stderr)
@@ -190,8 +196,11 @@ def main() -> None:
         f"{result['tiers_with_coverage']}/{result['tiers_checked']} tiers.",
         file=sys.stderr,
     )
-    json.dump(result, sys.stdout, ensure_ascii=False, indent=None)
-    print(file=sys.stdout)
+    emit_json_result(
+        result,
+        output_path=args.output,
+        artifact_kind="duckduckgo-fact-check",
+    )
 
 
 if __name__ == "__main__":

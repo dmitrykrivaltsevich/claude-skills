@@ -2,6 +2,8 @@
 
 Search the internet via DuckDuckGo's public APIs for text results, images, news, and more. No authentication required.
 
+The recommended workflow is staged and file-backed: search broadly, capture the raw result set into external state/environment via each script's native `--output` mode, narrow to a small shortlist or cluster map, then deepen only on the shortlisted URLs.
+
 ## Operations
 
 | Script | Purpose |

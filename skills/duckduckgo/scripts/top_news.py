@@ -35,12 +35,15 @@ import random
 import re
 import sys
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import List
 
 import httpx
 from bs4 import BeautifulSoup
 from ddgs import DDGS
 from dateutil import parser as dateparser
+
+from artifact_output import emit_json_result
 
 # ---------------------------------------------------------------------------
 # Page-metadata author extraction (JSON-LD → OpenGraph → <meta name=author>)
@@ -582,6 +585,10 @@ def main() -> None:
         "--region", "-r",
         help="DDG region code (e.g. us-en, uk-en, de-de, fr-fr, wt-wt for worldwide)",
     )
+    parser.add_argument(
+        "--output", "-o", type=Path,
+        help="Write full JSON results to this file and emit a compact artifact envelope on stdout",
+    )
     args = parser.parse_args()
 
     # Build the query map from selected groups
@@ -611,7 +618,7 @@ def main() -> None:
 
     if not results:
         print("No results found.", file=sys.stderr)
-        json.dump([], sys.stdout)
+        emit_json_result([], output_path=args.output, artifact_kind="duckduckgo-top-news")
         return
 
     print(f"Collected {len(results)} unique articles.", file=sys.stderr)
@@ -624,9 +631,11 @@ def main() -> None:
     if args.enrich_authors:
         enrich_authors(results, max_fetch=args.max_enrich)
 
-    # Emit JSON to stdout — the LLM reads this and does the smart work
-    json.dump(results, sys.stdout, ensure_ascii=False, indent=None)
-    print(file=sys.stdout)  # trailing newline
+    emit_json_result(
+        results,
+        output_path=args.output,
+        artifact_kind="duckduckgo-top-news",
+    )
 
 
 if __name__ == "__main__":

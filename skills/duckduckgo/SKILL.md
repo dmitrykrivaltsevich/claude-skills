@@ -15,13 +15,14 @@ user-invocable: true
 2. [Script Decision Guide](#script-decision-guide)
 3. [Quick Start](#quick-start)
 4. [Time Filtering](#time-filtering--timelimit)
-5. [Workflow Patterns](#how-the-llm-should-use-these)
-6. [Presentation Rules](#presentation-rules--mandatory)
-7. [top_news.py Details](#top_newspy--multi-source-news-fetcher)
-8. [download.py Details](#downloadpy--fetch-url-to-file)
-9. [Image Display](#image-display)
-10. [Limitations](#limitations)
-11. [Technical Details](#technical-details)
+5. [State/Environment Surface](#stateenvironment-surface--default-mode)
+6. [Workflow Patterns](#how-the-llm-should-use-these)
+7. [Presentation Rules](#presentation-rules--mandatory)
+8. [top_news.py Details](#top_newspy--multi-source-news-fetcher)
+9. [download.py Details](#downloadpy--fetch-url-to-file)
+10. [Image Display](#image-display)
+11. [Limitations](#limitations)
+12. [Technical Details](#technical-details)
 
 ## Architecture — Scripts Are Data Pipes, LLM Is the Brain
 
@@ -29,7 +30,7 @@ Scripts handle what the LLM cannot: parallel HTTP requests, DDG API calls, rate-
 
 The LLM handles what scripts cannot: semantic deduplication, story clustering ("5 outlets cover X"), context-aware ranking based on the user's actual request, follow-up research via `download.py`, and tailored presentation.
 
-**Workflow pattern**: gather data → LLM analyses → (optionally) dig deeper → present to user.
+**Workflow pattern**: capture broad results into external state/environment → narrow to a small working set → (optionally) dig deeper on that working set → present to user.
 
 ## Script Decision Guide
 
@@ -54,6 +55,7 @@ The LLM handles what scripts cannot: semantic deduplication, story clustering ("
 ```bash
 # Text search — returns JSON:
 uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/search.py text --query "your query" [--max-results N] [--timelimit d|w|m|y]
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/search.py text --query "your query" --output /tmp/search.json
 
 # News search — returns JSON:
 uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/search.py news --query "your query" [--max-results N] [--timelimit d|w|m|y]
@@ -63,6 +65,7 @@ uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/search.py image --query "your que
 
 # Multi-source news sweep — returns JSON:
 uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/top_news.py [--groups GROUP …] [--queries "Q1" "Q2" …] [--per-query N] [--timelimit d|w|m|y] [--enrich-authors]
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/top_news.py --groups tech science --output /tmp/top-news.json
 
 # Download a URL:
 uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/download.py <url> [--format txt|md|pdf] [--output PATH]
@@ -78,6 +81,7 @@ uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/trending.py --discover
 # Claim cross-referencing:
 uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/fact_check.py "Ukraine ceasefire agreement"
 uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/fact_check.py "claim text" --tiers wires broadsheets
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/fact_check.py "claim text" --output /tmp/fact-check.json
 
 # Topic monitoring:
 uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/monitor.py "AI safety" [--state-file PATH] [--type news|text]
@@ -103,32 +107,78 @@ For **image search**, use capitalized values: `Day`, `Week`, `Month`, `Year`.
 
 For periods the API doesn't directly support ("past 3 months", "2019–2021"), omit `--timelimit` and filter the returned JSON by the `date` field.
 
+## State/Environment Surface — Default Mode
+
+Treat DuckDuckGo results as external state/environment, not as transcript memory.
+
+**Recommended state/environment layout** for any non-trivial search:
+- **Discovery file**: `/tmp/ddg-<topic>-discovery.json` — raw search/news/trend/fact-check output
+- **Working-set file**: `/tmp/ddg-<topic>-working-set.json` — shortlist, clusters, or support matrix
+- **Page directory**: `/tmp/ddg-<topic>/pages/` — downloaded markdown or PDF pages
+- **Synthesis notes**: `/tmp/ddg-<topic>-notes.md` or `/tmp/ddg-<topic>-notes.json`
+
+For any broad search, news sweep, trend scan, fact-check, or multi-language query:
+
+1. **Capture discovery into external state/environment first.** Do NOT let a large raw result set become the thing you carry in the transcript.
+2. **Create a working-set file** before any deeper reasoning. The working set should usually be one of:
+   - 10–15 URLs for single-topic research
+   - 5–10 story clusters for news digests
+   - 3–8 candidate topics for trend work
+   - a per-tier support matrix for claim verification
+3. **Deep-read from the working-set file only.** Use `download.py` or follow-up search on the shortlisted items, one item or a tiny batch at a time.
+4. **Write synthesis from the working set and downloaded pages, not from the full discovery file.**
+
+**Native artifact mode** for scripts that output large JSON:
+
+```bash
+# Broad discovery goes to a file, not into the transcript:
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/search.py news --query "topic" --max-results 20 --output /tmp/ddg-topic-discovery.json
+
+# Multi-source sweep goes to a file first:
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/top_news.py --groups tech science --output /tmp/ddg-tech-discovery.json
+```
+
+When `--output` is used, stdout should contain only a compact artifact envelope. Reopen the saved file, not the prior transcript payload.
+
+Carry forward only compact artifacts such as:
+- working-set path plus 1–2 line summary
+- URL shortlist with one-line reasons
+- story cluster map (`story -> representative URLs + supporting sources`)
+- support matrix (`tier -> supporting URLs / conflicting URLs / unknowns`)
+- unresolved question list
+
+Do NOT carry forward:
+- raw JSON dumps from large result sets
+- dozens of article descriptions inline when only a shortlist is needed
+- previously downloaded full pages once a compact note or cluster summary exists
+
+`monitor.py` already exposes a persistent state/environment surface via `--state-file`. Prefer that model whenever a topic will be revisited.
+
 ## How the LLM Should Use These
 
 ### Single-topic research
-1. Run `search.py news --query "topic" --max-results 20` — get JSON
-2. Read the JSON, deduplicate semantically, rank by relevance to the user's question
-3. If a story needs deeper reading, use `download.py <url> --format md` to fetch full text
-4. Synthesise and present
+1. Run `search.py news --query "topic" --max-results 20 --output /tmp/ddg-<topic>-discovery.json`
+2. Reopen only enough of that discovery file to build `/tmp/ddg-<topic>-working-set.json`
+3. If a story needs deeper reading, use `download.py <url> --format md --output /tmp/ddg-<topic>/pages/<slug>.md` for only the shortlisted URLs, one by one or in tiny batches
+4. Synthesise and present from the working-set file plus any downloaded pages
 
 ### Comprehensive news digest
-1. Run `top_news.py` (all groups) or `top_news.py --groups tech science --queries "AI regulation"` for a focused sweep
-2. Receive hundreds of articles as JSON with `{title, url, source, date, description, author, query_group}`
-3. Cluster by topic (same event covered by different outlets → one story with multiple sources)
-4. Rank by the user's stated criteria (impact, recency, topic relevance, etc.)
-5. For important stories, optionally `download.py` the top URLs to read the full article
-6. Present with source attribution, clustering ("also covered by…"), dates, and summaries
+1. Run `top_news.py` (all groups) or `top_news.py --groups tech science --queries "AI regulation" --output /tmp/ddg-news-discovery.json`
+2. Build `/tmp/ddg-news-working-set.json` containing 5–10 story clusters with representative URLs and supporting outlets
+3. Rank the clusters by the user's stated criteria (impact, recency, topic relevance, etc.)
+4. For important stories, optionally `download.py` only the top 1–2 URLs per cluster to read the full article
+5. Present with source attribution, clustering ("also covered by…"), dates, and summaries
 
 ### Trend detection
-1. Run `trending.py --discover` to auto-discover trending topics, or `--topics "X" "Y"` for specific ones
-2. Receive per-topic JSON: `news_24h_count`, `news_7d_count`, `sources_24h`, `sample_headlines`, `related_queries`
+1. Run `trending.py --discover --output /tmp/ddg-trending-discovery.json`, or `trending.py --topics "X" "Y" --output /tmp/ddg-trending-discovery.json`
+2. Build `/tmp/ddg-trending-working-set.json` containing only the few candidate topics worth carrying forward
 3. Compute velocity: topics where `24h_count / 7d_count` is high are accelerating
 4. Present: "These 3 stories are blowing up right now" with source counts and date ranges
-5. Optionally `download.py` top headlines for full-text analysis
+5. Optionally `download.py` top headlines for only the top candidates
 
 ### Claim verification
-1. Run `fact_check.py "claim text"` — searches across 7 tiers (wires, broadsheets, broadcast, finance, investigation, independent, social)
-2. Receive per-tier results: which outlets cover it, their headlines, descriptions
+1. Run `fact_check.py "claim text" --output /tmp/ddg-claim-discovery.json` — searches across 7 tiers
+2. Build `/tmp/ddg-claim-working-set.json` as a support matrix: `tier -> support / contradiction / absence`
 3. Assess: wire coverage = strong signal; broadsheet-only = developing; social-only = unverified
 4. Present tier-by-tier comparison with agreement/divergence analysis
 
@@ -142,14 +192,15 @@ For periods the API doesn't directly support ("past 3 months", "2019–2021"), o
 1. The LLM translates the user's query into target languages
 2. Run `translate_search.py "fr-fr:query_fr" "de-de:query_de" "us-en:query_en"`
 3. Results are tagged with `region` and `language` for attribution
-4. Cross-compare: stories that appear in multiple language editions are high-signal
+4. Cross-compare and keep only the cross-language clusters or the few region-specific outliers worth deeper reading
 
 ### Deep research / spider mode
-1. Start with `search.py text` or `top_news.py` to discover relevant URLs
-2. Use `download.py --format md` to fetch each promising link as markdown
-3. Read the downloaded content, extract key facts, discover new leads
-4. Run further `search.py` queries based on what was learned
-5. Synthesise findings across all sources
+1. Start with `search.py text` or `top_news.py` and capture broad results into `/tmp/ddg-<topic>-discovery.json` via `--output`
+2. Convert that discovery set into `/tmp/ddg-<topic>-working-set.json`, a queue of promising URLs with a short reason for each
+3. Use `download.py --format md` to fetch only the next 1–3 URLs from the queue
+4. Read the downloaded content, extract key facts, and update the working-set file or notes file
+5. Run further `search.py` queries based on what was learned, again capturing them to discovery files first
+6. Synthesise findings across the working-set artifacts, not from the full crawl history
 
 ### Technical / vendor / niche topic research — CRITICAL
 
@@ -164,14 +215,17 @@ Generic queries return noise (e.g. "database news" → DNA databases, law enforc
 
 **Execution pattern:**
 1. Run `top_news.py --groups tech science finance --queries "VendorA" "VendorB" "ProductX announcement" "site:tradepub.com topic" ... --timelimit m` — pack as many targeted queries as needed via `--queries` (each becomes a separate DDG query)
-2. Assess coverage — if key vendors/products are missing from results, run follow-up `search.py news` and `search.py text` queries for those specific gaps
-3. Use `search.py text` (not just `news`) to catch blog posts, release notes, changelogs, and engineering docs
+2. Convert the results into a gap list and a shortlist before further searching
+3. Assess coverage — if key vendors/products are missing from the shortlist, run follow-up `search.py news` and `search.py text` queries for those specific gaps, again capturing results to discovery files first
+4. Use `search.py text` (not just `news`) to catch blog posts, release notes, changelogs, and engineering docs
 
 **Rules:**
 - NEVER search for a bare domain word alone — always qualify with specific entity names, product names, or "technology"/"engineering"
 - Use `site:` queries for niche trade publications the general news groups miss
 - When results are thin, broaden with adjacent terms from the domain's taxonomy
 - The more specific the queries, the better the signal — 20 precise queries beat 3 generic ones
+- Broad discovery is allowed; broad carry-state is not. Always narrow to a small working set before downloading or synthesising.
+- The transcript is not the search state/environment. The search state/environment lives in your discovery files, working-set files, downloaded pages, and monitor state files.
 
 ## Presentation Rules — MANDATORY
 

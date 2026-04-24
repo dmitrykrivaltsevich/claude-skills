@@ -26,6 +26,7 @@ from pathlib import Path
 from ddgs import DDGS
 
 sys.path.insert(0, os.path.dirname(__file__))
+from artifact_output import emit_json_result
 from contracts import precondition
 
 # Default state directory — user-scoped cache.
@@ -142,6 +143,10 @@ def main() -> None:
         "--type", dest="search_type", choices=["news", "text"], default="news",
         help="Search type (default: news)",
     )
+    parser.add_argument(
+        "--output", "-o", type=Path,
+        help="Write full JSON results to this file and emit a compact artifact envelope on stdout",
+    )
     args = parser.parse_args()
 
     print(f"Monitoring: {args.topic}", file=sys.stderr)
@@ -157,8 +162,11 @@ def main() -> None:
         f"(total seen: {result['total_seen']}).",
         file=sys.stderr,
     )
-    json.dump(result, sys.stdout, ensure_ascii=False, indent=None)
-    print(file=sys.stdout)
+    emit_json_result(
+        result,
+        output_path=args.output,
+        artifact_kind="duckduckgo-monitor-results",
+    )
 
 
 if __name__ == "__main__":

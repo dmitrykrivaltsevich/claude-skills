@@ -29,5 +29,15 @@
 - Complex multi-step operations SHOULD provide a checklist pattern so the model can track progress through the workflow.
 - Quality-critical operations SHOULD include a feedback loop: execute → validate → fix → repeat.
 - Skill scripts MUST be data pipes: handle I/O (HTTP, APIs, file system, parallel fetch, rate limits) and output structured data (JSON to stdout, progress/errors to stderr). Scripts MUST NOT perform ranking, scoring, semantic analysis, deduplication by meaning, clustering, or presentation — the LLM is better at all of these. SKILL.md MUST guide the LLM on how to use script output intelligently (workflow patterns, when to dig deeper, how to rank/cluster/present results to the user).
+- Every skill MUST treat external state/environment as the source of truth. The live prompt is a transient cache, NOT durable memory.
+- Skills MUST keep working state/environment outside the live chat context by default, not only for long-horizon tasks. Persist it in files, state records, JSON artifacts, append-only logs, or other external representations, and carry forward only the small slice the next step actually needs.
+- Multi-step skills MUST define four things explicitly: the unit of work, the checkpoint artifact written after each unit, the resume path, and the minimal handoff payload allowed into the next LLM step.
+- Skills that can produce broad or repeated outputs MUST expose a programmable state/environment surface. This can be a state file, artifact directory, monitor file, temp JSON record, or REPL-like store, but it MUST support narrow reopen by path, handle, selector, or ID.
+- Scripts that can emit large results SHOULD support artifact mode directly (for example `--output`, `--state-file`, or equivalent). When a script does not yet support artifact mode, the skill MUST document a file-backed capture pattern so the full payload lands in external state/environment rather than in the transcript.
+- Agents MUST prefer handles, IDs, selectors, file paths, and short summaries over copying raw documents, full result sets, or long transcripts into later prompts.
+- After each unit of work, agents MUST persist the accepted artifact and carry forward only a compact handoff such as `{path, ids, selector, short summary, next action}`.
+- When more detail is needed, agents MUST reopen the narrowest relevant slice from external state/environment instead of carrying large prior outputs forward.
+- At phase boundaries or after broad sweeps, agents SHOULD rebuild the next step from external state/environment rather than relying on the appended transcript.
+- Recursive or fan-out workflows MUST only spawn child tasks that localize or reduce the state each child sees, and child tasks MUST read needed slices from external state/environment rather than inheriting the parent's full payload.
 - After fixing a bug or mistake that reflects a reusable lesson (not task-specific), MUST add a corresponding rule to this file following the same MUST/SHOULD/CAN/NOT style.
 - When a skill is added, removed, or significantly modified, MUST update the skills table in the repository root `README.md` to keep it in sync.

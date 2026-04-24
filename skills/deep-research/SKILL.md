@@ -25,13 +25,16 @@ user-invocable: true
 5. [Research Workflow](#research-workflow--5-phases)
 6. [Convergence Rules](#convergence-rules)
 7. [State File](#state-file)
-8. [Working with Other Skills](#working-with-other-skills)
-9. [Context Management](#context-management)
-10. [Reference](#reference)
+8. [State/Environment Discipline](#stateenvironment-discipline)
+9. [Working with Other Skills](#working-with-other-skills)
+10. [Context Management](#context-management)
+11. [Reference](#reference)
 
 ## Architecture
 
 **This skill is an orchestrator, not a data fetcher.** It provides two data-pipe scripts — one discovers available skill capabilities, the other manages persistent research state. The LLM does all the thinking: decomposing goals into questions, choosing which skills to invoke, evaluating coverage, deciding when to dig deeper, and synthesising findings.
+
+**The research state/environment is the source of truth.** The transcript is not durable memory. Every broad sweep, shortlist, deep-read batch, and synthesis handoff should be reconstructed from external state/environment artifacts rather than from prior chat turns.
 
 ```
 User question
@@ -47,9 +50,11 @@ state.py init → create research session
 │                                         │
 │  1. Pick unexplored questions           │
 │  2. Choose skill + script for each      │
-│  3. Run scripts → get raw data          │
-│  4. LLM: extract facts, update state   │
-│  5. LLM: check convergence             │
+│  3. Run scripts → capture discovery     │
+│     artifacts in external state/env     │
+│  4. LLM: narrow to working-set files    │
+│     and update research state           │
+│  5. LLM: check convergence              │
 │  6. If not converged → generate new     │
 │     questions, loop back to 1           │
 └─────────────────────────────────────────┘
@@ -87,6 +92,29 @@ uv run --no-config ${DDG_DIR}/scripts/translate_search.py "en:query" "de:query"
 
 **When you find a URL you want to read — use `download.py`, NEVER Fetch.** Fetch gets 403 errors; `download.py` mimics a real browser.
 
+For duckduckgo discovery scripts, prefer native `--output` artifact mode over shell redirection.
+
+## State/Environment Discipline
+
+Use two layers of external state/environment:
+
+1. **Research state** — the durable source of truth managed by `state.py`
+2. **Round artifacts** — file-backed discovery sets, working sets, and downloaded pages for the current round
+
+**Recommended round layout**:
+- `/tmp/<research-id>-<round>-discovery.json` — raw search/fact-check/trend output
+- `/tmp/<research-id>-<round>-working-set.json` — shortlisted sources, clusters, gaps, or support matrix
+- `/tmp/<research-id>/pages/<slug>.md` — downloaded page text
+- `/tmp/<research-id>-<round>-facts.json` — facts to append to `state.py`
+
+Rules:
+- Broad tool output MUST land in round artifacts first, not in the transcript.
+- `state.py` stores accepted research state: questions, sources, facts, phases.
+- Round artifacts store messy intermediate environment state for the current pass.
+- When resuming, start from `state.py` plus the latest working-set artifact, not from chat history.
+- After a phase boundary, carry forward only `{research_id, phase, artifact paths, small summary, next action}`.
+- Use `json_query.py` to reopen only the slice you need from saved JSON artifacts instead of rereading the entire file.
+
 ## Scripts
 
 | Task | Script | What it does |
@@ -100,12 +128,14 @@ uv run --no-config ${DDG_DIR}/scripts/translate_search.py "en:query" "de:query"
 | Advance phase | `state.py update-phase` | Moves to next research phase |
 | Check progress | `state.py status` | Returns coverage summary JSON |
 | Export full state | `state.py export` | Dumps complete research state as JSON |
+| Reopen JSON slices | `json_query.py` | Returns only the selected slice from a saved JSON artifact |
 
 ## Quick Start
 
 ```bash
 # Discover what skills are available:
 uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/discover.py [--skills-dir PATH]
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/discover.py --output /tmp/discover.json
 
 # Initialize a research session:
 uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/state.py init --research-id "my-topic" --goal "Understand X in depth"
@@ -134,6 +164,10 @@ uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/state.py status --research-id "my
 
 # Export full state for synthesis:
 uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/state.py export --research-id "my-topic"
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/state.py export --research-id "my-topic" --output /tmp/research-state.json
+
+# Reopen only the covered questions from a saved state artifact:
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/json_query.py --file /tmp/research-state.json --selector questions --where status=covered --fields text
 
 # Custom state directory (when user says "store results in ..."):
 uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/state.py init --research-id "my-topic" --goal "..." --state-dir /path/to/custom/dir
@@ -158,11 +192,12 @@ The LLM drives each phase. Scripts provide I/O and persistence; the LLM provides
 > **Reminder**: Do NOT use Agent(), Web Search, or Fetch. Run duckduckgo scripts directly via `uv run`.
 
 1. For each unexplored question, choose the best skill/script to gather data
-2. Run the chosen skill's scripts — **read the skill's SKILL.md first** to get correct commands
-3. Record discovered sources via `state.py add-sources`
-4. Extract preliminary facts from result summaries via `state.py add-facts`
-5. Mark questions as `partially` if some data found, leave `unexplored` if nothing useful
-6. Run `state.py update-phase --phase sweep`
+2. Run the chosen skill's scripts into a **discovery artifact**, not into the transcript — **read the skill's SKILL.md first** to get correct commands
+3. Build a **working-set artifact** from that discovery artifact: shortlist, gap list, clusters, or support matrix
+4. Record discovered sources via `state.py add-sources`, but only for the working set you actually carry forward
+5. Extract preliminary facts from the working-set artifact via `state.py add-facts`
+6. Mark questions as `partially` if some data found, leave `unexplored` if nothing useful
+7. Run `state.py update-phase --phase sweep`
 
 **Skill routing** — use the capability map from discover.py, then READ the target skill's SKILL.md:
 - Web search → read `/duckduckgo` SKILL.md, use its `search.py`, `top_news.py`. NEVER use built-in Web Search.
@@ -174,11 +209,17 @@ The LLM drives each phase. Scripts provide I/O and persistence; the LLM provides
 
 **Decomposition before search**: For specialized topics, decompose into precise queries BEFORE running search scripts. Enumerate vendors, products, publications, and sub-categories from existing knowledge, then search for each specifically.
 
+**Artifact-first pattern**:
+- Capture broad sweep output to `/tmp/<research-id>-qN-discovery.json` via the source skill's native `--output` flag when available
+- Build `/tmp/<research-id>-qN-working-set.json`
+- Append only shortlisted sources and accepted preliminary facts into `state.py`
+- Discard raw discovery from working memory once the working-set artifact exists
+
 ### Phase 3: Deep Read
 
-1. For each `partially` covered question, fetch full content of promising sources
-2. Read `/duckduckgo` SKILL.md, use its `download.py` to get full text (or `/google-drive` `download.py` for Drive files)
-3. Extract detailed facts with source attribution
+1. For each `partially` covered question, fetch full content of promising sources from the latest working-set artifact
+2. Read `/duckduckgo` SKILL.md, use its `download.py` to get full text into `/tmp/<research-id>/pages/` (or `/google-drive` `download.py` for Drive files)
+3. Extract detailed facts with source attribution into a facts artifact
 4. Run `state.py add-facts` for each batch of findings
 5. Discover new questions from what was read — run `state.py add-questions`
 6. Update question statuses based on new evidence
@@ -189,11 +230,12 @@ The LLM drives each phase. Scripts provide I/O and persistence; the LLM provides
 ### Phase 4: Cross-Reference
 
 1. Run `state.py export` to see all accumulated facts
-2. Look for contradictions, gaps, and patterns across sources
-3. For contradictions: search for additional sources to resolve them
-4. For gaps: generate targeted new questions, go back to sweep/deep-read
-5. Update fact confidence levels based on cross-source agreement
-6. Run `state.py update-phase --phase cross-reference`
+2. Reopen only the smallest relevant working-set or facts artifacts needed for the current contradiction/gap
+3. Look for contradictions, gaps, and patterns across sources
+4. For contradictions: search for additional sources to resolve them
+5. For gaps: generate targeted new questions, go back to sweep/deep-read
+6. Update fact confidence levels based on cross-source agreement
+7. Run `state.py update-phase --phase cross-reference`
 
 **LLM guidance**: This is where analytical quality matters most. Cluster facts by theme. Identify which claims have multi-source backing vs. single-source. Flag facts where the only sources are opinion pieces or social media.
 
@@ -230,6 +272,8 @@ The LLM decides when to stop. These are guidelines, not hard limits:
 - **Resume**: Re-running `state.py init` with the same research-id returns the existing state without overwriting. All subsequent commands append without data loss.
 - **Research ID**: Use a slug derived from the research goal (e.g. `quantum-computing-trends-2026`). Keep it short and filesystem-safe.
 
+The state file stores accepted research state. It does NOT replace round-level discovery or working-set artifacts.
+
 ## Working with Other Skills
 
 This skill does NOT fetch data itself. It orchestrates other skills. **Execute searches directly — NEVER delegate to Agent().**
@@ -258,10 +302,14 @@ This skill does NOT fetch data itself. It orchestrates other skills. **Execute s
 
 For large research tasks, the context window can fill up. The LLM should:
 
-1. **Summarise early**: After each sweep/deep-read round, record facts into state.py immediately. Don't hold raw search results in context.
-2. **Offload to state**: The state file is the persistent memory. Export it when starting a new phase to refresh working memory.
-3. **Split rounds**: Do 3–5 questions per round, record facts, then move to the next batch. This keeps each round manageable.
-4. **Progressive depth**: Start with broad sweeps (summaries only), then deep-read only the most promising sources. Don't try to download every article.
+1. **Capture early**: Broad sweep output goes to discovery artifacts immediately. Do NOT let raw search results sit in the transcript.
+2. **Offload to state/environment**: `state.py` is the durable research memory; round artifacts hold the messy local environment for the current pass.
+3. **Rebuild from artifacts**: When starting a new phase, export `state.py` and reopen only the latest working-set artifacts you need.
+4. **Split rounds**: Do 3–5 questions per round, persist sources/facts, then move to the next batch. This keeps each round manageable.
+5. **Progressive depth**: Start with broad sweeps, then deep-read only the most promising sources. Don't try to download every article.
+6. **Carry compact handoffs only**: The next step should usually receive only research id, phase, artifact paths, and a short summary.
+
+`json_query.py` is the default narrow-reopen tool for JSON artifacts. Prefer it over loading a full exported state when you only need one field, one list, or a filtered subset.
 
 ## Large Data — MUST Use `--file`
 

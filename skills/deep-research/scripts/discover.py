@@ -8,10 +8,11 @@
 """Skill scanner — discovers installed skills and builds a capability map.
 
 Scans a skills directory for SKILL.md files, parses their YAML frontmatter
-and script decision tables, and outputs a JSON capability map to stdout.
+and script decision tables, and outputs a JSON capability map.
 
-Output: JSON array to stdout.  Each element describes one skill with its
-name, description, and available commands (trigger → script → returns).
+Output: JSON array to stdout, or file-backed JSON plus a compact envelope when
+``--output`` is provided. Each element describes one skill with its name,
+description, and available commands (trigger → script → returns).
 """
 
 from __future__ import annotations
@@ -21,6 +22,8 @@ import json
 import re
 import sys
 from pathlib import Path
+
+from artifact_output import emit_json_result
 
 
 # Default location — skills/ directory (4 levels up from scripts/discover.py).
@@ -178,10 +181,18 @@ def main(argv: list[str] | None = None) -> None:
         default=_DEFAULT_SKILLS_DIR,
         help="Path to the skills/ directory to scan.",
     )
+    parser.add_argument(
+        "--output", "-o", type=Path,
+        help="Write full JSON results to this file and emit a compact artifact envelope on stdout",
+    )
     args = parser.parse_args(argv)
 
     skills = discover_skills(args.skills_dir)
-    print(json.dumps(skills, ensure_ascii=False, indent=2))
+    emit_json_result(
+        skills,
+        output_path=args.output,
+        artifact_kind="deep-research-skill-discovery",
+    )
 
 
 if __name__ == "__main__":

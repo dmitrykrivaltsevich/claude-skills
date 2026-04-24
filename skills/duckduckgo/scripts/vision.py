@@ -23,6 +23,7 @@ from pathlib import Path
 from PIL import Image
 
 sys.path.insert(0, os.path.dirname(__file__))
+from artifact_output import emit_json_result
 from contracts import precondition
 from search import search_image
 
@@ -218,10 +219,18 @@ def main():
     analyze_parser.add_argument(
         "--image-path", "-i", required=True, help="Path to image file"
     )
+    analyze_parser.add_argument(
+        "--output", "-o", type=Path,
+        help="Write full JSON results to this file and emit a compact artifact envelope on stdout",
+    )
 
     find_parser = subparsers.add_parser("find_similar", help="Find similar images")
     find_parser.add_argument(
         "--image-path", "-i", required=True, help="Path to image file"
+    )
+    find_parser.add_argument(
+        "--output", "-o", type=Path,
+        help="Write full JSON results to this file and emit a compact artifact envelope on stdout",
     )
 
     args = parser.parse_args()
@@ -229,15 +238,21 @@ def main():
     if args.command == "analyze":
         info = get_image_info(args.image_path)
         print(f"Image analysis: {info['path']}", file=sys.stderr)
-        json.dump(info, sys.stdout, ensure_ascii=False, indent=2)
-        print(file=sys.stdout)
+        emit_json_result(
+            info,
+            output_path=args.output,
+            artifact_kind="duckduckgo-image-analysis",
+        )
 
     elif args.command == "find_similar":
         result = find_similar_images(args.image_path)
         n = len(result["results"])
         print(f"Found {n} similar images.", file=sys.stderr)
-        json.dump(result, sys.stdout, ensure_ascii=False, indent=None)
-        print(file=sys.stdout)
+        emit_json_result(
+            result,
+            output_path=args.output,
+            artifact_kind="duckduckgo-similar-images",
+        )
 
 
 if __name__ == "__main__":
