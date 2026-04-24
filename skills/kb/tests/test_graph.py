@@ -10,8 +10,10 @@ from textwrap import dedent
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
-from graph import build_graph
+from ._loader import load_script_module
+
+graph = load_script_module("kb_test_graph_script", "graph.py")
+build_graph = graph.build_graph
 
 
 # ---------------------------------------------------------------------------

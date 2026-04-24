@@ -33,6 +33,7 @@ from pathlib import Path
 import yaml
 
 sys.path.insert(0, os.path.dirname(__file__))
+from artifact_output import emit_json_result
 from contracts import ContractViolationError, precondition
 
 # Context lines to include around each match — enough for the LLM
@@ -318,6 +319,10 @@ def main(argv: list[str] | None = None) -> None:
         default=None,
         help="Restrict results to entries whose frontmatter tags contain this tag",
     )
+    parser.add_argument(
+        "--output", "-o", type=Path,
+        help="Write full JSON results to this file and emit a compact artifact envelope on stdout",
+    )
 
     args = parser.parse_args(argv)
     result = search_kb(
@@ -329,7 +334,7 @@ def main(argv: list[str] | None = None) -> None:
         kind=args.kind,
         tag=args.tag,
     )
-    print(json.dumps(result, ensure_ascii=False, indent=2))
+    emit_json_result(result, output_path=args.output, artifact_kind="kb-search-results")
 
 
 if __name__ == "__main__":

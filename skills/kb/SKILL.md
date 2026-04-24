@@ -91,6 +91,8 @@ Three layers per KB:
 
 **Division of labor**: Scripts = file I/O, state tracking, mechanical checks. LLM = reading, understanding, extracting, linking, analyzing, writing knowledge entries.
 
+**Bounded-context default**: For broad JSON outputs (`open.py`, `search.py`, `lint.py`, `related.py`, `graph.py`, `topology.py`, and `state.py`), prefer `--output /tmp/<artifact>.json` whenever the payload will be more than a compact handoff. Reopen only the slice you need with `json_query.py`, and carry forward only `{artifact path, selector, short summary, next action}`. For markdown-heavy work (KB entries, chapter briefs, source analyses, exported markdown), reopen by heading, chunk, or exact lines with `page_query.py` instead of loading the whole file again.
+
 ## Scripts
 
 | User says… | Script | What it returns |
@@ -107,8 +109,10 @@ Three layers per KB:
 | "Analyze KB structure/gaps" | `topology.py --path DIR` | JSON: clusters, bridges, structural holes, degree anomalies, betweenness |
 | "What's the task status?" | `state.py status --task-id ID` | JSON: phase, items done/pending/in-progress |
 | "Resume pending work" | `state.py pending --task-id ID` | JSON: next items to process |
+| "Reopen a slice from saved JSON" | `json_query.py --file FILE [--selector PATH] [--where key=value] [--fields a b] [--limit N]` | JSON: only the requested subset of a saved artifact |
+| "Reopen a slice from saved markdown/text" | `page_query.py --file FILE (--heading H | --chunk N [--chunk-size M] | --start-line A --end-line B)` | JSON: section/chunk/line-range from a markdown/text file |
 
-All scripts: `uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/<script>`.
+All scripts: `uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/<script>`. Broad JSON scripts support `--output` and emit a compact artifact envelope on stdout.
 
 ## Quick Start
 
@@ -118,6 +122,10 @@ uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/init.py --path /path/to/kb --name
 
 # Open an existing KB (do this at start of every session):
 uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/open.py --path /path/to/kb
+
+# Open a large KB without flooding context, then reopen only pending tasks:
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/open.py --path /path/to/kb --output /tmp/kb-open.json
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/json_query.py --file /tmp/kb-open.json --selector pending_tasks --fields task_id phase --limit 5
 
 # Register a local file as source:
 uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/add_source.py --kb-path /path/to/kb --source /path/to/paper.pdf --source-id real-2020
@@ -130,6 +138,10 @@ uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/state.py init --task-id "add-pape
 
 # Search the KB:
 uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/search.py --path /path/to/kb --query "quantum computing"
+
+# Persist a broad search result, then reopen just the top files:
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/search.py --path /path/to/kb --query "quantum computing" --output /tmp/kb-search.json
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/json_query.py --file /tmp/kb-search.json --selector results --fields file score --limit 10
 
 # Search only entities:
 uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/search.py --path /path/to/kb --query "feynman" --category entities
@@ -151,6 +163,9 @@ uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/graph.py --path /path/to/kb
 
 # Analyze KB topology (clusters, bridges, gaps):
 uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/topology.py --path /path/to/kb
+
+# Reopen a section from a source analysis or chapter brief:
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/page_query.py --file /path/to/kb/knowledge/sources/real-2020-analysis.md --heading "Hidden Gems"
 ```
 
 ## Operations
@@ -163,9 +178,10 @@ uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/topology.py --path /path/to/kb
 
 ### kb:open — Load KB Context
 
-1. Run `open.py` — read the entire JSON output
-2. This gives you: KB name, rules, index (for navigation), file counts, pending tasks
-3. If pending tasks exist, inform the user and offer to resume
+1. Run `open.py`. For small KBs you can read the direct JSON output; for larger KBs prefer `open.py --output /tmp/kb-open.json`.
+2. If you used `--output`, reopen only what you need with `json_query.py` (for example `pending_tasks`, `file_counts`, or a specific task) instead of loading the whole artifact into context.
+3. This gives you: KB name, rules, index (for navigation), file counts, pending tasks
+4. If pending tasks exist, inform the user and offer to resume
 
 ### kb:add — Add Source + Extract Knowledge
 
@@ -435,6 +451,8 @@ See [references/citation-tracking.md](references/citation-tracking.md) for the f
 Large sources require sustained work across many context windows. Context compaction, session breaks, and tool errors WILL happen. The LLM must be able to lose its entire context and fully recover from disk state alone. **Core principle: everything on disk** — your context window is volatile, the KB's files and task state are permanent.
 
 Key protocols: checkpoint discipline (write entries → write chapter analysis brief → write notes → mark done), resumption protocol (open.py → state.py status → state.py pending → calibrate density → continue), hierarchical processing (chapter briefs → part analyses → source analysis → cross-source meta), and trajectory drift prevention (7 defenses against compaction-induced summarization drift).
+
+For broad JSON state, prefer file-backed artifacts plus `json_query.py`. For chapter briefs, source analyses, KB entries, or exported markdown/text, reopen by heading/chunk/line-range with `page_query.py` rather than reloading the full file.
 
 See [references/long-horizon.md](references/long-horizon.md) for the full protocol: checkpoint format, resumption steps, hierarchical processing table, all 7 drift defenses, and context management rules.
 

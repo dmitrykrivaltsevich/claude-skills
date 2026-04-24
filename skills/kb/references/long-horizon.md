@@ -17,6 +17,8 @@ Large sources require sustained work across many context windows. Context compac
 
 Your context window is volatile. The KB's files and task state are permanent. Every decision, every extraction, every checkpoint MUST be written to disk before moving on. If you crash after writing, no work is lost. If you crash before writing, you redo only that one chunk.
 
+For any broad JSON result (`open.py`, `search.py`, `lint.py`, `related.py`, `graph.py`, `topology.py`, `state.py`), prefer `--output /path/to/artifact.json`. Then reopen only the slice you need with `json_query.py` instead of reloading the entire artifact. For markdown/text artifacts such as KB entries, chapter briefs, source analyses, exported markdown, or working notes, reopen only the needed heading, chunk, or exact line range with `page_query.py`.
+
 ## Checkpoint Discipline
 
 When you finish processing any work item (chapter, section, batch):
@@ -48,6 +50,8 @@ After ANY interruption (context compaction, session break, error recovery):
    recur. One image at a time, always.
 7. Continue from the next pending item — do NOT re-process done items
 ```
+
+If steps 1-3 would produce large payloads, write them to artifacts first (`--output`) and reopen only `pending_tasks`, `file_counts`, `next_items`, or specific task slices with `json_query.py`. Carry forward only the artifact path, selector, a short summary, and the next action.
 
 This protocol works whether you lost context 5 minutes ago or 5 days ago. The disk state is the single source of truth.
 
@@ -81,9 +85,11 @@ Context compaction can cause the LLM to "forget" the extraction strategy and dri
 ## Context Management
 
 - **Start every session** with `open.py` to load the KB context
+- **Prefer artifact mode** for broad JSON outputs, then reopen narrow slices with `json_query.py`
 - **Read `index.md` first** when searching for information — it's your table of contents
 - **Follow wikilinks** rather than reading all files — targeted navigation over full scans
 - **Use `search.py`** for keyword lookup when index isn't enough
+- **Use `page_query.py`** for KB entries, chapter briefs, source analyses, and other markdown/text files when you only need one heading, chunk, or line range
 - **Don't re-read processed chunks** — read your own extracted entries instead
 - **Write entries incrementally** — don't try to hold an entire book in context
 - **If context feels full**, finish the current item, write checkpoint notes, mark done, then continue — the resumption protocol handles the rest

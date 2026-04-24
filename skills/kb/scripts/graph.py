@@ -25,6 +25,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(__file__))
+from artifact_output import emit_json_result
 from contracts import ContractViolationError, precondition
 
 # Wikilink pattern: [[target]] or [[target|display text]]
@@ -194,10 +195,14 @@ def build_graph(kb_path: str) -> dict:
 # CLI
 # ---------------------------------------------------------------------------
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Extract KB wikilink graph")
     parser.add_argument("--path", required=True, help="Path to KB root")
-    args = parser.parse_args()
+    parser.add_argument(
+        "--output", "-o", type=Path,
+        help="Write full JSON results to this file and emit a compact artifact envelope on stdout",
+    )
+    args = parser.parse_args(argv)
 
     try:
         result = build_graph(args.path)
@@ -205,8 +210,7 @@ def main() -> None:
         print(json.dumps({"error": str(exc)}), file=sys.stderr)
         sys.exit(1)
 
-    json.dump(result, sys.stdout, indent=2)
-    print()
+    emit_json_result(result, output_path=args.output, artifact_kind="kb-graph")
 
 
 if __name__ == "__main__":

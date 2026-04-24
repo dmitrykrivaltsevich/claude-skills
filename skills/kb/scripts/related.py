@@ -23,6 +23,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(__file__))
+from artifact_output import emit_json_result
 from contracts import ContractViolationError, precondition
 
 
@@ -134,6 +135,10 @@ def main(argv: list[str] | None = None) -> None:
     )
     parser.add_argument("--limit", type=int, default=20, help="Max results (default 20)")
     parser.add_argument("--category", default=None, help="Restrict to a knowledge category")
+    parser.add_argument(
+        "--output", "-o", type=Path,
+        help="Write full JSON results to this file and emit a compact artifact envelope on stdout",
+    )
 
     args = parser.parse_args(argv)
     kw_list = [k.strip() for k in args.keywords.split(",") if k.strip()]
@@ -143,7 +148,7 @@ def main(argv: list[str] | None = None) -> None:
         sys.exit(1)
 
     result = find_related(args.kb_path, kw_list, limit=args.limit, category=args.category)
-    print(json.dumps(result, ensure_ascii=False, indent=2))
+    emit_json_result(result, output_path=args.output, artifact_kind="kb-related-results")
 
 
 if __name__ == "__main__":

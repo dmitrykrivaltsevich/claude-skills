@@ -24,6 +24,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(__file__))
+from artifact_output import emit_json_result
 from contracts import ContractViolationError, precondition
 
 # Default state directory — user-scoped cache.
@@ -45,6 +46,17 @@ VALID_PHASES = (
 
 # Valid item statuses.
 VALID_ITEM_STATUSES = ("pending", "in-progress", "done", "skipped")
+
+_ARTIFACT_KINDS = {
+    "init": "kb-task-init",
+    "add-items": "kb-task-add-items",
+    "update-item": "kb-task-update-item",
+    "update-phase": "kb-task-update-phase",
+    "status": "kb-task-status",
+    "pending": "kb-task-pending",
+    "list": "kb-task-list",
+    "export": "kb-task-export",
+}
 
 
 # ---------------------------------------------------------------------------
@@ -325,6 +337,10 @@ def _add_common_args(p: argparse.ArgumentParser) -> None:
         "--state-dir", type=Path, default=_DEFAULT_STATE_DIR,
         help="Directory for state files.",
     )
+    p.add_argument(
+        "--output", "-o", type=Path,
+        help="Write full JSON results to this file and emit a compact artifact envelope on stdout",
+    )
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -370,6 +386,10 @@ def main(argv: list[str] | None = None) -> None:
     p_ls.add_argument(
         "--state-dir", type=Path, default=_DEFAULT_STATE_DIR,
     )
+    p_ls.add_argument(
+        "--output", "-o", type=Path,
+        help="Write full JSON results to this file and emit a compact artifact envelope on stdout",
+    )
 
     # export
     p_ex = sub.add_parser("export")
@@ -405,7 +425,11 @@ def main(argv: list[str] | None = None) -> None:
         parser.print_help()
         sys.exit(1)
 
-    print(json.dumps(result, ensure_ascii=False, indent=2))
+    emit_json_result(
+        result,
+        output_path=args.output,
+        artifact_kind=_ARTIFACT_KINDS[args.command],
+    )
 
 
 if __name__ == "__main__":

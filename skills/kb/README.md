@@ -2,6 +2,8 @@
 
 LLM-curated local knowledge bases — persistent collections of interlinked Obsidian-compatible markdown files. Extracts knowledge from sources (articles, papers, books, videos), including know-how and hidden gems, creates richly interlinked entries, tracks citations, and detects contradictions.
 
+Broad KB JSON surfaces support native artifact mode via `--output`, and saved JSON or markdown/text artifacts can be reopened narrowly with `json_query.py` and `page_query.py`.
+
 ## What It Does
 
 This skill manages the scaffolding and mechanical operations. **The LLM does all the intellectual work**: knowledge extraction, know-how capture, summarization, cross-linking, citation graph building, controversy detection, and meta-analysis.
@@ -23,14 +25,16 @@ Operations:
 | Script | Purpose |
 |---|---|
 | `init.py` | Scaffold KB folder structure, config, rules, index |
-| `open.py` | Load full KB context as JSON (config, rules, counts, pending tasks) |
+| `open.py` | Load KB context as JSON; supports `--output` artifact mode for large KBs |
 | `add_source.py` | Copy/reference a source file, assign ID, update config |
-| `lint.py` | Check broken wikilinks, orphans, missing backlinks, timeline gaps (year/month/day) |
-| `search.py` | Full-text search with scoring, multi-match, category filter, and frontmatter filters for `idea-kind` / tags |
-| `related.py` | Find entries by keyword overlap (for cross-referencing) |
-| `graph.py` | Extract wikilink graph: nodes, edges, degrees, components |
-| `topology.py` | Graph topology analysis: clusters, bridges, structural holes, anomalies |
-| `state.py` | Multi-session task queue (init, add-items, update, status) |
+| `lint.py` | Check broken wikilinks, orphans, missing backlinks, timeline gaps (year/month/day); supports `--output` |
+| `search.py` | Full-text search with scoring, multi-match, category filter, and frontmatter filters for `idea-kind` / tags, plus `--output` |
+| `related.py` | Find entries by keyword overlap (for cross-referencing); supports `--output` |
+| `graph.py` | Extract wikilink graph: nodes, edges, degrees, components; supports `--output` |
+| `topology.py` | Graph topology analysis: clusters, bridges, structural holes, anomalies; supports `--output` |
+| `state.py` | Multi-session task queue (init, add-items, update, status) with `--output` support on all subcommands |
+| `json_query.py` | Reopen narrow slices from saved JSON artifacts using selectors, filters, fields, and limits |
+| `page_query.py` | Reopen sections, chunks, or exact line ranges from markdown/text files |
 | `contracts.py` | Design-by-contract decorators (shared utility) |
 
 ## KB Structure

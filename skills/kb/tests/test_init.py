@@ -3,17 +3,15 @@
 from __future__ import annotations
 
 import json
-import os
-import sys
 from pathlib import Path
 
 import pytest
 import yaml
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
+from ._loader import load_script_module
 
-import init
-from contracts import ContractViolationError
+init = load_script_module("kb_test_init_script", "init.py")
+ContractViolationError = init.ContractViolationError
 
 
 @pytest.fixture

@@ -3,18 +3,17 @@
 from __future__ import annotations
 
 import json
-import os
-import sys
 from pathlib import Path
 
 import pytest
 import yaml
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
+from ._loader import load_script_module
 
-import init
-import open as open_kb
-from contracts import ContractViolationError
+init = load_script_module("kb_test_open_init", "init.py")
+open_kb = load_script_module("kb_test_open_script", "open.py")
+state = load_script_module("kb_test_open_state", "state.py")
+ContractViolationError = open_kb.ContractViolationError
 
 
 @pytest.fixture
@@ -60,7 +59,6 @@ class TestOpenKb:
         assert result["pending_tasks"] == []
 
     def test_detects_pending_tasks(self, kb_path: Path):
-        import state
         state.init_task(
             "t1", "add", "Ingest paper", str(kb_path),
             state_dir=kb_path / ".kb" / "tasks",

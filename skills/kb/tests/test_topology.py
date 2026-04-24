@@ -10,8 +10,10 @@ from textwrap import dedent
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
-from topology import analyze_topology
+from ._loader import load_script_module
+
+topology = load_script_module("kb_test_topology_script", "topology.py")
+analyze_topology = topology.analyze_topology
 
 
 # ---------------------------------------------------------------------------

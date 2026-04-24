@@ -28,6 +28,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(__file__))
+from artifact_output import emit_json_result
 from contracts import ContractViolationError, precondition
 
 # Regex for wikilinks: [[page-name]] or [[page-name|display text]]
@@ -262,10 +263,14 @@ def lint_kb(kb_path: str) -> dict:
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Lint a knowledge base.")
     parser.add_argument("--path", required=True, help="Path to KB directory")
+    parser.add_argument(
+        "--output", "-o", type=Path,
+        help="Write full JSON results to this file and emit a compact artifact envelope on stdout",
+    )
 
     args = parser.parse_args(argv)
     result = lint_kb(args.path)
-    print(json.dumps(result, ensure_ascii=False, indent=2))
+    emit_json_result(result, output_path=args.output, artifact_kind="kb-lint-results")
 
 
 if __name__ == "__main__":
