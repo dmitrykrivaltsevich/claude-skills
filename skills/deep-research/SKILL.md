@@ -32,7 +32,7 @@ user-invocable: true
 
 ## Architecture
 
-**This skill is an orchestrator, not a data fetcher.** It provides two data-pipe scripts — one discovers available skill capabilities, the other manages persistent research state. The LLM does all the thinking: decomposing goals into questions, choosing which skills to invoke, evaluating coverage, deciding when to dig deeper, and synthesising findings.
+**This skill is an orchestrator, not a data fetcher.** It provides a small data-pipe toolkit: `discover.py` for capability discovery, `state.py` for durable research state, `json_query.py` for JSON slice reopening, and `page_query.py` for markdown/text page slice reopening. The LLM does all the thinking: decomposing goals into questions, choosing which skills to invoke, evaluating coverage, deciding when to dig deeper, and synthesising findings.
 
 **The research state/environment is the source of truth.** The transcript is not durable memory. Every broad sweep, shortlist, deep-read batch, and synthesis handoff should be reconstructed from external state/environment artifacts rather than from prior chat turns.
 
@@ -114,6 +114,7 @@ Rules:
 - When resuming, start from `state.py` plus the latest working-set artifact, not from chat history.
 - After a phase boundary, carry forward only `{research_id, phase, artifact paths, small summary, next action}`.
 - Use `json_query.py` to reopen only the slice you need from saved JSON artifacts instead of rereading the entire file.
+- Use `page_query.py` to reopen only the slice you need from saved markdown/text page artifacts instead of rereading the entire file.
 
 ## Scripts
 
@@ -129,6 +130,7 @@ Rules:
 | Check progress | `state.py status` | Returns coverage summary JSON |
 | Export full state | `state.py export` | Dumps complete research state as JSON |
 | Reopen JSON slices | `json_query.py` | Returns only the selected slice from a saved JSON artifact |
+| Reopen page slices | `page_query.py` | Returns only the selected heading/chunk/line slice from a page artifact |
 
 ## Quick Start
 
@@ -168,6 +170,9 @@ uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/state.py export --research-id "my
 
 # Reopen only the covered questions from a saved state artifact:
 uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/json_query.py --file /tmp/research-state.json --selector questions --where status=covered --fields text
+
+# Reopen only one section from a downloaded page artifact:
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/page_query.py --file /tmp/my-topic/pages/article.md --heading "Transport"
 
 # Custom state directory (when user says "store results in ..."):
 uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/state.py init --research-id "my-topic" --goal "..." --state-dir /path/to/custom/dir
@@ -219,18 +224,19 @@ The LLM drives each phase. Scripts provide I/O and persistence; the LLM provides
 
 1. For each `partially` covered question, fetch full content of promising sources from the latest working-set artifact
 2. Read `/duckduckgo` SKILL.md, use its `download.py` to get full text into `/tmp/<research-id>/pages/` (or `/google-drive` `download.py` for Drive files)
-3. Extract detailed facts with source attribution into a facts artifact
-4. Run `state.py add-facts` for each batch of findings
-5. Discover new questions from what was read — run `state.py add-questions`
-6. Update question statuses based on new evidence
-7. Run `state.py update-phase --phase deep-read`
+3. Use `page_query.py` on the saved page files to reopen only the needed heading, chunk, or line range
+4. Extract detailed facts with source attribution into a facts artifact
+5. Run `state.py add-facts` for each batch of findings
+6. Discover new questions from what was read — run `state.py add-questions`
+7. Update question statuses based on new evidence
+8. Run `state.py update-phase --phase deep-read`
 
 **LLM guidance**: Read critically. Note contradictions between sources. When sources disagree, record both claims with confidence levels: `high` (multiple quality sources agree), `medium` (single source or partial evidence), `low` (unverified, social media, single blog).
 
 ### Phase 4: Cross-Reference
 
 1. Run `state.py export` to see all accumulated facts
-2. Reopen only the smallest relevant working-set or facts artifacts needed for the current contradiction/gap
+2. Reopen only the smallest relevant working-set, facts, or page artifacts needed for the current contradiction/gap using `json_query.py` or `page_query.py`
 3. Look for contradictions, gaps, and patterns across sources
 4. For contradictions: search for additional sources to resolve them
 5. For gaps: generate targeted new questions, go back to sweep/deep-read
@@ -309,7 +315,7 @@ For large research tasks, the context window can fill up. The LLM should:
 5. **Progressive depth**: Start with broad sweeps, then deep-read only the most promising sources. Don't try to download every article.
 6. **Carry compact handoffs only**: The next step should usually receive only research id, phase, artifact paths, and a short summary.
 
-`json_query.py` is the default narrow-reopen tool for JSON artifacts. Prefer it over loading a full exported state when you only need one field, one list, or a filtered subset.
+`json_query.py` is the default narrow-reopen tool for JSON artifacts. `page_query.py` is the default narrow-reopen tool for downloaded markdown/text pages. Prefer them over loading full exported state files or full downloaded pages when you only need a slice.
 
 ## Large Data — MUST Use `--file`
 

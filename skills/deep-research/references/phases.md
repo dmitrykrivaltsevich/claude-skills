@@ -95,12 +95,13 @@ For each question:
 **Steps**:
 1. For each `partially` covered question, pick top 2–3 sources from the latest working-set artifact
 2. Download full text using duckduckgo's `download.py <url> --format md --output /tmp/<research-id>/pages/<slug>.md`. **NEVER use built-in Fetch** — it gets 403 errors because it doesn't mimic a browser. `download.py` handles this.
-3. Read the downloaded content
-4. Extract facts with confidence levels and source attribution
-5. Write facts JSON to temp file → `state.py add-facts --file /tmp/facts.json`
-6. If the article mentions something unexpected, generate a new question
+3. Use `page_query.py` to reopen only the relevant heading, chunk, or line range from the downloaded page
+4. Read the sliced content
+5. Extract facts with confidence levels and source attribution
+6. Write facts JSON to temp file → `state.py add-facts --file /tmp/facts.json`
+7. If the article mentions something unexpected, generate a new question
 
-The downloaded page directory is part of the research environment. Reopen the specific page file you need; do not keep whole articles live in prompt context once facts were extracted.
+The downloaded page directory is part of the research environment. Reopen the specific page slice you need with `page_query.py`; do not keep whole articles live in prompt context once facts were extracted.
 
 **Confidence levels**:
 - `high`: Multiple independent quality sources agree; or official primary source
@@ -113,7 +114,7 @@ The downloaded page directory is part of the research environment. Reopen the sp
 
 **Steps**:
 1. Run `state.py export` — review all facts
-2. Reopen only the smallest relevant working-set or page artifacts for the theme under review
+2. Reopen only the smallest relevant working-set or page artifacts for the theme under review using `json_query.py` or `page_query.py`
 3. Group facts by theme
 4. For each theme, check:
    - Do sources agree? → Mark as high confidence

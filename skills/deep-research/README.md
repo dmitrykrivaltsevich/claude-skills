@@ -19,6 +19,7 @@ This skill does NOT fetch data itself. It orchestrates other skills (duckduckgo,
 | `discover.py` | Scans installed skills, outputs JSON capability map |
 | `state.py` | Research state CRUD — tracks questions, sources, facts, phases |
 | `json_query.py` | Reopens narrow slices from saved JSON artifacts |
+| `page_query.py` | Reopens narrow slices from saved markdown/text page artifacts |
 
 ## State Persistence
 
@@ -27,6 +28,7 @@ This skill does NOT fetch data itself. It orchestrates other skills (duckduckgo,
 - **Resume**: Re-running `state.py init` with existing research-id returns current state
 - **Round artifacts**: Keep discovery sets, working sets, and downloaded pages in temp files or a user-chosen directory; treat them as the research environment, not the transcript. Prefer source-skill native `--output` artifact mode when available.
 - **Narrow reopen**: Use `json_query.py` to load only the specific slice you need from a saved JSON artifact.
+- **Page reopen**: Use `page_query.py` to load only the specific heading, chunk, or line range you need from a saved markdown/text page.
 
 ## Usage
 
@@ -57,6 +59,9 @@ uv run --no-config scripts/state.py export --research-id "quantum-2026"
 
 # Reopen only the first discovered skill name:
 uv run --no-config scripts/json_query.py --file /tmp/discover.json --selector [0] --fields name
+
+# Reopen only one section from a downloaded page artifact:
+uv run --no-config scripts/page_query.py --file /tmp/quantum-2026/pages/article.md --heading "Results"
 ```
 
 ## Testing
@@ -78,9 +83,11 @@ skills/deep-research/
 │   ├── contracts.py      # Design by Contract decorators
 │   ├── discover.py       # Skill capability scanner
 │   ├── json_query.py     # Narrow selector/query helper for JSON artifacts
+│   ├── page_query.py     # Narrow selector/query helper for page artifacts
 │   └── state.py          # Research state manager
 └── tests/
     ├── test_discover.py
-  ├── test_json_query.py
+    ├── test_json_query.py
+    ├── test_deep_research_page_query.py
     └── test_state.py
 ```

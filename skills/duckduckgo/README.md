@@ -2,7 +2,7 @@
 
 Search the internet via DuckDuckGo's public APIs for text results, images, news, and more. No authentication required.
 
-The recommended workflow is staged and file-backed: search broadly, capture the raw result set into external state/environment via each script's native `--output` mode, narrow to a small shortlist or cluster map, then deepen only on the shortlisted URLs.
+The recommended workflow is staged and file-backed: search broadly, capture the raw result set into external state/environment via each script's native `--output` mode, narrow to a small shortlist or cluster map, then deepen only on the shortlisted URLs. When a shortlisted URL is downloaded as markdown, reopen only the needed section with `page_query.py` instead of rereading the whole file.
 
 ## Operations
 
@@ -11,6 +11,7 @@ The recommended workflow is staged and file-backed: search broadly, capture the 
 | `search.py` | Text, image, and news search with query parameters |
 | `top_news.py` | Multi-source news sweep (62+ queries across 11 source groups) |
 | `download.py` | Fetch any URL and save as txt, md, or pdf |
+| `page_query.py` | Reopen a downloaded markdown/text page by heading, chunk, or line range |
 | `vision.py` | Visual search — analyze image metadata &amp; find similar images |
 | `trending.py` | Trend detection — measure topic velocity and discover what's accelerating |
 | `fact_check.py` | Cross-reference a claim across source tiers (wires → broadsheets → social) |
@@ -74,6 +75,19 @@ uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/download.py https://example.com/a
 uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/download.py https://example.com/article --format pdf --output ~/Desktop/article.pdf
 ```
 
+### Page Slice Query
+
+```bash
+# Reopen only one section from a saved markdown page:
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/page_query.py --file /tmp/article.md --heading "Pricing"
+
+# Reopen a fixed-size chunk:
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/page_query.py --file /tmp/article.md --chunk 2 --chunk-size 40
+
+# Reopen an exact line range:
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/page_query.py --file /tmp/article.md --start-line 80 --end-line 120
+```
+
 ### Trend Detection
 
 ```bash
@@ -124,6 +138,7 @@ duckduckgo/
     search.py                 # Text, image, news search
     top_news.py               # Multi-source news sweep (62+ parallel queries)
     download.py               # Fetch URL → txt/md/pdf
+    page_query.py             # Reopen one slice from a saved markdown/text page
     vision.py                 # Visual search and image metadata
     trending.py               # Trend detection and topic velocity
     fact_check.py             # Cross-source claim verification

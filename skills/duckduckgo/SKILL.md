@@ -1,6 +1,6 @@
 ---
 name: duckduckgo
-description: Searches the internet via DuckDuckGo and downloads web pages. Scripts output JSON to stdout so the LLM does the ranking, dedup, clustering, and presentation. Use when the user asks to search the web, find images, look up news, wants a news digest, wants to download/archive a URL, wants to detect trending topics, verify claims across sources, monitor topics for new articles, or search across languages/regions. Scripts — search.py, top_news.py, download.py, vision.py, trending.py, fact_check.py, monitor.py, translate_search.py.
+description: Searches the internet via DuckDuckGo and downloads web pages. Scripts output JSON to stdout so the LLM does the ranking, dedup, clustering, and presentation. Use when the user asks to search the web, find images, look up news, wants a news digest, wants to download/archive a URL, wants to reopen a saved page by heading/chunk/lines, wants to detect trending topics, verify claims across sources, monitor topics for new articles, or search across languages/regions. Scripts — search.py, top_news.py, download.py, page_query.py, vision.py, trending.py, fact_check.py, monitor.py, translate_search.py.
 allowed-tools:
   - Bash(uv run *)
   - open_browser_page
@@ -42,6 +42,7 @@ The LLM handles what scripts cannot: semantic deduplication, story clustering ("
 | "top news", "world news", "news digest", "what's happening" | `top_news.py` | JSON array from 62+ parallel queries across 11 source groups |
 | "top AI news", "news about climate from all sources" | `top_news.py --groups tech --queries "AI breakthroughs"` | Combine groups + custom queries |
 | "save/download/archive this page" | `download.py` | Saved file (txt/md/pdf) |
+| "reopen this downloaded page", "read the Transport section", "show lines 80-120" | `page_query.py` | JSON object with one heading, chunk, or line-range slice |
 | "analyse/describe this image" | `vision.py analyze` | Image metadata JSON |
 | "find similar images" | `vision.py find_similar` | Metadata + image results JSON |
 | "what's trending", "trending topics" | `trending.py --discover` | Per-topic trend data JSON |
@@ -69,6 +70,11 @@ uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/top_news.py --groups tech science
 
 # Download a URL:
 uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/download.py <url> [--format txt|md|pdf] [--output PATH]
+
+# Reopen only one slice from a downloaded markdown page:
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/page_query.py --file /tmp/article.md --heading "Pricing"
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/page_query.py --file /tmp/article.md --chunk 2 --chunk-size 40
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/page_query.py --file /tmp/article.md --start-line 80 --end-line 120
 
 # Visual search:
 uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/vision.py analyze --image-path PATH
@@ -126,6 +132,7 @@ For any broad search, news sweep, trend scan, fact-check, or multi-language quer
    - 3–8 candidate topics for trend work
    - a per-tier support matrix for claim verification
 3. **Deep-read from the working-set file only.** Use `download.py` or follow-up search on the shortlisted items, one item or a tiny batch at a time.
+  Reopen downloaded markdown with `page_query.py` by heading, chunk, or line range rather than rereading the full page.
 4. **Write synthesis from the working set and downloaded pages, not from the full discovery file.**
 
 **Native artifact mode** for scripts that output large JSON:
@@ -160,7 +167,8 @@ Do NOT carry forward:
 1. Run `search.py news --query "topic" --max-results 20 --output /tmp/ddg-<topic>-discovery.json`
 2. Reopen only enough of that discovery file to build `/tmp/ddg-<topic>-working-set.json`
 3. If a story needs deeper reading, use `download.py <url> --format md --output /tmp/ddg-<topic>/pages/<slug>.md` for only the shortlisted URLs, one by one or in tiny batches
-4. Synthesise and present from the working-set file plus any downloaded pages
+4. Use `page_query.py` on those downloaded markdown files to reopen only the specific section, chunk, or line range needed for extraction
+5. Synthesise and present from the working-set file plus any downloaded page slices
 
 ### Comprehensive news digest
 1. Run `top_news.py` (all groups) or `top_news.py --groups tech science --queries "AI regulation" --output /tmp/ddg-news-discovery.json`
@@ -198,9 +206,10 @@ Do NOT carry forward:
 1. Start with `search.py text` or `top_news.py` and capture broad results into `/tmp/ddg-<topic>-discovery.json` via `--output`
 2. Convert that discovery set into `/tmp/ddg-<topic>-working-set.json`, a queue of promising URLs with a short reason for each
 3. Use `download.py --format md` to fetch only the next 1–3 URLs from the queue
-4. Read the downloaded content, extract key facts, and update the working-set file or notes file
-5. Run further `search.py` queries based on what was learned, again capturing them to discovery files first
-6. Synthesise findings across the working-set artifacts, not from the full crawl history
+4. Use `page_query.py` to reopen only the heading, chunk, or line range you need from each downloaded page
+5. Read the sliced content, extract key facts, and update the working-set file or notes file
+6. Run further `search.py` queries based on what was learned, again capturing them to discovery files first
+7. Synthesise findings across the working-set artifacts, not from the full crawl history
 
 ### Technical / vendor / niche topic research — CRITICAL
 
@@ -301,9 +310,14 @@ Uses `curl_cffi` with Chrome TLS fingerprint impersonation — bypasses Cloudfla
 ```bash
 uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/download.py <url> --format md
 uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/download.py <url> --format pdf --output ~/Desktop/article.pdf
+
+# Reopen a saved markdown page without rereading the full file:
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/page_query.py --file /tmp/article.md --heading "Conclusion"
 ```
 
 PDF uses Computer Modern fonts (Knuth-style typography). Format auto-inferred from `--output` extension.
+
+After saving markdown with `download.py --format md`, use `page_query.py` to reopen only the relevant heading, chunk, or line range from that saved page.
 
 ## Image Display
 
