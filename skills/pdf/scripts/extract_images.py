@@ -24,6 +24,7 @@ import sys
 import pymupdf
 
 sys.path.insert(0, os.path.dirname(__file__))
+from artifact_output import emit_json_result
 from contracts import check_file_readable, precondition
 
 # Minimum image dimension in pixels to extract.
@@ -107,17 +108,22 @@ def extract_images(
         doc.close()
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Extract images from PDF")
     parser.add_argument("pdf_path", help="Path to the PDF file")
     parser.add_argument("--output-dir", required=True, help="Directory to save images")
     parser.add_argument("--page-start", type=int, default=None, help="First page (1-based)")
     parser.add_argument("--page-end", type=int, default=None, help="Last page (1-based)")
-    args = parser.parse_args()
+    parser.add_argument(
+        "--output",
+        default=None,
+        help="Write full JSON to this file and print a compact artifact envelope to stdout",
+    )
+    args = parser.parse_args(argv)
 
     try:
         result = extract_images(args.pdf_path, args.output_dir, args.page_start, args.page_end)
-        print(json.dumps(result, indent=2, ensure_ascii=False))
+        emit_json_result(result, output_path=args.output, artifact_kind="pdf-extract-images")
     except Exception as e:
         print(json.dumps({"error": str(e)}), file=sys.stderr)
         sys.exit(1)

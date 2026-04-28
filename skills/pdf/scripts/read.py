@@ -13,8 +13,8 @@ headings, tables, lists, and layout structure. Supports page ranges
 for working with large documents (thousands of pages).
 
 For large page ranges, use --output to write JSON to a file instead of
-stdout (avoids terminal truncation). A compact summary is printed to
-stdout when --output is used.
+stdout (avoids terminal truncation). A compact artifact envelope is
+printed to stdout when --output is used.
 
 Progress/errors go to stderr.
 """
@@ -22,6 +22,8 @@ Progress/errors go to stderr.
 from __future__ import annotations
 
 import argparse
+import contextlib
+import io
 import json
 import os
 import sys
@@ -30,6 +32,7 @@ import pymupdf
 import pymupdf4llm
 
 sys.path.insert(0, os.path.dirname(__file__))
+from artifact_output import emit_json_result
 from contracts import check_file_readable, precondition
 
 
@@ -61,6 +64,9 @@ def read_pages(
     """
     doc = pymupdf.open(pdf_path)
     try:
+        # Keep stdout clean for JSON output by routing parser messages to stderr.
+        pymupdf.set_messages(stream=sys.stderr)
+
         total_pages = len(doc)
 
         # Clamp end to actual page count
@@ -76,21 +82,27 @@ def read_pages(
 
         # Batch extract all pages at once — much faster than per-page calls
         # because the PDF is opened/parsed only once.
-        chunks = pymupdf4llm.to_markdown(
-            doc,
-            pages=page_indices,
-            page_chunks=True,
-        )
+        parser_logs = io.StringIO()
+        with contextlib.redirect_stdout(parser_logs):
+            chunks = pymupdf4llm.to_markdown(
+                doc,
+                pages=page_indices,
+                page_chunks=True,
+            )
+        parser_output = parser_logs.getvalue().strip()
+        if parser_output:
+            print(parser_output, file=sys.stderr)
 
         # Sort by page number — page_chunks may return out of order
-        chunks.sort(key=lambda c: c["metadata"]["page_number"])
+        chunks.sort(key=lambda c: c["metadata"].get("page_number", c["metadata"].get("page", 0)))
 
         pages = []
         for chunk in chunks:
             md = chunk["text"]
             word_count = len(md.split()) if md.strip() else 0
+            page_number = chunk["metadata"].get("page_number", chunk["metadata"].get("page", 0))
             pages.append({
-                "number": chunk["metadata"]["page_number"],  # already 1-based
+                "number": page_number,  # already 1-based
                 "markdown": md,
                 "word_count": word_count,
             })
@@ -105,7 +117,7 @@ def read_pages(
         doc.close()
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Extract PDF pages as markdown")
     parser.add_argument("pdf_path", help="Path to the PDF file")
     parser.add_argument("--page-start", type=int, default=1, help="First page (1-based)")
@@ -113,35 +125,15 @@ def main() -> None:
     parser.add_argument(
         "--output", default=None,
         help="Write full JSON to this file instead of stdout. "
-             "A compact summary is printed to stdout. "
+               "A compact artifact envelope is printed to stdout. "
              "Use for large page ranges to avoid terminal truncation.",
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     try:
         result = read_pages(args.pdf_path, args.page_start, args.page_end)
 
-        if args.output:
-            # Write full JSON to file, print compact summary to stdout
-            with open(args.output, "w", encoding="utf-8") as f:
-                json.dump(result, f, indent=2, ensure_ascii=False)
-
-            total_words = sum(p["word_count"] for p in result["pages"])
-            summary = {
-                "file_path": result["file_path"],
-                "total_pages": result["total_pages"],
-                "pages_returned": result["pages_returned"],
-                "page_count": len(result["pages"]),
-                "total_words": total_words,
-                "output_file": args.output,
-                "pages": [
-                    {"number": p["number"], "word_count": p["word_count"]}
-                    for p in result["pages"]
-                ],
-            }
-            print(json.dumps(summary, indent=2, ensure_ascii=False))
-        else:
-            print(json.dumps(result, indent=2, ensure_ascii=False))
+        emit_json_result(result, output_path=args.output, artifact_kind="pdf-read")
     except Exception as e:
         print(json.dumps({"error": str(e)}), file=sys.stderr)
         sys.exit(1)

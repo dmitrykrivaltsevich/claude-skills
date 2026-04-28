@@ -24,6 +24,7 @@ import sys
 import pymupdf
 
 sys.path.insert(0, os.path.dirname(__file__))
+from artifact_output import emit_json_result
 from contracts import check_file_readable, precondition
 
 
@@ -78,14 +79,19 @@ def get_info(pdf_path: str) -> dict:
         doc.close()
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Extract PDF metadata and structure")
     parser.add_argument("pdf_path", help="Path to the PDF file")
-    args = parser.parse_args()
+    parser.add_argument(
+        "--output",
+        default=None,
+        help="Write full JSON to this file and print a compact artifact envelope to stdout",
+    )
+    args = parser.parse_args(argv)
 
     try:
         result = get_info(args.pdf_path)
-        print(json.dumps(result, indent=2, ensure_ascii=False))
+        emit_json_result(result, output_path=args.output, artifact_kind="pdf-info")
     except Exception as e:
         print(json.dumps({"error": str(e)}), file=sys.stderr)
         sys.exit(1)

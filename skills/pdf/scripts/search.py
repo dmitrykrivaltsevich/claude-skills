@@ -24,6 +24,7 @@ import sys
 import pymupdf
 
 sys.path.insert(0, os.path.dirname(__file__))
+from artifact_output import emit_json_result
 from contracts import check_file_readable, precondition
 
 # Characters of context to extract around each match.
@@ -96,17 +97,22 @@ def search_pdf(
         doc.close()
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Search text within a PDF")
     parser.add_argument("pdf_path", help="Path to the PDF file")
     parser.add_argument("query", help="Text to search for")
     parser.add_argument("--page-start", type=int, default=None, help="First page (1-based)")
     parser.add_argument("--page-end", type=int, default=None, help="Last page (1-based)")
-    args = parser.parse_args()
+    parser.add_argument(
+        "--output",
+        default=None,
+        help="Write full JSON to this file and print a compact artifact envelope to stdout",
+    )
+    args = parser.parse_args(argv)
 
     try:
         result = search_pdf(args.pdf_path, args.query, args.page_start, args.page_end)
-        print(json.dumps(result, indent=2, ensure_ascii=False))
+        emit_json_result(result, output_path=args.output, artifact_kind="pdf-search")
     except Exception as e:
         print(json.dumps({"error": str(e)}), file=sys.stderr)
         sys.exit(1)
