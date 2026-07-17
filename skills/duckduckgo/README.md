@@ -154,10 +154,11 @@ duckduckgo/
 - **Runtime** — `uv run` for isolated, sandboxed execution (no global installs)
 - **Library** — `ddgs` (DDG API), `curl_cffi` (Cloudflare bypass), `httpx` + `beautifulsoup4`, `Pillow`, `html2text`, `fpdf2`
 - **No authentication required**
+- **Proxy-aware** — every network call goes through `ddgs`/`primp`, `httpx`, or `curl_cffi`, all of which honor `HTTP_PROXY` / `HTTPS_PROXY` / `NO_PROXY` from the environment by default; no extra configuration is needed to run behind a corporate proxy
 
 ## Testing
 
 ```bash
 # Run all tests:
-uv run --no-config --with pytest --with "ddgs>=6.0" --with Pillow --with beautifulsoup4 --with html2text --with httpx --with truststore --with python-dateutil pytest tests/ -v
+uv run --no-config --with pytest --with "ddgs>=6.0" --with Pillow --with beautifulsoup4 --with html2text --with httpx --with truststore --with python-dateutil --with "curl_cffi>=0.7" pytest tests/ -v
 ```
