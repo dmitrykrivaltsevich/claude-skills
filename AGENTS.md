@@ -42,5 +42,8 @@
 - A script entry point whose contract is to report (scan, list, load, query) MUST NOT write inside the data it reads, and MUST NOT emit progress to stderr on success; its only permitted write is the caller-named `--output` artifact path.
 - One-time migrations MUST run only in mutating entry points. Reporting entry points MUST read the old and new locations and merge them, so a scan of read-only or concurrently-scanned data never moves anything.
 - When a tool writes bookkeeping files inside the tree it scans, MUST exclude those paths from the scan scope.
+- Skills MUST NOT duplicate a capability another skill in this repository already provides. Instead SKILL.md MUST instruct the model to invoke the sibling skill, and MUST document a fallback for when that skill is not installed. Copying a working script from another skill is duplication even when it is edited afterwards.
+- Shared Design-by-Contract and artifact helpers (`contracts.py`, `artifact_output.py`) are the sole exception: they are infrastructure required by these rules and there is no shared package, so each skill vendors its own copy.
+- Every script in a new skill MUST be justified against that skill's own need. A component MUST NOT be added because a sibling skill has one. Before copying any component, state what would break without it; if nothing would, omit it.
 - After fixing a bug or mistake that reflects a reusable lesson (not task-specific), MUST add a corresponding rule to this file following the same MUST/SHOULD/CAN/NOT style.
 - When a skill is added, removed, or significantly modified, MUST update the skills table in the repository root `README.md` to keep it in sync.

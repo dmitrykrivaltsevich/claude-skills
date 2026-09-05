@@ -42,6 +42,7 @@ See the [Claude Code plugin docs](https://code.claude.com/docs/en/discover-plugi
 | [review-consistency](skills/review-consistency/) | Reviews internal consistency of code, documents, diffs, or any structured content. Catches contradictions, forgotten propagation, semantic drift, stale references, and convention breaks. |
 | [visualization-datascape](skills/visualization-datascape/) | Generates immersive 3D cyberspace point-cloud visualizations from structured data. Interactive cyberpunk cityscape with explorable data vaults, WASD+QE movement, and orbit controls. |
 | [kb](skills/kb/) | LLM-curated local knowledge bases. Extracts knowledge from sources (articles, papers, books), including know-how and hidden gems, creates richly interlinked Obsidian-compatible entries, tracks citations, detects contradictions, lints style phrases with durable accepted exceptions, and uses file-backed artifacts plus JSON/page-slice reopening for long-horizon bounded-context workflows. |
+| [as-man](skills/as-man/) | Renders any topic, URL, file, book, or magazine issue as a navigable Unix manual page in plain international English. Commits an outline up front and generates each section on demand, with an interactive comprehension quiz graded against the page and a researched GAPS section covering what the source left out. |
 
 See each skill's README for setup, architecture, and test instructions.
 
