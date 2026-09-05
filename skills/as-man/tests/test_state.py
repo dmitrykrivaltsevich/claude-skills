@@ -192,6 +192,73 @@ class TestEnterAndNavigation:
             state.enter(three, node_id="zzz")
 
 
+class TestGoToPosition:
+    @pytest.fixture()
+    def book(self, sdir: Path) -> Path:
+        state.add_nodes(
+            sdir,
+            parent="root",
+            nodes=[{"id": f"ch{i}", "heading": f"Chapter {i}", "promise": "p"} for i in range(1, 28)],
+        )
+        state.add_nodes(
+            sdir,
+            parent="ch12",
+            nodes=[{"id": "s1", "heading": "First", "promise": "p"},
+                   {"id": "s2", "heading": "Second", "promise": "p"}],
+        )
+        return sdir
+
+    def test_jump_by_position_lands_on_that_entry(self, book: Path):
+        result = state.enter(book, position=12, under="root")
+
+        assert result["node"]["id"] == "ch12"
+        assert result["node"]["position"] == 12
+
+    def test_jump_by_position_is_one_based(self, book: Path):
+        assert state.enter(book, position=1, under="root")["node"]["id"] == "ch1"
+
+    def test_jump_defaults_to_the_current_level(self, book: Path):
+        state.enter(book, node_id="ch5")
+
+        assert state.enter(book, position=20)["node"]["id"] == "ch20"
+
+    def test_jump_within_a_chapter_uses_that_parent(self, book: Path):
+        assert state.enter(book, position=2, under="ch12")["node"]["id"] == "s2"
+
+    def test_jump_past_the_end_is_rejected_with_the_valid_range(self, book: Path):
+        with pytest.raises(ContractViolationError) as excinfo:
+            state.enter(book, position=99, under="root")
+
+        assert "27" in str(excinfo.value)
+
+    def test_position_must_be_positive(self, book: Path):
+        with pytest.raises(ContractViolationError):
+            state.enter(book, position=0, under="root")
+
+    def test_id_and_position_are_mutually_exclusive(self, book: Path):
+        with pytest.raises(ContractViolationError):
+            state.enter(book, node_id="ch1", position=1, under="root")
+
+    def test_one_selector_is_required(self, book: Path):
+        with pytest.raises(ContractViolationError):
+            state.enter(book)
+
+    def test_jump_with_no_current_node_and_no_parent_is_rejected(self, book: Path):
+        with pytest.raises(ContractViolationError):
+            state.enter(book, position=3)
+
+    def test_a_jump_records_the_trail_like_any_other_move(self, book: Path):
+        state.enter(book, position=12, under="root")
+
+        assert state.trail(book)["trail"][-1]["id"] == "ch12"
+
+    def test_a_jump_reports_neighbours_for_onward_navigation(self, book: Path):
+        result = state.enter(book, position=12, under="root")
+
+        assert result["prev_id"] == "ch11"
+        assert result["next_id"] == "ch13"
+
+
 class TestRealise:
     @pytest.fixture()
     def one(self, sdir: Path) -> Path:

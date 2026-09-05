@@ -189,6 +189,31 @@ def _summarise(doc: dict[str, Any], node: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _resolve_position(doc: dict[str, Any], *, position: int, under: str | None) -> str:
+    """Turn the number a reader sees in a contents screen into a node id."""
+    parent_id = under
+    if parent_id is None:
+        current = doc.get("current")
+        if current is None or current not in doc["nodes"]:
+            raise ContractViolationError(
+                "Cannot resolve a position without a level: pass under, or enter a node first",
+                kind="precondition",
+            )
+        parent_id = doc["nodes"][current]["parent"]
+
+    children = _node(doc, parent_id)["children"]
+    if not children:
+        raise ContractViolationError(
+            f"Node '{parent_id}' has no children to number", kind="precondition"
+        )
+    if position > len(children):
+        raise ContractViolationError(
+            f"No entry {position} under '{parent_id}': valid range is 1 to {len(children)}",
+            kind="precondition",
+        )
+    return children[position - 1]
+
+
 def _is_end(doc: dict[str, Any], node: dict[str, Any]) -> bool:
     """True when no later sibling exists at this level or at any level above."""
     current = node
@@ -291,9 +316,33 @@ def outline(session_dir: Path, *, under: str = ROOT_ID) -> dict[str, Any]:
 _NEXT_ACTION = {"planned": "realise", "enumerated": "contents", "realised": "render"}
 
 
-def enter(session_dir: Path, *, node_id: str) -> dict[str, Any]:
-    """Move to a node and report everything the navigation keys need."""
+@precondition(
+    lambda node_id, position, **_: (node_id is None) != (position is None),
+    "Provide exactly one of node id or position",
+)
+@precondition(
+    lambda position, **_: position is None
+    or (isinstance(position, int) and not isinstance(position, bool) and position >= 1),
+    "position must be a positive integer, counting from 1",
+)
+def enter(
+    session_dir: Path,
+    *,
+    node_id: str | None = None,
+    position: int | None = None,
+    under: str | None = None,
+) -> dict[str, Any]:
+    """Move to a node and report everything the navigation keys need.
+
+    Address the target either by id, or by its position in a level — the
+    number the reader sees in a contents screen. Without `under`, a position
+    is resolved among the current node's siblings.
+    """
     doc = _load(session_dir)
+
+    if position is not None:
+        node_id = _resolve_position(doc, position=position, under=under)
+
     node = _node(doc, node_id)
 
     if node_id == ROOT_ID:
@@ -755,8 +804,10 @@ def main(argv: list[str] | None = None) -> None:
     p_outline = sub.add_parser("outline", help="Children of one node")
     p_outline.add_argument("--under", default=ROOT_ID)
 
-    p_enter = sub.add_parser("enter", help="Move to a node")
-    p_enter.add_argument("--id", required=True)
+    p_enter = sub.add_parser("enter", help="Move to a node, by id or by position")
+    p_enter.add_argument("--id", help="Target node id")
+    p_enter.add_argument("--position", type=int, help="Target position in a level, counting from 1")
+    p_enter.add_argument("--under", help="Level the position counts within (default: the current level)")
 
     p_realise = sub.add_parser("realise", help="Mark a body written")
     p_realise.add_argument("--id", required=True)
@@ -804,7 +855,9 @@ def main(argv: list[str] | None = None) -> None:
         elif args.command == "outline":
             result = outline(session_dir, under=args.under)
         elif args.command == "enter":
-            result = enter(session_dir, node_id=args.id)
+            result = enter(
+                session_dir, node_id=args.id, position=args.position, under=args.under
+            )
         elif args.command == "realise":
             result = realise(
                 session_dir, node_id=args.id, line_start=args.line_start, line_end=args.line_end

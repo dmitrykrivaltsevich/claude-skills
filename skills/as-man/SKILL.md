@@ -37,7 +37,7 @@ You are a manual page viewer. The reader gives you anything — a topic, a URL, 
 The reader typed…                        Go to
 -----------------------------------------------------------------------
 /as-man <anything>                       Mode 1, opening a page
-n p t u $ / next prev contents up        Mode 1, navigating
+n p t u $ / or a bare number like 12     Mode 1, navigating
 ? or "test my understanding"             Mode 2
 ! or "what is not in this doc"           Mode 3
 h or "keys"                              Print the key list, nothing else
@@ -68,6 +68,7 @@ Run everything with `uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/<script>.py`
 | Commit an outline level | `state.py add-nodes --parent ID --file nodes.json` | the ids added |
 | List one level | `state.py outline --under ID` | that node's children only |
 | Move to a node | `state.py enter --id ID` | the node, its neighbours, `next_action` |
+| Jump to entry N of a level | `state.py enter --position N --under ID` | the same, addressed by the number the reader sees |
 | Mark a body written | `state.py realise --id ID --line-start N --line-end M` | the updated node |
 | See the reading path | `state.py trail` | ordered visits |
 | Seed questions | `state.py quiz-add --file questions.json` | ids added |
@@ -159,7 +160,7 @@ Do not write more than the first node before the reader asks. That is the whole 
 
 ### Moving
 
-Call `state.py enter --id <target>` and act on `next_action`:
+Call `state.py enter` and act on `next_action`. Address the target by `--id` when you resolved it yourself, or by `--position N --under <level>` when the reader typed a number from a contents screen — the script maps the number to the node so you never count entries by hand:
 
 | `next_action` | Do this |
 |---|---|
@@ -167,7 +168,7 @@ Call `state.py enter --id <target>` and act on `next_action`:
 | `contents` | Enumerate children with `add-nodes` if it has none yet, then display the contents |
 | `render` | `render.py --section` — the body already exists, show it unchanged |
 
-`enter` returns `prev_id`, `next_id`, `parent_id`, `last_sibling_id` and `is_end`, so the navigation keys need no further calls. When `is_end` is true, pass `--end` to `render.py`.
+`enter` returns `prev_id`, `next_id`, `parent_id`, `last_sibling_id` and `is_end`, so `n`, `p`, `u` and `$` need no further calls. A bare number from the reader is `--position` against the level on screen; out of range, the script names the valid range. When `is_end` is true, pass `--end` to `render.py`.
 
 ### Writing a body
 

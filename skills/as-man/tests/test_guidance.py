@@ -220,6 +220,12 @@ class TestReferenceContent:
         for key in ("n  next", "$  last section", "!  what is missing", "?  test my understanding"):
             assert key in text
 
+    def test_man_format_documents_jumping_to_a_numbered_entry(self):
+        text = (REFERENCES / "man-format.md").read_text(encoding="utf-8")
+
+        assert "12 go to entry 12" in text
+        assert "A bare number is a jump" in text
+
 
 class TestScriptsMatchTheDocumentation:
     def _script(self, name: str) -> str:
@@ -237,6 +243,13 @@ class TestScriptsMatchTheDocumentation:
 
     def test_there_is_no_init_command(self):
         assert '"init"' not in self._script("state.py")
+
+    def test_enter_accepts_a_position_as_well_as_an_id(self):
+        source = self._script("state.py")
+
+        assert '"--position"' in source
+        assert '"--under"' in source
+        assert "--position N --under ID" in _skill_text()
 
     def test_scripts_declare_pep_723_metadata(self):
         for name in ("state.py", "render.py", "contracts.py"):
