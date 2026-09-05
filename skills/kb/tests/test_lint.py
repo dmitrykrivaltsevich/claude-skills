@@ -14,10 +14,10 @@ lint = load_script_module("kb_test_lint_script", "lint.py")
 ContractViolationError = lint.ContractViolationError
 
 try:
-    _style_review = load_script_module("kb_test_lint_style_review", "style_review.py")
+    _style_exceptions = load_script_module("kb_test_lint_style_exceptions", "style_exceptions.py")
 except Exception as exc:  # red phase: module is not implemented yet
-    _style_review = None
-    _style_review_load_error = exc
+    _style_exceptions = None
+    _style_exceptions_load_error = exc
 
 
 @pytest.fixture
@@ -36,10 +36,10 @@ def _write_entry(kb_path: Path, rel_path: str, content: str) -> Path:
 
 
 @pytest.fixture
-def style_review():
-    if _style_review is None:
-        pytest.fail(f"style_review.py is not importable: {_style_review_load_error}")
-    return _style_review
+def style_exceptions():
+    if _style_exceptions is None:
+        pytest.fail(f"style_exceptions.py is not importable: {_style_exceptions_load_error}")
+    return _style_exceptions
 
 
 class TestBrokenLinks:
@@ -415,7 +415,7 @@ class TestStylePhrases:
         assert issue["match"] == "load-bearing"
         assert issue["context"] == "prose"
         assert "load-bearing" in issue["excerpt"]
-        assert issue["reviewed"] is False
+        assert issue["excepted"] is False
         assert issue["note"]
 
     def test_every_default_pattern_matches_its_sample(self, kb_path: Path):
@@ -603,15 +603,15 @@ No phrase here.
         result = lint.lint_kb(str(kb_path))
         assert len(_style_phrase_issues(result, pattern="self-answered-question")) == 1
 
-    def test_absolute_path_review_suppresses_finding(self, kb_path: Path, style_review):
-        """A review keyed by absolute path must match the finding it was recorded for."""
+    def test_absolute_path_exception_suppresses_finding(self, kb_path: Path, style_exceptions):
+        """An exception keyed by absolute path must match the finding it was recorded for."""
         _write_entry(
             kb_path,
             "knowledge/topics/slop.md",
             _entry_markdown("Slop", "This uses load-bearing details."),
         )
         issue = _style_phrase_issues(lint.lint_kb(str(kb_path)), pattern="load-bearing")[0]
-        style_review.add_review(
+        style_exceptions.add_exception(
             str(kb_path),
             str(kb_path / issue["file"]),
             issue["line"],
@@ -621,16 +621,16 @@ No phrase here.
         )
         second = lint.lint_kb(str(kb_path))
         assert _style_phrase_issues(second, pattern="load-bearing") == []
-        assert second["style"]["reviewed"] == 1
+        assert second["style"]["exceptions"] == 1
 
-    def test_dot_slash_path_review_suppresses_finding(self, kb_path: Path, style_review):
+    def test_dot_slash_path_exception_suppresses_finding(self, kb_path: Path, style_exceptions):
         _write_entry(
             kb_path,
             "knowledge/topics/slop.md",
             _entry_markdown("Slop", "This uses load-bearing details."),
         )
         issue = _style_phrase_issues(lint.lint_kb(str(kb_path)), pattern="load-bearing")[0]
-        style_review.add_review(
+        style_exceptions.add_exception(
             str(kb_path),
             "./" + issue["file"],
             issue["line"],
@@ -641,14 +641,14 @@ No phrase here.
         second = lint.lint_kb(str(kb_path))
         assert _style_phrase_issues(second, pattern="load-bearing") == []
 
-    def test_backslash_path_review_suppresses_finding(self, kb_path: Path, style_review):
+    def test_backslash_path_exception_suppresses_finding(self, kb_path: Path, style_exceptions):
         _write_entry(
             kb_path,
             "knowledge/topics/slop.md",
             _entry_markdown("Slop", "This uses load-bearing details."),
         )
         issue = _style_phrase_issues(lint.lint_kb(str(kb_path)), pattern="load-bearing")[0]
-        style_review.add_review(
+        style_exceptions.add_exception(
             str(kb_path),
             issue["file"].replace("/", "\\"),
             issue["line"],
@@ -760,6 +760,58 @@ No phrase here.
         assert _style_phrase_issues(result, file=".kb/rules-proposals.md") == []
         assert _style_phrase_issues(result, file=".kb/tasks/task-1.md") == []
 
+    def test_style_exception_store_excluded(self, kb_path: Path):
+        """The exception store explains itself in prose; lint must not flag its own store."""
+        store = kb_path / ".kb" / "style-exceptions"
+        store.mkdir(parents=True, exist_ok=True)
+        (store / "README.md").write_text(
+            "# Style exceptions\n\nEvery record here is load-bearing.\n", encoding="utf-8"
+        )
+        legacy = kb_path / ".kb" / "style-reviewed"
+        legacy.mkdir(parents=True, exist_ok=True)
+        (legacy / "README.md").write_text(
+            "# Old store\n\nEvery record here is load-bearing.\n", encoding="utf-8"
+        )
+        result = lint.lint_kb(str(kb_path))
+        assert _style_phrase_issues(result, file=".kb/style-exceptions/README.md") == []
+        assert _style_phrase_issues(result, file=".kb/style-reviewed/README.md") == []
+
+    def test_lint_does_not_migrate_the_legacy_store(self, kb_path: Path):
+        """lint is read-only: it reads both locations and moves nothing."""
+        legacy = kb_path / ".kb" / "style-reviewed"
+        legacy.mkdir(parents=True, exist_ok=True)
+        _write_entry(
+            kb_path,
+            "knowledge/topics/quoted.md",
+            _entry_markdown("Quoted", 'He said "this is load-bearing" once.\n'),
+        )
+        first = lint.lint_kb(str(kb_path))
+        finding = _style_phrase_issues(first, file="knowledge/topics/quoted.md")
+        assert len(finding) == 1
+        (legacy / "a.json").write_text(
+            json.dumps(
+                {
+                    "schema": "kb-style-review/v1",
+                    "key": {
+                        "file": "knowledge/topics/quoted.md",
+                        "line": finding[0]["line"],
+                        "pattern": finding[0]["pattern"],
+                        "match": finding[0]["match"],
+                    },
+                    "reason": "verbatim-quote",
+                    "created": "2026-01-01T00:00:00+00:00",
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        result = lint.lint_kb(str(kb_path))
+
+        assert _style_phrase_issues(result, file="knowledge/topics/quoted.md") == []
+        assert result["style"]["exceptions"] == 1
+        assert legacy.is_dir(), "a read-only lint must not move the legacy store"
+        assert not (kb_path / ".kb" / "style-exceptions").exists()
+
     def test_kb_rules_file_is_still_scanned(self, kb_path: Path):
         """rules.md is durable prose, not run state — it stays in scope."""
         (kb_path / ".kb" / "rules.md").write_text(
@@ -806,7 +858,7 @@ No phrase here.
         result = lint.lint_kb(str(kb_path))
         assert _style_phrase_issues(result) == []
 
-    def test_review_record_moves_finding_out_of_outstanding_work(self, kb_path: Path, style_review):
+    def test_exception_moves_finding_out_of_outstanding_work(self, kb_path: Path, style_exceptions):
         _write_entry(
             kb_path,
             "knowledge/topics/slop.md",
@@ -814,7 +866,7 @@ No phrase here.
         )
         first = lint.lint_kb(str(kb_path))
         issue = _style_phrase_issues(first, pattern="load-bearing")[0]
-        style_review.add_review(
+        style_exceptions.add_exception(
             str(kb_path),
             issue["file"],
             issue["line"],
@@ -825,13 +877,13 @@ No phrase here.
         second = lint.lint_kb(str(kb_path))
         assert _style_phrase_issues(second, pattern="load-bearing") == []
         assert second["style"]["findings"] == 0
-        assert second["style"]["reviewed"] == 1
-        recorded = second["style"]["reviewed_findings"]
+        assert second["style"]["exceptions"] == 1
+        recorded = second["style"]["exception_findings"]
         assert len(recorded) == 1
-        assert recorded[0]["reviewed"] is True
+        assert recorded[0]["excepted"] is True
         assert recorded[0]["match"] == "load-bearing"
 
-    def test_reviewing_every_finding_leaves_no_style_work(self, kb_path: Path, style_review):
+    def test_excepting_every_finding_leaves_no_style_work(self, kb_path: Path, style_exceptions):
         """A fully triaged KB must not carry a permanent non-zero lint count."""
         _write_entry(
             kb_path,
@@ -843,7 +895,7 @@ No phrase here.
         findings = _style_phrase_issues(lint.lint_kb(str(kb_path)))
         assert len(findings) >= 4
         for finding in findings:
-            style_review.add_review(
+            style_exceptions.add_exception(
                 str(kb_path),
                 finding["file"],
                 finding["line"],
@@ -855,9 +907,9 @@ No phrase here.
         after = lint.lint_kb(str(kb_path))
         assert _style_phrase_issues(after) == []
         assert after["total_issues"] == mechanical_only
-        assert after["style"]["reviewed"] == len(findings)
+        assert after["style"]["exceptions"] == len(findings)
 
-    def test_total_issues_equals_outstanding_issue_list(self, kb_path: Path, style_review):
+    def test_total_issues_equals_outstanding_issue_list(self, kb_path: Path, style_exceptions):
         _write_entry(
             kb_path,
             "knowledge/topics/slop.md",
@@ -865,7 +917,7 @@ No phrase here.
         )
         first = lint.lint_kb(str(kb_path))
         issue = _style_phrase_issues(first, pattern="load-bearing")[0]
-        style_review.add_review(
+        style_exceptions.add_exception(
             str(kb_path),
             issue["file"],
             issue["line"],
@@ -875,10 +927,10 @@ No phrase here.
         )
         second = lint.lint_kb(str(kb_path))
         assert second["total_issues"] == len(second["issues"])
-        assert all(not i.get("reviewed", False) for i in second["issues"])
+        assert all(not i.get("excepted", False) for i in second["issues"])
         assert second["total_issues"] == first["total_issues"] - 1
 
-    def test_stale_review_record_does_not_suppress(self, kb_path: Path, style_review):
+    def test_stale_exception_does_not_suppress(self, kb_path: Path, style_exceptions):
         _write_entry(
             kb_path,
             "knowledge/topics/slop.md",
@@ -886,7 +938,7 @@ No phrase here.
         )
         first = lint.lint_kb(str(kb_path))
         issue = _style_phrase_issues(first, pattern="load-bearing")[0]
-        style_review.add_review(
+        style_exceptions.add_exception(
             str(kb_path),
             issue["file"],
             issue["line"] + 1,
@@ -897,9 +949,9 @@ No phrase here.
         second = lint.lint_kb(str(kb_path))
         current = _style_phrase_issues(second, pattern="load-bearing")
         assert current
-        assert current[0]["reviewed"] is False
+        assert current[0]["excepted"] is False
         assert second["style"]["findings"] == 1
-        assert second["style"]["reviewed"] == 0
+        assert second["style"]["exceptions"] == 0
 
     def test_style_summary_shape(self, kb_path: Path):
         _write_entry(
@@ -910,8 +962,8 @@ No phrase here.
         result = lint.lint_kb(str(kb_path))
         style = result["style"]
         assert style["findings"] == 2
-        assert style["reviewed"] == 0
-        assert style["reviewed_findings"] == []
+        assert style["exceptions"] == 0
+        assert style["exception_findings"] == []
         assert style["by_context"]["prose"] == 2
         assert style["by_pattern"]["load-bearing"] == 1
         assert style["by_pattern"]["tapestry"] == 1
@@ -928,7 +980,7 @@ No phrase here.
         result = lint.lint_kb(str(kb_path), style_enabled=False)
         assert _style_phrase_issues(result) == []
         assert result["style"]["findings"] == 0
-        assert result["style"]["reviewed"] == 0
+        assert result["style"]["exceptions"] == 0
 
     def test_cli_no_style(self, kb_path: Path, capsys):
         _write_entry(
@@ -998,17 +1050,17 @@ No phrase here.
         assert _style_phrase_issues(result, pattern="load-bearing") == []
         assert "load-bearing" in result["style"]["disabled"]
 
-    def test_malformed_review_record_fails_loudly(self, kb_path: Path):
-        review_dir = kb_path / ".kb" / "style-reviewed"
-        review_dir.mkdir(parents=True, exist_ok=True)
-        (review_dir / "bad.json").write_text("{not json", encoding="utf-8")
+    def test_malformed_exception_fails_loudly(self, kb_path: Path):
+        exception_dir = kb_path / ".kb" / "style-exceptions"
+        exception_dir.mkdir(parents=True, exist_ok=True)
+        (exception_dir / "bad.json").write_text("{not json", encoding="utf-8")
         with pytest.raises(lint.ContractViolationError):
             lint.lint_kb(str(kb_path))
 
-    def test_cli_malformed_review_record_exits_nonzero(self, kb_path: Path, capsys):
-        review_dir = kb_path / ".kb" / "style-reviewed"
-        review_dir.mkdir(parents=True, exist_ok=True)
-        (review_dir / "bad.json").write_text("{not json", encoding="utf-8")
+    def test_cli_malformed_exception_exits_nonzero(self, kb_path: Path, capsys):
+        exception_dir = kb_path / ".kb" / "style-exceptions"
+        exception_dir.mkdir(parents=True, exist_ok=True)
+        (exception_dir / "bad.json").write_text("{not json", encoding="utf-8")
         with pytest.raises(SystemExit) as exc_info:
             lint.main(["--path", str(kb_path)])
         assert exc_info.value.code == 1

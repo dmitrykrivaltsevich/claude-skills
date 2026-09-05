@@ -103,7 +103,7 @@ Three layers per KB:
 | "Add this file/source" | `add_source.py --kb-path DIR --source FILE --source-id ID` | Source copied, config updated |
 | "Add this URL as reference" | `add_source.py --kb-path DIR --source URL --reference --title "T" --source-id ID` | Reference stub created |
 | "Check KB health" | `lint.py --path DIR [--no-style] [--patterns FILE]` | JSON: broken links, orphans, missing backlinks, timeline gaps, style-phrase findings + `style` summary. `total_issues` counts outstanding work only — 0 means clean |
-| "Review a style finding" | `style_review.py add/list/remove --kb DIR ...` | Review record under `.kb/style-reviewed/`; reviewed findings drop out of `issues` and `total_issues` |
+| "Accept a style finding" | `style_exceptions.py add/list/remove --kb DIR ...` | Exception under `.kb/style-exceptions/`; excepted findings drop out of `issues` and `total_issues` |
 | "Search the KB for X" | `search.py --path DIR --query "X" [--category CAT] [--kind KIND] [--tag TAG] [--first-only]` | JSON: scored file results with multi-match, term coverage |
 | "Find entries related to these topics" | `related.py --kb-path DIR --keywords "a,b,c"` | JSON: entries scored by keyword overlap |
 | "Show me the KB graph" | `graph.py --path DIR` | JSON: nodes, edges, degrees, components, dangling targets |
@@ -289,7 +289,7 @@ Mandatory for academic papers, textbooks, and any source that references other w
    - Timeline gaps: create missing year/month/day entries
    - Missing frontmatter: add it
    - Unreadable files (`unreadable-file`): fix the encoding, or remove the file if it is not real KB content
-3. **Style phrases**: resolve every `style-phrase` finding yourself. Apply the first rule that fits — rewrite the sentence (default); `--reason verbatim-quote` when `context: quote` and the line quotes a source; `--reason subject-matter` when the match is this KB's domain vocabulary; disable the pattern in `.kb/style-patterns.json` when it fires 5+ times on legitimate usage. Re-run and repeat, at most 3 passes; record anything still standing with `--reason other` plus a note so the run terminates. A reviewed finding leaves `issues` and moves to `style.reviewed_findings`, so keep going until `total_issues` is 0. See [references/style-linting.md](references/style-linting.md) for the decision procedure and `style_review.py` commands.
+3. **Style phrases**: resolve every `style-phrase` finding yourself. Apply the first rule that fits — rewrite the sentence (default); `--reason verbatim-quote` when `context: quote` and the line quotes a source; `--reason subject-matter` when the match is this KB's domain vocabulary; disable the pattern in `.kb/style-patterns.json` when it fires 5+ times on legitimate usage. Re-run and repeat, at most 3 passes; record anything still standing with `--reason other` plus a note so the run terminates. An excepted finding leaves `issues` and moves to `style.exception_findings`, so keep going until `total_issues` is 0. See [references/style-linting.md](references/style-linting.md) for the decision procedure and `style_exceptions.py` commands.
 4. **Consolidate knowledge** (semantic — this is YOUR job, not a script's):
    - Find entries covering the same concept (e.g. `neural-network` and `neural-networks`, or two topic entries both explaining attention mechanisms)
    - Merge duplicates: combine content into the richer entry, redirect wikilinks from the removed entry, delete the weaker one
@@ -299,7 +299,7 @@ Mandatory for academic papers, textbooks, and any source that references other w
    - If source analyses or idea entries feel summary-heavy, rerun [references/practical-extraction.md](references/practical-extraction.md) and promote any source-backed heuristics, pitfalls, or failure modes into `idea-kind: practical` entries.
 6. **Rules co-evolution check**: read `.kb/rules.md` and ask the same questions as Phase 6 of kb:add. Because lint is unattended, do NOT put a proposal in chat and do NOT edit `rules.md` — append each proposed rule, with its evidence, to `.kb/rules-proposals.md` (create it if absent). The next interactive session applies or discards them under the approval rule below. This keeps the run non-blocking without silently rewriting the KB's operating manual.
 7. **Auto-topology**: After fixing mechanical issues, run `topology.py`. Act on findings immediately: fill structural holes with stub entries and record candidate sources inside those stubs, enrich degree anomalies, note bridge entries in `.kb/rules-proposals.md` so they're protected from accidental pruning.
-8. Update `index.md`. Append one line to `log.md`: `YYYY-MM-DD lint | N issues fixed, ~M files` (include style-phrase work when present, e.g. `, P rewritten, Q reviewed`)
+8. Update `index.md`. Append one line to `log.md`: `YYYY-MM-DD lint | N issues fixed, ~M files` (include style-phrase work when present, e.g. `, P rewritten, Q excepted`)
 
 ### kb:query — Answer from KB
 
@@ -482,5 +482,5 @@ See [references/rules-coevolution.md](references/rules-coevolution.md) for the f
 - [references/revisit-workflow.md](references/revisit-workflow.md) — `kb:revisit` protocol: topology-guided target selection, re-visitation, triangulation
 - [references/iterate-workflow.md](references/iterate-workflow.md) — `kb:iterate` protocol: cyclic latent semantic iterations, convergence criteria, crystallization rules
 - [references/topology-workflow.md](references/topology-workflow.md) — `kb:topology` protocol: graph metrics interpretation, action patterns, self-diagnosis
-- [references/style-linting.md](references/style-linting.md) — Style-phrase scanning: finding shape, pattern config in `.kb/style-patterns.json`, per-finding triage, review records
+- [references/style-linting.md](references/style-linting.md) — Style-phrase scanning: finding shape, pattern config in `.kb/style-patterns.json`, per-finding triage, accepted exceptions
 - [references/rules-coevolution.md](references/rules-coevolution.md) — When and how `.kb/rules.md` changes: trigger table, update protocol, unattended-run handling

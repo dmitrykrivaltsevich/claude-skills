@@ -15,7 +15,7 @@ Two scopes.  Structural checks read knowledge/ only:
 
 Style-phrase scanning covers every .md in the KB except the raw source layer
 (sources/files/) and the operation's own bookkeeping (.kb/tasks/,
-.kb/rules-proposals.md).
+.kb/rules-proposals.md, and the style exception store .kb/style-exceptions/).
 
 Does NOT perform semantic analysis — that's the LLM's job after reading
 the lint output.
@@ -36,16 +36,22 @@ sys.path.insert(0, os.path.dirname(__file__))
 from artifact_output import emit_json_result
 from contracts import ContractViolationError, precondition
 from style_config import disabled_pattern_ids, effective_pattern_entries
-from style_review import load_review_records
+from style_exceptions import load_exception_records
 
 # Regex for wikilinks: [[page-name]] or [[page-name|display text]]
 _WIKILINK_RE = re.compile(r"\[\[([^\]|]+)(?:\|[^\]]+)?\]\]")
 
 _HEADING_RE = re.compile(r"^ {0,3}#{1,6}(?:\s|$)")
 _LIST_ITEM_RE = re.compile(r"^\s{0,3}(?:[-*+]|\d{1,9}[.)])\s")
-# Directories the style scan never enters: the raw source layer, and the run
-# state kb:lint writes itself (flagging your own bookkeeping is a loop).
-_STYLE_EXCLUDED_DIRS = (("sources", "files"), (".kb", "tasks"))
+# Directories the style scan never enters: the raw source layer, and the state
+# kb:lint writes itself — the run tasks and the exception store, whose README
+# explains the store in prose (flagging your own bookkeeping is a loop).
+_STYLE_EXCLUDED_DIRS = (
+    ("sources", "files"),
+    (".kb", "tasks"),
+    (".kb", "style-exceptions"),
+    (".kb", "style-reviewed"),
+)
 _STYLE_EXCLUDED_FILES = (".kb/rules-proposals.md",)
 _FENCE_RE = re.compile(r"^\s{0,3}(`{3,}|~{3,})")
 _EXCERPT_MAX_CHARS = 200  # enough context for triage while keeping lint output compact.
@@ -216,11 +222,11 @@ def _excerpt(line: str) -> str:
 def _scan_style_files(
     root: Path,
     active_patterns: list,
-    review_records: dict,
+    exception_records: dict,
     disabled_ids: list[str],
 ) -> tuple[list[dict], dict, dict[str, str]]:
     issues: list[dict] = []
-    reviewed_findings: list[dict] = []
+    exception_findings: list[dict] = []
     unreadable: dict[str, str] = {}
     by_context: dict[str, int] = {}
     by_pattern: dict[str, int] = {}
@@ -298,12 +304,12 @@ def _scan_style_files(
                     match_context = context
                     if quotable and any(quote_mask[start:end]):
                         match_context = "quote"
-                    reviewed = (
+                    excepted = (
                         rel_path,
                         line_no,
                         pattern.id,
                         match.group(0),
-                    ) in review_records
+                    ) in exception_records
 
                     finding = {
                         "type": "style-phrase",
@@ -315,14 +321,14 @@ def _scan_style_files(
                         "context": match_context,
                         "excerpt": _excerpt(line),
                         "note": pattern.note,
-                        "reviewed": reviewed,
+                        "excepted": excepted,
                     }
 
-                    # Reviewed findings are accepted usages, not outstanding work:
+                    # Excepted findings are accepted usages, not outstanding work:
                     # they stay out of `issues` so the lint count only ever
                     # reports what is left to do.
-                    if reviewed:
-                        reviewed_findings.append(finding)
+                    if excepted:
+                        exception_findings.append(finding)
                         continue
 
                     issues.append(finding)
@@ -332,12 +338,12 @@ def _scan_style_files(
 
     summary = {
         "findings": len(issues),
-        "reviewed": len(reviewed_findings),
+        "exceptions": len(exception_findings),
         "by_context": by_context,
         "by_pattern": by_pattern,
         "by_source": by_source,
         "disabled": disabled_ids,
-        "reviewed_findings": reviewed_findings,
+        "exception_findings": exception_findings,
     }
     return issues, summary, unreadable
 
@@ -366,8 +372,8 @@ def lint_kb(
     target/details.
 
     'issues' and 'total_issues' carry outstanding work only, across every check.
-    Style findings with a recorded review are accepted usages, so they are
-    reported under 'style' ('reviewed', 'reviewed_findings') instead of being
+    Style findings with a recorded exception are accepted usages, so they are
+    reported under 'style' ('exceptions', 'exception_findings') instead of being
     counted.  'total_issues' == 0 therefore means the KB is clean.
     """
     root = Path(kb_path)
@@ -553,7 +559,7 @@ def lint_kb(
         style_issues, style_summary, style_unreadable = _scan_style_files(
             root,
             active_patterns,
-            load_review_records(str(root)),
+            load_exception_records(str(root)),
             disabled_pattern_ids(pattern_entries),
         )
         for rel_path, message in style_unreadable.items():
@@ -562,12 +568,12 @@ def lint_kb(
         style_issues = []
         style_summary = {
             "findings": 0,
-            "reviewed": 0,
+            "exceptions": 0,
             "by_context": {},
             "by_pattern": {},
             "by_source": {},
             "disabled": [],
-            "reviewed_findings": [],
+            "exception_findings": [],
         }
 
     # Deduplicated across both passes: a file unreadable by one is unreadable

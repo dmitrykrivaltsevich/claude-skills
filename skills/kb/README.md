@@ -29,7 +29,7 @@ Operations:
 | `add_source.py` | Copy/reference a source file, assign ID, update config |
 | `lint.py` | Check broken wikilinks, orphans, missing backlinks, timeline gaps (year/month/day), unreadable files, style phrases; `--no-style` skips style scanning, `--patterns FILE` overrides the pattern set; supports `--output` |
 | `style_config.py` | Load/merge style-pattern config (CLI > per-KB `.kb/style-patterns.json` > default `style_patterns.json`); shared by `lint.py` |
-| `style_review.py` | Record, list, or remove style-finding reviews under `.kb/style-reviewed/` so intentionally used phrases drop out of the lint's outstanding-work count |
+| `style_exceptions.py` | Record, list, or remove accepted style-phrase exceptions under `.kb/style-exceptions/` so intentionally used phrases drop out of the lint's outstanding-work count |
 | `style_patterns.json` | Default style-phrase patterns (schema `kb-style-patterns/v1`) |
 | `search.py` | Full-text search with scoring, multi-match, category filter, and frontmatter filters for `idea-kind` / tags, plus `--output` |
 | `related.py` | Find entries by keyword overlap (for cross-referencing); supports `--output` |
@@ -49,7 +49,7 @@ my-kb/
     rules.md           # LLM operating rules (co-evolved with KB)
     tasks/             # Multi-session task state files
     style-patterns.json# Optional per-KB style-phrase pattern config
-    style-reviewed/    # Style-finding review records (<sha1>.json)
+    style-exceptions/  # Accepted style-phrase exceptions (<sha1>.json)
     rules-proposals.md # Rule changes proposed by unattended kb:lint runs
   sources/
     files/<src-id>/    # Copied source files (immutable)
@@ -75,4 +75,4 @@ my-kb/
 uv run --no-config --with pytest --with pyyaml pytest skills/kb/tests/ -x --tb=short
 ```
 
-The KB tests cover scaffolding, search, state handling, linting (including style-phrase scanning and review records), and documentation guardrails.
+The KB tests cover scaffolding, search, state handling, linting (including style-phrase scanning and accepted exceptions), and documentation guardrails.

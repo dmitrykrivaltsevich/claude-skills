@@ -21,7 +21,7 @@ class TestLoaderIsolation:
         assert sys.path == before
 
     def test_loaded_module_is_not_left_in_sys_modules(self):
-        load_script_module("kb_test_loader_probe_once", "style_review.py")
+        load_script_module("kb_test_loader_probe_once", "style_exceptions.py")
         assert "kb_test_loader_probe_once" not in sys.modules
 
     def test_preexisting_scripts_modules_are_not_evicted(self):

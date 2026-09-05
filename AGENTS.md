@@ -39,5 +39,8 @@
 - When more detail is needed, agents MUST reopen the narrowest relevant slice from external state/environment instead of carrying large prior outputs forward.
 - At phase boundaries or after broad sweeps, agents SHOULD rebuild the next step from external state/environment rather than relying on the appended transcript.
 - Recursive or fan-out workflows MUST only spawn child tasks that localize or reduce the state each child sees, and child tasks MUST read needed slices from external state/environment rather than inheriting the parent's full payload.
+- A script entry point whose contract is to report (scan, list, load, query) MUST NOT write inside the data it reads, and MUST NOT emit progress to stderr on success; its only permitted write is the caller-named `--output` artifact path.
+- One-time migrations MUST run only in mutating entry points. Reporting entry points MUST read the old and new locations and merge them, so a scan of read-only or concurrently-scanned data never moves anything.
+- When a tool writes bookkeeping files inside the tree it scans, MUST exclude those paths from the scan scope.
 - After fixing a bug or mistake that reflects a reusable lesson (not task-specific), MUST add a corresponding rule to this file following the same MUST/SHOULD/CAN/NOT style.
 - When a skill is added, removed, or significantly modified, MUST update the skills table in the repository root `README.md` to keep it in sync.
