@@ -50,3 +50,26 @@ class TestPracticalGuidance:
         assert "practical-extraction.md" in video_workflow
         assert "practical-extraction.md" in collection_workflow
         assert "practical-extraction.md" in book_workflow
+
+class TestSkillDocGuardrails:
+    """AGENTS.md: SKILL.md body must stay under 500 lines, references one level deep."""
+
+    def test_skill_md_under_500_lines(self):
+        line_count = len(_read("SKILL.md").splitlines())
+        assert line_count < 500, f"SKILL.md is {line_count} lines; split content into references/"
+
+    def test_every_referenced_file_exists(self):
+        import re
+
+        skill_doc = _read("SKILL.md")
+        targets = set(re.findall(r"\(references/([A-Za-z0-9._-]+\.md)\)", skill_doc))
+        assert targets, "no reference links found in SKILL.md"
+        missing = sorted(name for name in targets if not (KB_DIR / "references" / name).exists())
+        assert missing == [], f"SKILL.md links to missing reference files: {missing}"
+
+    def test_lint_workflow_is_marked_unattended(self):
+        skill_doc = _read("SKILL.md")
+        style_doc = _read("references/style-linting.md")
+        assert "kb:lint runs unattended" in skill_doc
+        assert "rules-proposals.md" in skill_doc
+        assert "This is unattended" in style_doc

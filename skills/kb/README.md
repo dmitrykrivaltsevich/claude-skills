@@ -12,7 +12,7 @@ Operations:
 - **kb:init** — scaffold a new KB with folder structure and config
 - **kb:open** — load KB context to prime the LLM
 - **kb:add** — register source + heavy analytical extraction (multi-session capable)
-- **kb:lint** — mechanical health checks (broken links, orphans, timeline gaps)
+- **kb:lint** — mechanical health checks (broken links, orphans, timeline gaps, style phrases)
 - **kb:query** — search and answer from KB content
 - **kb:explore** — free-form exploration: find surprising connections, synthesize, generate questions
 - **kb:revisit** — re-read older entries through the lens of newer knowledge
@@ -27,7 +27,10 @@ Operations:
 | `init.py` | Scaffold KB folder structure, config, rules, index |
 | `open.py` | Load KB context as JSON; supports `--output` artifact mode for large KBs |
 | `add_source.py` | Copy/reference a source file, assign ID, update config |
-| `lint.py` | Check broken wikilinks, orphans, missing backlinks, timeline gaps (year/month/day); supports `--output` |
+| `lint.py` | Check broken wikilinks, orphans, missing backlinks, timeline gaps (year/month/day), unreadable files, style phrases; `--no-style` skips style scanning, `--patterns FILE` overrides the pattern set; supports `--output` |
+| `style_config.py` | Load/merge style-pattern config (CLI > per-KB `.kb/style-patterns.json` > default `style_patterns.json`); shared by `lint.py` |
+| `style_review.py` | Record, list, or remove style-finding reviews under `.kb/style-reviewed/` so intentionally used phrases drop out of the lint's outstanding-work count |
+| `style_patterns.json` | Default style-phrase patterns (schema `kb-style-patterns/v1`) |
 | `search.py` | Full-text search with scoring, multi-match, category filter, and frontmatter filters for `idea-kind` / tags, plus `--output` |
 | `related.py` | Find entries by keyword overlap (for cross-referencing); supports `--output` |
 | `graph.py` | Extract wikilink graph: nodes, edges, degrees, components; supports `--output` |
@@ -45,6 +48,9 @@ my-kb/
     config.yaml        # KB config + source registry
     rules.md           # LLM operating rules (co-evolved with KB)
     tasks/             # Multi-session task state files
+    style-patterns.json# Optional per-KB style-phrase pattern config
+    style-reviewed/    # Style-finding review records (<sha1>.json)
+    rules-proposals.md # Rule changes proposed by unattended kb:lint runs
   sources/
     files/<src-id>/    # Copied source files (immutable)
     references/        # External URL reference stubs
@@ -69,4 +75,4 @@ my-kb/
 uv run --no-config --with pytest --with pyyaml pytest skills/kb/tests/ -x --tb=short
 ```
 
-The KB tests cover scaffolding, search, state handling, and documentation guardrails.
+The KB tests cover scaffolding, search, state handling, linting (including style-phrase scanning and review records), and documentation guardrails.

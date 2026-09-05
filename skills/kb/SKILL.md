@@ -102,7 +102,8 @@ Three layers per KB:
 | "KB stats/dashboard" | `open.py --path DIR --stats` | Above + total files, total wikilinks |
 | "Add this file/source" | `add_source.py --kb-path DIR --source FILE --source-id ID` | Source copied, config updated |
 | "Add this URL as reference" | `add_source.py --kb-path DIR --source URL --reference --title "T" --source-id ID` | Reference stub created |
-| "Check KB health" | `lint.py --path DIR` | JSON: broken links, orphans, missing backlinks, timeline gaps (year/month/day) |
+| "Check KB health" | `lint.py --path DIR [--no-style] [--patterns FILE]` | JSON: broken links, orphans, missing backlinks, timeline gaps, style-phrase findings + `style` summary. `total_issues` counts outstanding work only — 0 means clean |
+| "Review a style finding" | `style_review.py add/list/remove --kb DIR ...` | Review record under `.kb/style-reviewed/`; reviewed findings drop out of `issues` and `total_issues` |
 | "Search the KB for X" | `search.py --path DIR --query "X" [--category CAT] [--kind KIND] [--tag TAG] [--first-only]` | JSON: scored file results with multi-match, term coverage |
 | "Find entries related to these topics" | `related.py --kb-path DIR --keywords "a,b,c"` | JSON: entries scored by keyword overlap |
 | "Show me the KB graph" | `graph.py --path DIR` | JSON: nodes, edges, degrees, components, dangling targets |
@@ -278,6 +279,8 @@ Mandatory for academic papers, textbooks, and any source that references other w
 
 ### kb:lint — Health Check, Repair & Consolidation
 
+**kb:lint runs unattended.** Assume no one is watching and no one will answer. Every decision in this operation — which phrasing to rewrite, which findings are legitimate, which duplicates to merge — is yours to make and apply. Never ask the user to choose, confirm, or triage, and never finish with findings left unresolved because a judgement call was needed. Anything that genuinely needs a human goes into a file (see step 6), not into a question. Report what you did once `total_issues` is 0.
+
 1. Run `lint.py` — get JSON list of mechanical issues
 2. **Fix ALL mechanical issues — every single one, no matter the count.** If there are 2200 missing backlinks, fix all 2200. Batch them (50 at a time, save, repeat) but do NOT skip any or say "too many." This is mechanical work that scales with compute, not judgment.
    - Broken links: correct target or create missing entry
@@ -285,16 +288,18 @@ Mandatory for academic papers, textbooks, and any source that references other w
    - **Missing backlinks: add reciprocal links. ALL of them.** If A→B but B↛A, add the link to B. This is the #1 lint priority — without reciprocal links the knowledge graph is broken.
    - Timeline gaps: create missing year/month/day entries
    - Missing frontmatter: add it
-3. **Consolidate knowledge** (semantic — this is YOUR job, not a script's):
+   - Unreadable files (`unreadable-file`): fix the encoding, or remove the file if it is not real KB content
+3. **Style phrases**: resolve every `style-phrase` finding yourself. Apply the first rule that fits — rewrite the sentence (default); `--reason verbatim-quote` when `context: quote` and the line quotes a source; `--reason subject-matter` when the match is this KB's domain vocabulary; disable the pattern in `.kb/style-patterns.json` when it fires 5+ times on legitimate usage. Re-run and repeat, at most 3 passes; record anything still standing with `--reason other` plus a note so the run terminates. A reviewed finding leaves `issues` and moves to `style.reviewed_findings`, so keep going until `total_issues` is 0. See [references/style-linting.md](references/style-linting.md) for the decision procedure and `style_review.py` commands.
+4. **Consolidate knowledge** (semantic — this is YOUR job, not a script's):
    - Find entries covering the same concept (e.g. `neural-network` and `neural-networks`, or two topic entries both explaining attention mechanisms)
    - Merge duplicates: combine content into the richer entry, redirect wikilinks from the removed entry, delete the weaker one
    - Absorb near-duplicates: when one entry is a strict subset of another, fold its unique content into the broader entry
    - Strengthen connections: if two entries reference the same ideas but don't link to each other, add wikilinks
-4. **Analyze**: look for undetected contradictions, stale claims, entries that should be interlinked but aren't
+5. **Analyze**: look for undetected contradictions, stale claims, entries that should be interlinked but aren't
    - If source analyses or idea entries feel summary-heavy, rerun [references/practical-extraction.md](references/practical-extraction.md) and promote any source-backed heuristics, pitfalls, or failure modes into `idea-kind: practical` entries.
-5. **Rules co-evolution check**: same as Phase 6 of kb:add. Read rules.md, propose changes if patterns emerged during lint.
-6. **Auto-topology**: After fixing mechanical issues, run `topology.py`. Act on findings immediately: fill structural holes with stub entries + suggest sources, enrich degree anomalies, note bridge entries in `rules.md` so they're protected from accidental pruning.
-7. Update `index.md`. Append one line to `log.md`: `YYYY-MM-DD lint | N issues fixed, ~M files`
+6. **Rules co-evolution check**: read `.kb/rules.md` and ask the same questions as Phase 6 of kb:add. Because lint is unattended, do NOT put a proposal in chat and do NOT edit `rules.md` — append each proposed rule, with its evidence, to `.kb/rules-proposals.md` (create it if absent). The next interactive session applies or discards them under the approval rule below. This keeps the run non-blocking without silently rewriting the KB's operating manual.
+7. **Auto-topology**: After fixing mechanical issues, run `topology.py`. Act on findings immediately: fill structural holes with stub entries and record candidate sources inside those stubs, enrich degree anomalies, note bridge entries in `.kb/rules-proposals.md` so they're protected from accidental pruning.
+8. Update `index.md`. Append one line to `log.md`: `YYYY-MM-DD lint | N issues fixed, ~M files` (include style-phrase work when present, e.g. `, P rewritten, Q reviewed`)
 
 ### kb:query — Answer from KB
 
@@ -458,25 +463,9 @@ See [references/long-horizon.md](references/long-horizon.md) for the full protoc
 
 ## Rules Co-Evolution
 
-The file `.kb/rules.md` is the per-KB operating manual. It starts from a template but MUST evolve as the KB grows. Unlike SKILL.md (which is generic), rules.md captures decisions specific to THIS knowledge base.
+The file `.kb/rules.md` is the per-KB operating manual. It starts from a template but MUST evolve as the KB grows — this is NOT optional, and the mandatory checks in Phase 6 of kb:add and step 6 of kb:lint exist precisely because LLMs skip it. Never silently modify rules.md: propose the change to the user, or in unattended runs (`kb:lint`) append it to `.kb/rules-proposals.md`.
 
-**This is NOT optional.** After 20+ sources, the rules.md should have grown significantly from its template. If it hasn't evolved, you're not doing this step. The mandatory check in Phase 6 of kb:add and step 5 of kb:lint exist precisely because LLMs tend to skip this — DO NOT SKIP IT.
-
-**When to update rules.md** (propose the change to the user first):
-
-| Trigger | What to add |
-|---|---|
-| User corrects your entry style or structure | Record the preference as a rule |
-| A new entry type pattern emerges (e.g. "recipe", "theorem", "code-analysis") | Add it to the entry types in rules.md with directory and frontmatter. Create the directory. See [references/entry-types.md](references/entry-types.md) Custom Entry Types section |
-| User establishes a tagging convention | Document the tag taxonomy |
-| User sets a scope boundary ("this KB is only about X") | Add a scope section |
-| A naming conflict arises (two concepts with similar names) | Add a disambiguation rule |
-| The KB reaches a size where new conventions help | Add organizational rules (e.g. sub-directories, index sections) |
-| User requests a custom workflow | Document it as a named operation |
-| You notice a recurring extraction pattern | Codify it so future sessions follow it |
-| A source type is new to the KB (e.g. first codebase, first legal document) | Add source-type-specific extraction guidance |
-
-**How to update**: Read the current rules.md, propose the specific change to the user, and apply it only after approval. Never silently modify rules.md.
+See [references/rules-coevolution.md](references/rules-coevolution.md) for the full trigger table and update protocol.
 
 ## Reference
 
@@ -493,3 +482,5 @@ The file `.kb/rules.md` is the per-KB operating manual. It starts from a templat
 - [references/revisit-workflow.md](references/revisit-workflow.md) — `kb:revisit` protocol: topology-guided target selection, re-visitation, triangulation
 - [references/iterate-workflow.md](references/iterate-workflow.md) — `kb:iterate` protocol: cyclic latent semantic iterations, convergence criteria, crystallization rules
 - [references/topology-workflow.md](references/topology-workflow.md) — `kb:topology` protocol: graph metrics interpretation, action patterns, self-diagnosis
+- [references/style-linting.md](references/style-linting.md) — Style-phrase scanning: finding shape, pattern config in `.kb/style-patterns.json`, per-finding triage, review records
+- [references/rules-coevolution.md](references/rules-coevolution.md) — When and how `.kb/rules.md` changes: trigger table, update protocol, unattended-run handling

@@ -1,0 +1,198 @@
+{
+  "schema": "kb-style-patterns/v1",
+  "flags": ["ignorecase"],
+  "patterns": [
+    {
+      "id": "load-bearing",
+      "enabled": true,
+      "regex": "\\bload[- ]bearing\\b",
+      "note": "Name the concrete dependency, constraint, or failure mode directly."
+    },
+    {
+      "id": "not-just-contrast",
+      "enabled": true,
+      "regex": "\\bnot just\\b.{0,80}?\\b(?:but|and)\\b|\\bit['’]s not\\b.{0,60}?,\\s+it['’]s\\b",
+      "note": "State the contrast directly instead of using a not-just-but frame."
+    },
+    {
+      "id": "the-key-insight",
+      "enabled": true,
+      "regex": "\\bthe key insight\\b",
+      "note": "State the insight directly; the surrounding phrase adds no content."
+    },
+    {
+      "id": "paradigm-shift",
+      "enabled": true,
+      "regex": "\\bparadigm[- ]shifts?\\b",
+      "note": "Describe the actual change in assumptions, models, or practice."
+    },
+    {
+      "id": "crucially",
+      "enabled": true,
+      "regex": "\\bcrucially\\b",
+      "note": "Use only when the clause is genuinely decisive for the claim."
+    },
+    {
+      "id": "deep-dive",
+      "enabled": true,
+      "regex": "\\bdeep[- ]dive[sd]?\\b|\\blet['’]s dive into\\b",
+      "note": "Name the concrete material or start with the specific detail."
+    },
+    {
+      "id": "tapestry",
+      "enabled": true,
+      "regex": "\\btapestr(?:y|ies)\\b",
+      "note": "Use concrete nouns instead of figurative tapestry language."
+    },
+    {
+      "id": "underscores",
+      "enabled": true,
+      "regex": "\\bunderscores\\b",
+      "note": "State the point directly instead of framing it as emphasis."
+    },
+    {
+      "id": "delve",
+      "enabled": true,
+      "regex": "\\bdelve[sd]?\\b|\\bdelving\\b",
+      "note": "Use a direct verb such as examine, inspect, or analyze."
+    },
+    {
+      "id": "testament-to",
+      "enabled": true,
+      "regex": "\\btestament to\\b",
+      "note": "Name the evidence directly instead of using testament-to language."
+    },
+    {
+      "id": "claude-vocabulary",
+      "enabled": true,
+      "regex": "\\bmultifaceted\\b|\\bnuanced\\b|\\bvibrant\\b|\\bencompass(?:es|ed|ing)?\\b",
+      "note": "Use a more specific word for the exact concept being described."
+    },
+    {
+      "id": "pivotal",
+      "enabled": true,
+      "regex": "\\bpivotal\\b",
+      "note": "Explain why the point matters structurally or causally."
+    },
+    {
+      "id": "showcases",
+      "enabled": true,
+      "regex": "\\bshowcas(?:e|es|ed|ing)\\b",
+      "note": "Use a direct verb such as demonstrates, illustrates, or contains."
+    },
+    {
+      "id": "seamless",
+      "enabled": true,
+      "regex": "\\bseamless(?:ly)?\\b",
+      "note": "State the concrete property such as fast, clean, or integrated."
+    },
+    {
+      "id": "realm-of",
+      "enabled": true,
+      "regex": "\\bin (?:the|a|my|our) realm of\\b",
+      "note": "Name the concrete area or topic directly."
+    },
+    {
+      "id": "throat-clearing",
+      "enabled": true,
+      "regex": "\\bit['’]s worth noting\\b|\\bit is important to note\\b|\\bit should be noted\\b|\\bit goes without saying\\b|\\bit['’]s no secret\\b|\\bthere['’]s no denying\\b",
+      "note": "Start with the claim; throat-clearing frames add no content."
+    },
+    {
+      "id": "claude-ritual",
+      "enabled": true,
+      "regex": "\\bone might argue\\b|\\bit could be suggested\\b|\\bthe reader may notice\\b|\\bnot an exhaustive treatment\\b|\\bimportant caveats to consider\\b",
+      "note": "Replace hedged ritual language with the direct claim or remove it."
+    },
+    {
+      "id": "weasel-attribution",
+      "enabled": true,
+      "regex": "\\bstudies show\\b|\\bexperts agree\\b|\\bresearch suggests\\b|\\bit is widely (?:believed|regarded as)\\b|\\bmany argue\\b",
+      "note": "Cite the specific source or remove the unsupported attribution."
+    },
+    {
+      "id": "filler-frames",
+      "enabled": true,
+      "regex": "\\bin today['’]s (?:fast[- ]paced )?(?:world|digital age|competitive landscape|economy|market)\\b|\\bas we look ahead\\b|\\bwhen it comes to\\b|\\bat the end of the day\\b|\\bin conclusion\\b|\\bin summary\\b|\\bto sum up\\b",
+      "note": "Name the concrete situation instead of a generic framing phrase."
+    },
+    {
+      "id": "hype",
+      "enabled": true,
+      "regex": "\\bgame[- ]chang(?:er|ing|e)\\b|\\bcutting[- ]edge\\b",
+      "note": "State the concrete technical or empirical difference."
+    },
+    {
+      "id": "litotes",
+      "enabled": true,
+      "regex": "\\bfar from (?:trivial|simple)\\b|\\bnot without merit\\b",
+      "note": "State the positive claim directly."
+    },
+    {
+      "id": "intricate",
+      "enabled": true,
+      "regex": "\\bintricate(?:ly)?\\b",
+      "note": "Describe the specific parts or relationships that make it complex."
+    },
+    {
+      "id": "real-reframe",
+      "enabled": true,
+      "regex": "\\b(?:that|this|here)['’]s the real\\b|\\bthe real (?:question|problem|issue|cost|point|story|reason|risk|failure) (?:is|here|was)\\b",
+      "note": "State the claim directly instead of reframing an earlier one as less real."
+    },
+    {
+      "id": "comparative-kicker",
+      "enabled": true,
+      "regex": ",\\s+and (?:it|that|this)['’]s (?:\\w+er|more|less)\\b[^.]{0,60}?\\bthan\\b",
+      "note": "Give the comparison its own sentence, or drop it."
+    },
+    {
+      "id": "antithesis-pivot",
+      "enabled": true,
+      "regex": "\\b(?:that|this|it)['’]s not\\b[^.!?—]{0,60}[.—]\\s*(?:that|this|it)['’]s\\b|\\b(?:isn|aren|wasn|weren|doesn|don)['’]t\\b[^.!?—]{0,60}—\\s*it['’]s\\b",
+      "note": "State what it is; the negated foil carries no information."
+    },
+    {
+      "id": "heres-the-thing",
+      "enabled": true,
+      "regex": "\\b(?:here|there)['’]s the (?:thing|catch|rub|kicker|problem|twist)\\b|\\bhere['’]s (?:what|why)\\b|\\bthat['’]s the (?:thing|catch|kicker)\\b",
+      "note": "Open with the substance instead of announcing that substance follows."
+    },
+    {
+      "id": "the-point-is",
+      "enabled": true,
+      "regex": "\\bwhich is (?:exactly |precisely )?the (?:whole )?point\\b|\\b(?:that|this)['’]s (?:exactly |precisely )?(?:the|my) (?:whole )?point\\b|\\bthe point (?:is|here is)\\b",
+      "note": "Make the point; labelling a sentence as the point does not sharpen it."
+    },
+    {
+      "id": "directness-signal",
+      "enabled": true,
+      "regex": "\\bto be (?:blunt|direct|honest|clear|fair)\\b|\\blet me be (?:blunt|direct|clear)\\b|\\bthe honest (?:answer|version)\\b|\\bI['’]ll be (?:blunt|direct|honest)\\b",
+      "note": "Say the thing; announcing candour does not add it."
+    },
+    {
+      "id": "upshot-frame",
+      "enabled": true,
+      "regex": "\\bthe (?:short|long) version\\b|\\bthe upshot\\b|\\bbottom line\\b|\\bnet[- ]net\\b|\\btl;?dr\\b",
+      "note": "Lead with the conclusion instead of labelling it as the conclusion."
+    },
+    {
+      "id": "self-answered-question",
+      "enabled": true,
+      "regex": "\\b(?:why|what|how|so)\\b[^?]{0,60}\\?\\s+(?:because\\b|the answer\\b|short answer\\b|it['’]s\\b|that['’]s\\b)",
+      "note": "Answer directly. A question you immediately answer adds a turn, not content. (A question used as a heading is fine and is not matched.)"
+    },
+    {
+      "id": "worth-preamble",
+      "enabled": true,
+      "regex": "\\bworth (?:knowing|flagging|calling out|saying)\\b|\\bone thing worth\\b",
+      "note": "If it is worth saying, say it without the preamble."
+    },
+    {
+      "id": "weight-metaphor",
+      "enabled": true,
+      "regex": "\\bdoes the heavy lifting\\b|\\bearns? (?:its|their) (?:place|keep)\\b|\\bcarr(?:y|ies|ied) the weight\\b|\\bpulls? (?:its|their) weight\\b",
+      "note": "Name what the thing actually does."
+    }
+  ]
+}
