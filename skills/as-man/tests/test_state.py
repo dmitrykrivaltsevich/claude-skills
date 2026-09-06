@@ -281,6 +281,112 @@ class TestRealise:
             state.realise(one, node_id="a", line_start=9, line_end=4)
 
 
+class TestDetailLevel:
+    @pytest.fixture()
+    def page(self, sdir: Path) -> Path:
+        state.add_nodes(
+            sdir,
+            parent="root",
+            nodes=[{"id": "a", "heading": "A", "promise": "p"},
+                   {"id": "b", "heading": "B", "promise": "p"}],
+        )
+        return sdir
+
+    def test_a_node_starts_terse(self, page: Path):
+        assert state.enter(page, node_id="a")["node"]["detail"] == "terse"
+
+    def test_the_page_default_is_recorded(self, sdir: Path):
+        state.describe(sdir, detail="full")
+
+        assert state.status(sdir)["detail"] == "full"
+
+    def test_new_nodes_inherit_the_page_default(self, sdir: Path):
+        state.describe(sdir, detail="tutorial")
+        state.add_nodes(sdir, parent="root", nodes=[{"id": "a", "heading": "A", "promise": "p"}])
+
+        assert state.enter(sdir, node_id="a")["node"]["detail"] == "tutorial"
+
+    def test_an_invalid_page_default_is_rejected(self, sdir: Path):
+        with pytest.raises(ContractViolationError):
+            state.describe(sdir, detail="chatty")
+
+    def test_more_moves_one_step_up_the_ladder(self, page: Path):
+        result = state.detail(page, node_id="a", more=True)
+
+        assert result["from_detail"] == "terse"
+        assert result["to_detail"] == "full"
+
+    def test_less_moves_one_step_down(self, page: Path):
+        state.detail(page, node_id="a", level="tutorial")
+
+        assert state.detail(page, node_id="a", less=True)["to_detail"] == "full"
+
+    def test_an_explicit_level_can_be_set(self, page: Path):
+        assert state.detail(page, node_id="a", level="tutorial")["to_detail"] == "tutorial"
+
+    def test_more_at_the_top_is_rejected_and_names_the_level(self, page: Path):
+        state.detail(page, node_id="a", level="tutorial")
+
+        with pytest.raises(ContractViolationError) as excinfo:
+            state.detail(page, node_id="a", more=True)
+
+        assert "tutorial" in str(excinfo.value)
+
+    def test_less_at_the_bottom_is_rejected(self, page: Path):
+        with pytest.raises(ContractViolationError):
+            state.detail(page, node_id="a", less=True)
+
+    def test_exactly_one_selector_is_required(self, page: Path):
+        with pytest.raises(ContractViolationError):
+            state.detail(page, node_id="a")
+        with pytest.raises(ContractViolationError):
+            state.detail(page, node_id="a", more=True, less=True)
+
+    def test_an_unknown_level_is_rejected(self, page: Path):
+        with pytest.raises(ContractViolationError):
+            state.detail(page, node_id="a", level="exhaustive")
+
+    def test_changing_detail_only_affects_that_node(self, page: Path):
+        state.detail(page, node_id="a", level="tutorial")
+
+        assert state.enter(page, node_id="b")["node"]["detail"] == "terse"
+
+    def test_changing_detail_asks_for_a_rewrite(self, page: Path):
+        assert state.detail(page, node_id="a", more=True)["next_action"] == "realise"
+
+    def test_a_body_written_at_a_stale_level_is_rewritten_on_entry(self, page: Path):
+        state.realise(page, node_id="a", line_start=1, line_end=4)
+        assert state.enter(page, node_id="a")["next_action"] == "render"
+
+        state.detail(page, node_id="a", more=True)
+
+        assert state.enter(page, node_id="a")["next_action"] == "realise"
+
+    def test_rewriting_at_the_new_level_settles_the_node(self, page: Path):
+        state.realise(page, node_id="a", line_start=1, line_end=4)
+        state.detail(page, node_id="a", more=True)
+        state.realise(page, node_id="a", line_start=1, line_end=12)
+
+        result = state.enter(page, node_id="a")
+        assert result["next_action"] == "render"
+        assert result["node"]["detail"] == "full"
+
+    def test_realise_can_state_the_level_it_wrote(self, page: Path):
+        state.realise(page, node_id="a", line_start=1, line_end=9, detail="tutorial")
+
+        assert state.enter(page, node_id="a")["node"]["detail"] == "tutorial"
+
+    def test_quiz_citations_follow_the_expanded_body(self, page: Path):
+        state.realise(page, node_id="a", line_start=1, line_end=4)
+        state.quiz_add(page, questions=[
+            {"id": "q1", "node_id": "a", "type": "recall", "question": "q?", "answer_key": "k"}])
+        state.detail(page, node_id="a", more=True)
+        state.realise(page, node_id="a", line_start=1, line_end=20)
+
+        picked = state.quiz_next(page, count=1)["questions"][0]
+        assert picked["line_end"] == 20
+
+
 class TestQuizCoversOnlyRealisedNodes:
     @pytest.fixture()
     def read_one(self, sdir: Path) -> Path:

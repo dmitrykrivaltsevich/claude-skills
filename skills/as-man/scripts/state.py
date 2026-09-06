@@ -64,6 +64,12 @@ MATERIALITY = ("high", "medium", "low")
 # Fidelity levels describe how far the page departs from its source.
 FIDELITY = ("verbatim", "adapt", "condense", "synthesize")
 
+# How much explanation a body carries, in order. The man register does not
+# change between levels — only the number of facts stated. See
+# references/man-format.md for what each level must and must not contain.
+DETAIL_LEVELS = ("terse", "full", "tutorial")
+DEFAULT_DETAIL = "terse"
+
 SOURCE_KINDS = ("topic", "source", "mixed")
 
 # Trail entries are cheap, but a long reading session should not grow the state
@@ -93,6 +99,7 @@ def _new_session() -> dict[str, Any]:
         "manual_section": "7",
         "source": {"kind": None, "origin": None, "genre": None},
         "fidelity": None,
+        "detail": DEFAULT_DETAIL,
         "current": None,
         "trail": [],
         "nodes": {
@@ -104,6 +111,8 @@ def _new_session() -> dict[str, Any]:
                 "promise": "",
                 "status": "planned",
                 "children": [],
+                "detail": DEFAULT_DETAIL,
+                "detail_written": None,
                 "line_start": None,
                 "line_end": None,
             }
@@ -181,6 +190,7 @@ def _summarise(doc: dict[str, Any], node: dict[str, Any]) -> dict[str, Any]:
         "heading": node["heading"],
         "promise": node["promise"],
         "status": node["status"],
+        "detail": node.get("detail", DEFAULT_DETAIL),
         "level": node["level"],
         "position": siblings.index(node["id"]) + 1,
         "sibling_count": len(siblings),
@@ -274,6 +284,10 @@ def add_nodes(session_dir: Path, *, parent: str, nodes: list[dict[str, Any]]) ->
             "promise": entry["promise"].strip(),
             "status": "planned",
             "children": [],
+            # A new node inherits the page default, so setting the level once
+            # at open shapes every section written afterwards.
+            "detail": doc.get("detail", DEFAULT_DETAIL),
+            "detail_written": None,
             "line_start": None,
             "line_end": None,
         }
@@ -314,6 +328,16 @@ def outline(session_dir: Path, *, under: str = ROOT_ID) -> dict[str, Any]:
 
 
 _NEXT_ACTION = {"planned": "realise", "enumerated": "contents", "realised": "render"}
+
+
+def _next_action(node: dict[str, Any]) -> str:
+    """What the caller should do on arrival."""
+    action = _NEXT_ACTION[node["status"]]
+    # A body written at one detail level no longer satisfies a node whose level
+    # has since changed, so it must be rewritten rather than shown.
+    if action == "render" and node.get("detail_written") != node.get("detail"):
+        return "realise"
+    return action
 
 
 @precondition(
@@ -370,7 +394,7 @@ def enter(
         "sibling_headings": [doc["nodes"][sid]["heading"] for sid in siblings],
         "child_count": len(node["children"]),
         "is_end": _is_end(doc, node),
-        "next_action": _NEXT_ACTION[node["status"]],
+        "next_action": _next_action(node),
     }
 
 
@@ -387,17 +411,85 @@ def enter(
     and line_end >= line_start,
     "line_end must be an integer not less than line_start",
 )
-def realise(session_dir: Path, *, node_id: str, line_start: int, line_end: int) -> dict[str, Any]:
+def realise(
+    session_dir: Path,
+    *,
+    node_id: str,
+    line_start: int,
+    line_end: int,
+    detail: str | None = None,
+) -> dict[str, Any]:
     """Record that a node's body has been written into page.md."""
     doc = _load(session_dir)
     node = _node(doc, node_id)
 
+    if detail is not None:
+        if detail not in DETAIL_LEVELS:
+            raise ContractViolationError(
+                f"detail must be one of {DETAIL_LEVELS}", kind="precondition"
+            )
+        node["detail"] = detail
+
     node["status"] = "realised"
+    node["detail_written"] = node.get("detail", DEFAULT_DETAIL)
     node["line_start"] = line_start
     node["line_end"] = line_end
     _save(session_dir, doc)
 
     return {"node": _summarise(doc, node)}
+
+
+# ---------------------------------------------------------------- detail
+
+
+@precondition(
+    lambda level, more, less, **_: (level is not None) + bool(more) + bool(less) == 1,
+    "Provide exactly one of level, more, or less",
+)
+@precondition(
+    lambda level, **_: level is None or level in DETAIL_LEVELS,
+    f"level must be one of {DETAIL_LEVELS}",
+)
+def detail(
+    session_dir: Path,
+    *,
+    node_id: str,
+    level: str | None = None,
+    more: bool = False,
+    less: bool = False,
+) -> dict[str, Any]:
+    """Change how much explanation one section carries."""
+    doc = _load(session_dir)
+    node = _node(doc, node_id)
+
+    current = node.get("detail", DEFAULT_DETAIL)
+    index = DETAIL_LEVELS.index(current)
+
+    if more:
+        if index + 1 >= len(DETAIL_LEVELS):
+            raise ContractViolationError(
+                f"Already at '{current}', the most explanatory level", kind="precondition"
+            )
+        target = DETAIL_LEVELS[index + 1]
+    elif less:
+        if index == 0:
+            raise ContractViolationError(
+                f"Already at '{current}', the tersest level", kind="precondition"
+            )
+        target = DETAIL_LEVELS[index - 1]
+    else:
+        target = level
+
+    node["detail"] = target
+    _save(session_dir, doc)
+
+    return {
+        "node": _summarise(doc, node),
+        "from_detail": current,
+        "to_detail": target,
+        # The body on disk was written at the old level, so it must be replaced.
+        "next_action": "realise" if node["detail_written"] != target else "render",
+    }
 
 
 # ---------------------------------------------------------------- trail
@@ -697,6 +789,10 @@ def gaps_list(session_dir: Path) -> dict[str, Any]:
     lambda fidelity, **_: fidelity is None or fidelity in FIDELITY,
     f"fidelity must be one of {FIDELITY}",
 )
+@precondition(
+    lambda detail, **_: detail is None or detail in DETAIL_LEVELS,
+    f"detail must be one of {DETAIL_LEVELS}",
+)
 def describe(
     session_dir: Path,
     *,
@@ -706,6 +802,7 @@ def describe(
     origin: str | None = None,
     genre: str | None = None,
     fidelity: str | None = None,
+    detail: str | None = None,
 ) -> dict[str, Any]:
     """Record what this page is and how far it departs from its source."""
     doc = _load_or_create(session_dir)
@@ -722,6 +819,8 @@ def describe(
         doc["source"]["genre"] = genre.strip()
     if fidelity is not None:
         doc["fidelity"] = fidelity
+    if detail is not None:
+        doc["detail"] = detail
 
     _save(session_dir, doc)
     return {
@@ -729,6 +828,7 @@ def describe(
         "manual_section": doc["manual_section"],
         "source": doc["source"],
         "fidelity": doc["fidelity"],
+        "detail": doc.get("detail", DEFAULT_DETAIL),
     }
 
 
@@ -751,6 +851,7 @@ def status(session_dir: Path) -> dict[str, Any]:
         "manual_section": doc["manual_section"],
         "source": doc["source"],
         "fidelity": doc["fidelity"],
+        "detail": doc.get("detail", DEFAULT_DETAIL),
         "current": current,
         "current_heading": nodes[current]["heading"] if current in nodes else None,
         "node_count": len(nodes),
@@ -813,6 +914,14 @@ def main(argv: list[str] | None = None) -> None:
     p_realise.add_argument("--id", required=True)
     p_realise.add_argument("--line-start", required=True, type=int)
     p_realise.add_argument("--line-end", required=True, type=int)
+    p_realise.add_argument("--detail", choices=list(DETAIL_LEVELS),
+                           help="Level this body was written at (default: the node's current level)")
+
+    p_detail = sub.add_parser("detail", help="Change how much explanation a section carries")
+    p_detail.add_argument("--id", required=True)
+    p_detail.add_argument("--level", choices=list(DETAIL_LEVELS), help="Set an explicit level")
+    p_detail.add_argument("--more", action="store_true", help="One step more explanatory")
+    p_detail.add_argument("--less", action="store_true", help="One step terser")
 
     p_trail = sub.add_parser("trail", help="The reading path")
     p_trail.add_argument("--limit", type=int)
@@ -842,6 +951,8 @@ def main(argv: list[str] | None = None) -> None:
     p_describe.add_argument("--origin")
     p_describe.add_argument("--genre")
     p_describe.add_argument("--fidelity", choices=list(FIDELITY))
+    p_describe.add_argument("--detail", choices=list(DETAIL_LEVELS),
+                            help="Default explanation level for sections written afterwards")
 
     sub.add_parser("status", help="Progress summary")
 
@@ -860,7 +971,15 @@ def main(argv: list[str] | None = None) -> None:
             )
         elif args.command == "realise":
             result = realise(
-                session_dir, node_id=args.id, line_start=args.line_start, line_end=args.line_end
+                session_dir,
+                node_id=args.id,
+                line_start=args.line_start,
+                line_end=args.line_end,
+                detail=args.detail,
+            )
+        elif args.command == "detail":
+            result = detail(
+                session_dir, node_id=args.id, level=args.level, more=args.more, less=args.less
             )
         elif args.command == "trail":
             result = trail(session_dir, limit=args.limit)
@@ -887,6 +1006,7 @@ def main(argv: list[str] | None = None) -> None:
                 origin=args.origin,
                 genre=args.genre,
                 fidelity=args.fidelity,
+                detail=args.detail,
             )
         else:
             result = status(session_dir)

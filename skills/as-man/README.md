@@ -22,7 +22,7 @@ Three design points worth knowing:
 
 - **The outline is committed, the bodies are not.** Claude fixes the table of contents when the page opens, then writes a section only when you reach it — shaped by the path you took and by anything you got wrong in the quiz. A written section is cached, so going back shows the same text.
 - **Depth comes from the material.** A concept is one level. A book is part, chapter, section. There is always a last page and an `(END)`.
-- **The register is fixed.** Man-page structure, plain international English at CEFR B2. No idioms, no phrasal verbs, ISO dates, glossed acronyms.
+- **The register is fixed, the detail is not.** Man-page structure, plain international English at CEFR B2. No idioms, no phrasal verbs, ISO dates, glossed acronyms. When a section is too terse, `v` rewrites it with the mechanism and a worked example; `b` goes back. Raising the level adds facts and never loosens the voice.
 
 ## Scripts
 

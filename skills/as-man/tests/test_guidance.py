@@ -243,6 +243,25 @@ class TestReferenceContent:
         assert 'g or "what is not in this doc"' in skill
         assert "n p c u $ s" in skill
 
+    def test_man_format_defines_every_detail_level(self):
+        text = (REFERENCES / "man-format.md").read_text(encoding="utf-8")
+
+        assert "## Detail levels" in text
+        for level in ("`terse`", "`full`", "`tutorial`"):
+            assert level in text
+
+    def test_raising_detail_may_not_loosen_the_register(self):
+        text = (REFERENCES / "man-format.md").read_text(encoding="utf-8")
+
+        assert "More detail means more sentences, not longer ones." in text
+        assert "The register never changes between levels." in text
+
+    def test_the_detail_keys_are_documented(self):
+        text = (REFERENCES / "man-format.md").read_text(encoding="utf-8")
+
+        assert "v  more detail" in text
+        assert "b  briefer" in text
+
     def test_man_format_documents_tagged_paragraphs(self):
         text = (REFERENCES / "man-format.md").read_text(encoding="utf-8")
 
@@ -270,7 +289,7 @@ class TestScriptsMatchTheDocumentation:
         source = self._script("state.py")
 
         for command in (
-            "describe", "add-nodes", "outline", "enter", "realise", "trail",
+            "describe", "add-nodes", "outline", "enter", "realise", "detail", "trail",
             "quiz-add", "quiz-next", "quiz-record", "quiz-report",
             "gaps-add", "gaps-list", "status",
         ):

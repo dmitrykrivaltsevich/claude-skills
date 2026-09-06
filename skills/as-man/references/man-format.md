@@ -11,7 +11,8 @@ How to shape any material into a manual page, and how the page appears on screen
 5. [Page identity](#page-identity)
 6. [Screen layout](#screen-layout)
 7. [Navigation keys](#navigation-keys)
-8. [Anti-patterns](#anti-patterns)
+8. [Detail levels](#detail-levels)
+9. [Anti-patterns](#anti-patterns)
 
 ## Section vocabulary
 
@@ -115,7 +116,8 @@ Show these only when the reader presses `h`. The prompt line stays one line.
 ```
 n  next             c  contents        u  up a level    t  test my understanding
 p  previous         $  last section    s  search        g  what is missing
-12 go to entry 12   h  keys            q  quit
+12 go to entry 12   v  more detail     b  briefer       h  keys
+q  quit
 ```
 
 Accept the full word as well as the key: `next`, `contents`, `gaps`, `test`. The reader is typing into a chat, not a terminal.
@@ -136,11 +138,57 @@ At the end of the page:
 datalog(7)  27/27  SEE ALSO                                  (END — g for gaps)
 ```
 
+## Detail levels
+
+A manual page is terse by default. That is right for reference and wrong when the reader is meeting the material for the first time. Three levels answer this, set per page with `describe --detail` or per section with `detail --more` / `--less`.
+
+> **More detail means more sentences, not longer ones.** The register never changes between levels. No second person, no preamble, no "let us look at", no closing summary. Every sentence still obeys `language.md`. A level raises how many facts are stated, never how they are said.
+
+| Level | Adds |
+|---|---|
+| `terse` | The default. What the thing is and what it does. One fact per sentence. Rationale only when the rationale is itself the fact. |
+| `full` | The mechanism behind each claim, and the consequence that follows from it. Terms defined inline at first use. One worked example where an example removes ambiguity. |
+| `tutorial` | A worked example for each claim, with concrete values. The common misreading, stated plainly. The failure case, shown rather than described. |
+
+The same content at each level:
+
+```
+terse
+       A pod gets one IP address. The address changes when the pod restarts.
+
+full
+       A pod gets one IP address. The address is assigned at start and released
+       at termination. A restart therefore produces a different address, because
+       the scheduler may place the pod on another node.
+
+       A caller that stores the address keeps a value that stops routing after
+       any restart.
+
+tutorial
+       A pod gets one IP address. The address is assigned at start and released
+       at termination. A restart therefore produces a different address, because
+       the scheduler may place the pod on another node.
+
+       A caller that stores the address keeps a value that stops routing after
+       any restart.
+
+       Example. A client resolves pod-a to 10.1.4.7 and caches it. The pod
+       restarts and returns as 10.1.9.2. The client keeps sending to 10.1.4.7
+       and receives no response.
+
+       Readers often assume the address is stable because the pod name is
+       stable. The name is stable. The address is not.
+```
+
+Note what does not change: no sentence grew, no reader was addressed, no section gained an introduction. `tutorial` is still a manual page.
+
+Raising a level replaces the section's body rather than appending to it, so the reader sees one coherent section rather than a terse version followed by an expansion. Lowering a level does the same in reverse. Line spans move, and quiz citations follow them automatically.
+
 ## Anti-patterns
 
 - **Do not write an introduction.** A manual page starts at `NAME` and states facts. There is no welcome, no summary of what you are about to say, no closing paragraph.
 - **Do not address the reader.** No "you will learn", no "let us look at". State what the thing does.
 - **Do not invent sections.** Use the vocabulary above. A section called `OVERVIEW` or `GETTING STARTED` means you have stopped writing a manual page.
-- **Do not pad a thin node.** If a node has one fact, its body is one sentence. Length is not a goal.
+- **Do not pad a thin node.** If a node has one fact, its body is one sentence. Length is not a goal. This holds at every detail level: `tutorial` adds examples and misreadings, never filler.
 - **Do not front-load caveats.** `DESCRIPTION` says what happens; `CAVEATS` says when it fails.
 - **Do not repeat the promise as the first sentence of the body.** The reader has already read it in the contents.

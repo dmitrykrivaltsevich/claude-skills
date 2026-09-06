@@ -38,6 +38,7 @@ The reader typed…                        Go to
 -----------------------------------------------------------------------
 /as-man <anything>                       Mode 1, opening a page
 n p c u $ s or a bare number like 12     Mode 1, navigating
+v or "more detail" / b or "briefer"    Rewrite this section at another level
 t or "test my understanding"             Mode 2
 g or "what is not in this doc"           Mode 3
 h or "keys"                              Print the key list, nothing else
@@ -68,8 +69,9 @@ Run everything with `uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/<script>.py`
 | Commit an outline level | `state.py add-nodes --parent ID --file nodes.json` | the ids added |
 | List one level | `state.py outline --under ID` | that node's children only |
 | Move to a node | `state.py enter --id ID` | the node, its neighbours, `next_action` |
+| Change how much a section explains | `state.py detail --id ID --more` \| `--less` \| `--level L` | the new level, and `next_action` |
 | Jump to entry N of a level | `state.py enter --position N --under ID` | the same, addressed by the number the reader sees |
-| Mark a body written | `state.py realise --id ID --line-start N --line-end M` | the updated node |
+| Mark a body written | `state.py realise --id ID --line-start N --line-end M [--detail L]` | the updated node |
 | See the reading path | `state.py trail` | ordered visits |
 | Seed questions | `state.py quiz-add --file questions.json` | ids added |
 | Pick the next question | `state.py quiz-next --count 1` | question plus its line span |
@@ -152,9 +154,19 @@ uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/render.py --toc-file /tmp/datalog
    | `condense` | long or padded source | keep only decision-relevant facts, record what you dropped in `NOTES` |
    | `synthesize` | topic mode, or several sources | you author the page |
 
-4. **Commit the top outline level** with `add-nodes --parent root`. Take its shape from the genre-to-outline maps in `references/man-format.md`. When the source has its own table of contents, use it. Give every node a specific `promise`.
+4. **Choose a detail level** and record it with `describe --detail`. Fidelity is how far the page departs from its source; detail is how much it explains. They are independent.
 
-5. **Realise the first node only** — usually `NAME`. Display it, then the contents, then wait.
+   | Level | When |
+   |---|---|
+   | `terse` | The default. Reference material, or a reader who knows the subject. |
+   | `full` | The reader is meeting the subject for the first time, or asked for more explanation. |
+   | `tutorial` | The reader is learning the subject, not consulting it. |
+
+   `references/man-format.md` defines exactly what each level adds, with the same passage written at all three. Read it before writing at anything above `terse` — raising the level must add facts, never loosen the register.
+
+5. **Commit the top outline level** with `add-nodes --parent root`. Take its shape from the genre-to-outline maps in `references/man-format.md`. When the source has its own table of contents, use it. Give every node a specific `promise`.
+
+6. **Realise the first node only** — usually `NAME`. Display it, then the contents, then wait.
 
 Do not write more than the first node before the reader asks. That is the whole point of the design.
 
@@ -174,7 +186,9 @@ Call `state.py enter` and act on `next_action`. Address the target by `--id` whe
 
 Read the node's `promise`, then `state.py trail` and — if the reader has been quizzed — `quiz-report`. Write for this reader's path: a node reached after two related sections needs less setup; a node whose neighbour they answered wrong needs the confusion addressed directly.
 
-Then obey `references/language.md`. Every sentence.
+Write at the node's `detail` level, which `enter` returns. Then obey `references/language.md`. Every sentence.
+
+When the reader asks for more explanation — `v`, "more detail", "explain that further" — run `detail --id <node> --more`, rewrite that section's body at the new level, replace it in `page.md`, and call `realise` with the new span. The reader gets one coherent section, not a terse version with an expansion bolted on. `b` or "briefer" goes the other way. `enter` returns `next_action: "realise"` for any node whose body was written at a level it has since left, so a stale body is never displayed.
 
 > **MANDATORY — the outline is a contract.** Never invent a node outside the committed outline. New nodes appear only by enumerating a container's children, by explicit reader request, or as `GAPS`. This is what stops a large document from generating forever and what guarantees an `(END)`.
 
