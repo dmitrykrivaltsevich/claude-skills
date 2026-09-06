@@ -46,8 +46,25 @@ HEADING_RE = re.compile(r"^(#{1,6})\s+(.*?)\s*$")
 FENCE_RE = re.compile(r"^\s*```")
 BULLET_RE = re.compile(r"^\s*([-*+]|\d+\.)\s+")
 
+# A tagged paragraph is `Label:  value` — what `man` sets with .TP and what
+# ENVIRONMENT, FILES, EXIT STATUS, DIAGNOSTICS and GAPS entries are made of.
+# The label is one or two words so an ordinary sentence containing a colon
+# ("There are two kinds: fast and slow") is not mistaken for one.
+TAG_RE = re.compile(r"^([A-Z][A-Za-z0-9_-]*(?: [A-Za-z0-9_-]+)?):([ \t]+)(\S.*)$")
+
+# Past this the label would leave too little room for its value, so the value
+# starts on the following line instead — the same break `man` makes.
+MAX_TAG_LABEL = 20
+
+# Two or more spaces after the colon marks a deliberately aligned tag, which
+# lets a single-line tag block be recognised without a neighbour to confirm it.
+ALIGNED_TAG_GAP = 2
+
 KEYS_HINT = "(h for keys)"
 END_HINT = "(END — ! for gaps)"
+# Offering the gap mode while the reader is already inside GAPS reads as a bug.
+END_HINT_IN_GAPS = "(END)"
+GAPS_HEADING = "GAPS"
 
 # A read node is marked in the contents the way a pager marks a visited entry.
 READ_MARK = "*"
@@ -107,6 +124,37 @@ def _wrap(text: str, width: int, indent: int, hanging: int | None = None) -> lis
     return [pad + wrapped[0]] + [hang + line for line in wrapped[1:]]
 
 
+def _tag_match(line: str) -> tuple[str, int, str] | None:
+    """Split `Label:  value` into its parts, or None when the line is prose."""
+    if line[:1] in (" ", "\t"):
+        return None
+    match = TAG_RE.match(line.rstrip())
+    if not match:
+        return None
+    label, separator, value = match.group(1), match.group(2), match.group(3)
+    if len(label) > MAX_TAG_LABEL * 2:
+        return None
+    return label, len(separator), value
+
+
+def _typeset_tags(run: list[tuple[str, int, str]], width: int) -> list[str]:
+    """Lay out one run of tagged paragraphs against a shared value column."""
+    column = min(max(len(label) for label, _, _ in run) + 2, MAX_TAG_LABEL + 2)
+
+    out: list[str] = []
+    for label, _, value in run:
+        tag = f"{label}:"
+        wrapped = _wrap(value, width, BODY_INDENT + column)
+        if len(tag) < column:
+            out.append(" " * BODY_INDENT + tag.ljust(column) + wrapped[0].lstrip())
+            out.extend(wrapped[1:])
+        else:
+            # The label owns its line; the value keeps the shared column.
+            out.append(" " * BODY_INDENT + tag)
+            out.extend(wrapped)
+    return out
+
+
 def _typeset(lines: list[str], width: int) -> list[str]:
     """Lay out one section's body: paragraphs wrapped, code and lists preserved."""
     out: list[str] = []
@@ -118,7 +166,11 @@ def _typeset(lines: list[str], width: int) -> list[str]:
             out.extend(_wrap(" ".join(paragraph), width, BODY_INDENT))
             paragraph.clear()
 
-    for line in lines:
+    index = 0
+    while index < len(lines):
+        line = lines[index]
+        index += 1
+
         if FENCE_RE.match(line):
             flush()
             in_fence = not in_fence
@@ -149,6 +201,25 @@ def _typeset(lines: list[str], width: int) -> list[str]:
             out.append(" " * SUBSECTION_INDENT + text if depth >= 3 else text.upper())
             out.append("")
             continue
+
+        tag = _tag_match(line)
+        if tag:
+            run = [tag]
+            lookahead = index
+            while lookahead < len(lines):
+                following = _tag_match(lines[lookahead])
+                if following is None:
+                    break
+                run.append(following)
+                lookahead += 1
+
+            aligned = any(separator >= ALIGNED_TAG_GAP for _, separator, _ in run)
+            if len(run) >= 2 or aligned:
+                flush()
+                out.extend(_typeset_tags(run, width))
+                index = lookahead
+                continue
+            # A lone `Label: value` with a single space is ordinary prose.
 
         bullet = BULLET_RE.match(line)
         if bullet:
@@ -245,7 +316,12 @@ def prompt_line(
     width: int = DEFAULT_WIDTH,
 ) -> str:
     """The single status line under a screen, in the style of `man`."""
-    hint = END_HINT if end else KEYS_HINT
+    if not end:
+        hint = KEYS_HINT
+    elif section.strip().upper() == GAPS_HEADING:
+        hint = END_HINT_IN_GAPS
+    else:
+        hint = END_HINT
     left = "  ".join(part for part in (name, position, section) if part)
 
     room = width - len(hint) - 1

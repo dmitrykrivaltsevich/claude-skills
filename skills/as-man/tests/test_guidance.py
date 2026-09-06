@@ -220,6 +220,18 @@ class TestReferenceContent:
         for key in ("n  next", "$  last section", "!  what is missing", "?  test my understanding"):
             assert key in text
 
+    def test_man_format_documents_tagged_paragraphs(self):
+        text = (REFERENCES / "man-format.md").read_text(encoding="utf-8")
+
+        assert "tagged paragraph" in text
+        assert "at least two spaces after each colon" in text
+
+    def test_gap_template_uses_the_tagged_form(self):
+        text = (REFERENCES / "gap-analysis.md").read_text(encoding="utf-8")
+
+        for label in ("Kind:", "Materiality:", "Missing:", "Effect:", "Evidence:"):
+            assert f"\n{label}" in text
+
     def test_man_format_documents_jumping_to_a_numbered_entry(self):
         text = (REFERENCES / "man-format.md").read_text(encoding="utf-8")
 

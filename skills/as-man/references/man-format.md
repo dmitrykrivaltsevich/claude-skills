@@ -94,6 +94,17 @@ The summary is a noun phrase, lower case, no final full stop. This line is what 
 - Bodies are indented seven columns; subsection headings three.
 - Text wraps at 80 columns.
 - Code blocks are reproduced exactly and may overflow, because rewrapping code would change its meaning.
+- Consecutive `Label:  value` lines become a tagged paragraph: the values line up in one column and a long value wraps under it. This is how `man` sets `ENVIRONMENT`, `FILES`, `EXIT STATUS` and `DIAGNOSTICS`, and it is how a `GAPS` entry is laid out.
+
+Write a tagged block as plain lines, one field per line, with at least two spaces after each colon:
+
+```
+Kind:         omission
+Materiality:  high
+Missing:      Cross-zone traffic is billed per gigabyte in each direction.
+```
+
+The label is one or two words. A sentence that merely contains a colon stays prose, so `There are two kinds: stratified and unstratified.` wraps normally.
 
 Print the rendered text inside a fenced code block so the terminal keeps the column alignment.
 

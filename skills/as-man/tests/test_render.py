@@ -122,6 +122,113 @@ class TestSectionLayout:
             render.render_section(page, heading="NAME", width=5)
 
 
+class TestTaggedParagraphs:
+    """`Label:  value` blocks — used by GAPS, ENVIRONMENT, FILES, EXIT STATUS."""
+
+    def _page(self, tmp_path: Path, body: str) -> Path:
+        target = tmp_path / "tagged.md"
+        target.write_text(f"## GAPS\n\n{body}\n", encoding="utf-8")
+        return target
+
+    GAP = """GAP 4 - Model keeps regular degrees and misses hubs
+
+Kind:         stale
+Materiality:  medium
+Missing:      Rewiring keeps degrees near-regular. Many real networks show heavy-tailed degrees with hubs, better described by preferential-attachment models that came after 1998.
+Effect:       A reader who models epidemics or robustness on rewired lattices misses hub-driven spread and failure.
+Evidence:     https://en.wikipedia.org/wiki/Watts-Strogatz_model (retrieved 2026-09-05)"""
+
+    def test_each_field_keeps_its_own_line(self, tmp_path: Path):
+        out = render.render_section(self._page(tmp_path, self.GAP), heading="GAPS")
+
+        for label in ("Kind:", "Materiality:", "Missing:", "Effect:", "Evidence:"):
+            starts = [ln for ln in out.splitlines() if ln.strip().startswith(label)]
+            assert len(starts) == 1, f"{label} did not start its own line"
+
+    def test_fields_are_never_merged_into_one_paragraph(self, tmp_path: Path):
+        out = render.render_section(self._page(tmp_path, self.GAP), heading="GAPS")
+
+        for line in out.splitlines():
+            assert not ("Kind:" in line and "Materiality:" in line)
+            assert not ("Missing:" in line and "Effect:" in line)
+
+    def test_values_align_in_one_column(self, tmp_path: Path):
+        out = render.render_section(self._page(tmp_path, self.GAP), heading="GAPS")
+        columns = {
+            line.index(value)
+            for line, value in (
+                (next(l for l in out.splitlines() if "Kind:" in l), "stale"),
+                (next(l for l in out.splitlines() if "Materiality:" in l), "medium"),
+            )
+        }
+
+        assert len(columns) == 1
+
+    def test_a_long_value_wraps_under_its_own_column(self, tmp_path: Path):
+        out = render.render_section(self._page(tmp_path, self.GAP), heading="GAPS")
+        lines = out.splitlines()
+        missing_at = next(i for i, l in enumerate(lines) if "Missing:" in l)
+        value_column = lines[missing_at].index("Rewiring")
+        continuation = lines[missing_at + 1]
+
+        assert continuation.strip()
+        assert len(continuation) - len(continuation.lstrip()) == value_column
+
+    def test_tagged_blocks_respect_the_width(self, tmp_path: Path):
+        out = render.render_section(self._page(tmp_path, self.GAP), heading="GAPS", width=72)
+        wrappable = [l for l in out.splitlines() if "wikipedia.org" not in l]
+
+        assert max(len(l) for l in wrappable) <= 72
+
+    def test_a_url_value_is_not_broken_across_lines(self, tmp_path: Path):
+        out = render.render_section(self._page(tmp_path, self.GAP), heading="GAPS")
+
+        assert "https://en.wikipedia.org/wiki/Watts-Strogatz_model" in out
+
+    def test_prose_around_a_tag_block_still_wraps_as_prose(self, tmp_path: Path):
+        out = render.render_section(self._page(tmp_path, self.GAP), heading="GAPS")
+        heading_line = next(l for l in out.splitlines() if "GAP 4" in l)
+
+        assert heading_line.strip().startswith("GAP 4 - Model keeps")
+
+    def test_a_lone_prose_sentence_with_a_colon_is_not_a_tag(self, tmp_path: Path):
+        body = "Note: the evaluation order is unspecified here, so two conforming implementations may differ in the order they emit results to the caller."
+        out = render.render_section(self._page(tmp_path, body), heading="GAPS")
+
+        # Prose, so it wraps as a paragraph with a flush body indent, not a tag column.
+        second = out.splitlines()[3]
+        assert len(second) - len(second.lstrip()) == 7
+
+    def test_a_single_aligned_tag_is_still_a_tag(self, tmp_path: Path):
+        out = render.render_section(self._page(tmp_path, "Exit status:   0 on success."), heading="GAPS")
+        line = next(l for l in out.splitlines() if "Exit status:" in l)
+
+        assert "0 on success." in line
+
+    def test_an_over_long_label_puts_its_value_on_the_next_line(self, tmp_path: Path):
+        # Labels are one or two words by design, so an ordinary sentence with a
+        # colon is not mistaken for a tag. This one is two words but too wide.
+        body = "Backwards compatibility:  broken for clients older than version 3.\nKind:  stale"
+        out = render.render_section(self._page(tmp_path, body), heading="GAPS")
+        label_line = next(l for l in out.splitlines() if "Backwards" in l)
+
+        assert label_line.strip() == "Backwards compatibility:"
+
+    def test_a_multi_word_sentence_with_a_colon_stays_prose(self, tmp_path: Path):
+        body = "There are two kinds: stratified and unstratified.\nBoth are rejected here: only the first is allowed."
+        out = render.render_section(self._page(tmp_path, body), heading="GAPS")
+
+        # Joined and wrapped as one paragraph, not split into a tag column.
+        assert "There are two kinds: stratified and unstratified. Both are" in out
+
+    def test_environment_style_blocks_are_tagged_too(self, tmp_path: Path):
+        body = "PAGER:  the program used to display output\nEDITOR:  the program used to edit files"
+        out = render.render_section(self._page(tmp_path, body), heading="GAPS")
+
+        assert len([l for l in out.splitlines() if l.strip().startswith("PAGER:")]) == 1
+        assert len([l for l in out.splitlines() if l.strip().startswith("EDITOR:")]) == 1
+
+
 class TestPromptLine:
     def test_prompt_carries_name_position_and_section(self):
         line = render.prompt_line(name="datalog(7)", position="12/27", section="RECURSIVE QUERIES")
@@ -139,6 +246,17 @@ class TestPromptLine:
         assert "END" in line
         assert "!" in line
         assert "(h for keys)" not in line
+
+    def test_the_end_of_gaps_does_not_offer_the_gap_mode_again(self):
+        line = render.prompt_line(name="datalog(7)", position="8/8", section="GAPS", end=True)
+
+        assert "END" in line
+        assert "! for gaps" not in line
+
+    def test_the_end_of_any_other_section_still_offers_gaps(self):
+        line = render.prompt_line(name="datalog(7)", position="7/7", section="SEE ALSO", end=True)
+
+        assert "! for gaps" in line
 
     def test_prompt_is_a_single_line(self):
         line = render.prompt_line(name="datalog(7)", position="1/7", section="NAME")
