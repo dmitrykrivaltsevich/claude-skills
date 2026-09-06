@@ -113,14 +113,16 @@ Print the rendered text inside a fenced code block so the terminal keeps the col
 Show these only when the reader presses `h`. The prompt line stays one line.
 
 ```
-n  next             t  contents        u  up a level    ?  test my understanding
-p  previous         $  last section    /  search        !  what is missing
+n  next             c  contents        u  up a level    t  test my understanding
+p  previous         $  last section    s  search        g  what is missing
 12 go to entry 12   h  keys            q  quit
 ```
 
 Accept the full word as well as the key: `next`, `contents`, `gaps`, `test`. The reader is typing into a chat, not a terminal.
 
-A bare number is a jump to that entry of the level currently displayed, which is the numbering a contents screen shows. `go to 12` and `12` mean the same thing. A number is never a search term: to find the digits themselves, the reader uses `/`.
+A bare number is a jump to that entry of the level currently displayed, which is the numbering a contents screen shows. `go to 12` and `12` mean the same thing. A number is never a search term: to find the digits themselves, the reader uses `s`.
+
+**These keys avoid the characters an agent harness reserves for its own input.** In Claude Code, `!` starts a shell command, `/` starts a slash command, `#` writes to memory and `@` references a file. A reader who typed one of those would be intercepted by the harness and never reach this skill, so the key would appear to do nothing. Never reassign a key to `!`, `/`, `#` or `@`, and prefer a plain letter for anything added later.
 
 The prompt line under every screen:
 
@@ -131,7 +133,7 @@ datalog(7)  12/27  RECURSIVE QUERIES                              (h for keys)
 At the end of the page:
 
 ```
-datalog(7)  27/27  SEE ALSO                                  (END — ! for gaps)
+datalog(7)  27/27  SEE ALSO                                  (END — g for gaps)
 ```
 
 ## Anti-patterns

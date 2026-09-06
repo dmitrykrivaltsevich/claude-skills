@@ -61,7 +61,9 @@ MAX_TAG_LABEL = 20
 ALIGNED_TAG_GAP = 2
 
 KEYS_HINT = "(h for keys)"
-END_HINT = "(END — ! for gaps)"
+END_HINT = "(END — g for gaps)"
+# `g`, not `!`: an agent harness reads a leading `!` as a shell command, so the
+# keypress would never reach the skill. See references/man-format.md.
 # Offering the gap mode while the reader is already inside GAPS reads as a bug.
 END_HINT_IN_GAPS = "(END)"
 GAPS_HEADING = "GAPS"

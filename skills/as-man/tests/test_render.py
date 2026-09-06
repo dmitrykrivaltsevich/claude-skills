@@ -244,19 +244,19 @@ class TestPromptLine:
         line = render.prompt_line(name="datalog(7)", position="7/7", section="SEE ALSO", end=True)
 
         assert "END" in line
-        assert "!" in line
+        assert "g for gaps" in line
         assert "(h for keys)" not in line
 
     def test_the_end_of_gaps_does_not_offer_the_gap_mode_again(self):
         line = render.prompt_line(name="datalog(7)", position="8/8", section="GAPS", end=True)
 
         assert "END" in line
-        assert "! for gaps" not in line
+        assert "g for gaps" not in line
 
     def test_the_end_of_any_other_section_still_offers_gaps(self):
         line = render.prompt_line(name="datalog(7)", position="7/7", section="SEE ALSO", end=True)
 
-        assert "! for gaps" in line
+        assert "g for gaps" in line
 
     def test_prompt_is_a_single_line(self):
         line = render.prompt_line(name="datalog(7)", position="1/7", section="NAME")

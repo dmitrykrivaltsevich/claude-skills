@@ -217,8 +217,31 @@ class TestReferenceContent:
     def test_man_format_lists_the_navigation_keys(self):
         text = (REFERENCES / "man-format.md").read_text(encoding="utf-8")
 
-        for key in ("n  next", "$  last section", "!  what is missing", "?  test my understanding"):
+        for key in ("n  next", "$  last section", "g  what is missing", "t  test my understanding"):
             assert key in text
+
+    def test_no_key_collides_with_a_harness_input_prefix(self):
+        """`!` `/` `#` `@` are intercepted by the harness and never reach the skill."""
+        text = (REFERENCES / "man-format.md").read_text(encoding="utf-8")
+        key_block = text.split("Show these only when the reader presses")[1].split("```")[1]
+
+        for line in key_block.splitlines():
+            for token in (tok.strip() for tok in line.split("  ")):
+                if token and token[0] in "!/#@":
+                    raise AssertionError(f"key {token!r} starts with a reserved prefix")
+
+    def test_the_reserved_prefixes_are_explained_so_they_are_not_reintroduced(self):
+        text = (REFERENCES / "man-format.md").read_text(encoding="utf-8")
+
+        assert "reserves for its own input" in text
+        assert "Never reassign a key to" in text
+
+    def test_skill_routing_uses_the_same_keys_as_the_reference(self):
+        skill = _skill_text()
+
+        assert 't or "test my understanding"' in skill
+        assert 'g or "what is not in this doc"' in skill
+        assert "n p c u $ s" in skill
 
     def test_man_format_documents_tagged_paragraphs(self):
         text = (REFERENCES / "man-format.md").read_text(encoding="utf-8")
