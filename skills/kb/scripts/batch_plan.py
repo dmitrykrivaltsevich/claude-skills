@@ -440,6 +440,17 @@ def _assets_owner_ok(rel_path: str, source_id: str) -> bool:
     return len(parts) >= 3 and parts[1] == source_id
 
 
+def _partition_waves(order: list[str], max_workers: int) -> list[list[str]]:
+    """Split manifest order into dispatch waves of at most max_workers.
+
+    Waves preserve global order (concatenated waves == order) and are
+    disjoint/complete, so the coordinator can dispatch one wave of parallel
+    workers at a time for arbitrarily large batches without any claim
+    protocol — each worker owns its listed sources exclusively.
+    """
+    return [order[i : i + max_workers] for i in range(0, len(order), max_workers)]
+
+
 def _config_sources(kb_path: str) -> list[dict]:
     """Load the config registry with malformed-entry validation (a bare
     KeyError here would hide which entry broke)."""
@@ -563,11 +574,20 @@ def plan_batch(
                 kind="precondition",
             )
         if manifest.get("phase") != "planning":
+            if "waves" not in manifest:
+                raise ContractViolationError(
+                    f"batch manifest {manifest_file} is malformed (missing "
+                    "waves). Delete the batch dir and re-run plan with a "
+                    "fresh batch-id.",
+                    kind="invariant",
+                )
+            waves = manifest["waves"]
             return {
                 "batch_id": batch_id,
                 "manifest_path": str(manifest_file),
                 "source_ids": manifest["order"],
                 "total_sources": len(manifest["order"]),
+                "waves": waves,
                 "resumed": True,
             }
         # Crash during registration — fall through and finish it below,
@@ -608,6 +628,7 @@ def plan_batch(
                 "phase": "planning",
                 "cursor": {"applied_total": 0},
                 "max_workers": max_workers,
+                "waves": _partition_waves(order, max_workers),
                 "created_at": _utc_now(),
                 "updated_at": _utc_now(),
             },
@@ -642,6 +663,7 @@ def plan_batch(
     )
 
     base, unreadable = _snapshot_base(kb_path)
+    waves = _partition_waves(order, max_workers)
     manifest = {
         "batch_id": batch_id,
         "kb_path": str(Path(kb_path)),
@@ -653,6 +675,7 @@ def plan_batch(
         "phase": "mapping",
         "cursor": {"applied_total": 0},
         "max_workers": max_workers,
+        "waves": waves,
         "created_at": _utc_now(),
         "updated_at": _utc_now(),
     }
@@ -662,6 +685,7 @@ def plan_batch(
         "manifest_path": str(manifest_file),
         "source_ids": order,
         "total_sources": len(order),
+        "waves": waves,
         "resumed": False,
     }
 

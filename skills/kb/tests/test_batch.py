@@ -822,3 +822,31 @@ class TestStatusQueueDetail:
         (entry,) = status["escalated"]["entries"]
         assert entry["path"] == "entities/ada.md"
         assert sorted(entry["parties"]) == sorted(src_ids[:2])
+
+
+class TestWaves:
+    def _many_inputs(self, tmp_path, n):
+        d = tmp_path / "many"
+        d.mkdir(exist_ok=True)
+        for i in range(n):
+            (d / f"doc-{i:03d}.md").write_text(f"# Doc {i}", encoding="utf-8")
+        return d
+
+    def test_partitions_by_max_workers(self, kb_path, tmp_path):
+        d = self._many_inputs(tmp_path, 25)
+        result = batch_plan.plan_batch(
+            str(kb_path), str(d), "batch-w",
+            max_workers=10, state_dir=kb_path / ".kb" / "tasks",
+        )
+        waves = result["waves"]
+        assert [len(w) for w in waves] == [10, 10, 5]
+        flat = [sid for w in waves for sid in w]
+        assert flat == result["source_ids"]  # order preserved
+        assert len(set(flat)) == 25  # disjoint, complete
+
+    def test_single_wave_small_batch(self, kb_path, input_dir):
+        result = batch_plan.plan_batch(
+            str(kb_path), str(input_dir), "batch-ws",
+            state_dir=kb_path / ".kb" / "tasks",
+        )
+        assert len(result["waves"]) == 1

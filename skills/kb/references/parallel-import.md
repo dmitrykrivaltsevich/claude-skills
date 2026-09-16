@@ -14,7 +14,8 @@ is indistinguishable from sequential `kb:add` in input order.
 6. [Merge Policy](#merge-policy)
 7. [Lint, Verify, Rules Triage, GC](#lint-verify-rules-triage-gc)
 8. [Resume After Interruption](#resume-after-interruption)
-9. [Anti-Patterns](#anti-patterns)
+9. [Large Batches (Waves)](#large-batches-waves)
+10. [Anti-Patterns](#anti-patterns)
 
 ## Protocol At A Glance
 
@@ -165,6 +166,38 @@ for the final lint.
 
 Never reconstruct state from chat history — the manifest is the truth.
 Never run two merges concurrently (single-writer assumption).
+
+## Large Batches (Waves)
+
+`max-workers` (default 10, hard cap 10) bounds *concurrency*, never total
+sources. `plan` partitions manifest order into `waves` (disjoint, complete,
+order-preserving — read them from the plan result or the manifest). The
+coordinator dispatches one wave at a time: spawn ≤10 workers, wait for all
+to finish, then the next wave. No claim protocol is needed — wave membership
+is the exclusive assignment.
+
+- **Handoff hygiene.** As source count grows, per-worker handoffs flood context. Per wave, keep
+  only `{source_id, started_at, finished_at, counts}` per worker (one line
+  each); rely on `batch_plan.py status` and state items for the rest, and
+  drop each wave's detail from context before dispatching the next.
+- **Stragglers.** A wave finishes when its slowest worker finishes. Put
+  predictably heavy sources (books, scanned PDFs) in the same wave so fast
+  waves stream through.
+- **Dead workers.** An interrupted worker's items stay `in-progress`
+  (there is no lease timeout by design — clocks cannot be trusted here).
+  Recover explicitly: `state.py update-item --status pending` the stuck
+  item, then re-dispatch it in the next wave. Never re-dispatch without
+  resetting — two writers on one source breaks the staging contract.
+- **Merge scales linearly** (one pass over staged ops, whatever the count).
+  Expect more same-file overlaps as sources grow: the queue absorbs
+  them, and triangulation runs per cluster below.
+- **Triangulate per cluster, not per batch.** One triangulation pass cannot
+  hold an arbitrarily large source set. Run it once per topic cluster
+  (related-keyword sweeps define the clusters; one `triangulate` invocation
+  each, same prompt, different keyword scope), then a single lint-fix +
+  lint + mark-done.
+- **Lint output is huge at this scale.** Always use `--output` artifacts +
+  `json_query.py` slices; never print full results into context.
 
 ## Anti-Patterns
 
