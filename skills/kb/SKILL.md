@@ -39,6 +39,7 @@ Knowledge Base — available operations:
 8. **iterate** — Deep cyclic analysis: re-read entries iteratively until insights converge
 9. **topology** — Graph structure analysis: find clusters, bridges, gaps, anomalies
 10. **status** — Dashboard: file counts, link counts, pending tasks
+11. **batch-add** — Parallel import: directory/URL list via ≤10 isolated workers + ordered merge
 
 Which operation? (pick a number or describe what you need)
 ```
@@ -54,6 +55,7 @@ Which operation? (pick a number or describe what you need)
 - User says "revisit/refresh/update old/stale entries" → **revisit**
 - User says "iterate/dig deeper/think harder/cycles" or asks a deep analytical question → **iterate** *(usually auto-triggered during add/query/explore; manual invocation also works)*
 - User says "topology/graph/structure/gaps/clusters/what's missing" → **topology** *(usually auto-triggered after add/lint/explore; manual invocation also works)*
+- User says "import all/batch/many (3+) sources" + directory/URL list → **batch-add** (see [references/parallel-import.md](references/parallel-import.md); 1–2 sources → sequential **add**)
 - User provides a file path or URL without other context → **add** (assume they want to ingest it)
 
 ## Contents
@@ -108,8 +110,11 @@ Three layers per KB:
 | "Find entries related to these topics" | `related.py --kb-path DIR --keywords "a,b,c"` | JSON: entries scored by keyword overlap |
 | "Show me the KB graph" | `graph.py --path DIR` | JSON: nodes, edges, degrees, components, dangling targets |
 | "Analyze KB structure/gaps" | `topology.py --path DIR` | JSON: clusters, bridges, structural holes, degree anomalies, betweenness |
-| "What's the task status?" | `state.py status --task-id ID` | JSON: phase, items done/pending/in-progress |
-| "Resume pending work" | `state.py pending --task-id ID` | JSON: next items to process |
+| "Task status / resume work" | `state.py status\|pending --task-id ID` | JSON: phase, item counts, next pending items |
+| "Import this directory / URL list in parallel" | `batch_plan.py plan --kb-path DIR --input IN --batch-id ID` | Manifest + pre-registered sources, sorted/list order kept |
+| "Merge staged batch proposals" | `batch_merge.py merge\|mark-done\|gc --kb-path DIR --batch-id ID` | Ordered replay, self-checked lint gate, scratch GC |
+| "Render batch prompts / audit a merge" | `batch_prompts.py worker\|lint-fix\|triangulate`; `batch_verify.py --kb-path DIR --batch-id ID` | Canned delegation prompts; log-order/completeness/chain audit |
+| "Fix backlinks / timeline gaps mechanically" | `lint_fix.py backlinks\|timeline --kb-path DIR --apply` | Idempotent reciprocal links + date stubs; dry-run default |
 | "Reopen a slice from saved JSON" | `json_query.py --file FILE [--selector PATH] [--where key=value] [--fields a b] [--limit N]` | JSON: only the requested subset of a saved artifact |
 | "Reopen a slice from saved markdown/text" | `page_query.py --file FILE (--heading H | --chunk N [--chunk-size M] | --start-line A --end-line B)` | JSON: section/chunk/line-range from a markdown/text file |
 
@@ -277,16 +282,23 @@ Mandatory for academic papers, textbooks, and any source that references other w
 6. **Auto-iterate**: If the source raised deep analytical questions or exposed tensions with existing KB content, auto-trigger a `kb:iterate` cycle on the most promising 1-2 questions. Don't ask — just do it.
 7. **Offer exploration**: "Source ingested. Want me to explore the KB for new connections?" If user agrees → run `kb:explore`.
 
+### kb:batch-add — Parallel Import (Map → Reduce)
+
+1. `batch_plan.py plan` (pre-registers all sources, writes `.kb/batches/<id>/manifest.json`)
+2. Spawn ≤10 workers via `batch_prompts.py worker` prompts (staging-only, no `lint`, no `rules.md` edits)
+3. `batch_merge.py merge` (ordered replay) → triangulate pass → `lint_fix.py` → `lint` → `mark-done` → verify → `gc`
+
+Full worker contract, merge policy, resume/GC protocol: [references/parallel-import.md](references/parallel-import.md).
+
 ### kb:lint — Health Check, Repair & Consolidation
 
 **kb:lint runs unattended.** Assume no one is watching and no one will answer. Every decision in this operation — which phrasing to rewrite, which findings are legitimate, which duplicates to merge — is yours to make and apply. Never ask the user to choose, confirm, or triage, and never finish with findings left unresolved because a judgement call was needed. Anything that genuinely needs a human goes into a file (see step 6), not into a question. Report what you did once `total_issues` is 0.
 
 1. Run `lint.py` — get JSON list of mechanical issues
-2. **Fix ALL mechanical issues — every single one, no matter the count.** If there are 2200 missing backlinks, fix all 2200. Batch them (50 at a time, save, repeat) but do NOT skip any or say "too many." This is mechanical work that scales with compute, not judgment.
+2. **Fix ALL mechanical issues — every single one, no matter the count.** Start with `lint_fix.py backlinks --apply`, then `timeline --apply` (both idempotent; `--dry-run` previews the plan). Hand-fix only what the script cannot: broken links, orphans, frontmatter, unreadable files. Never skip, never say "too many."
    - Broken links: correct target or create missing entry
    - Orphan pages: link from relevant entries
-   - **Missing backlinks: add reciprocal links. ALL of them.** If A→B but B↛A, add the link to B. This is the #1 lint priority — without reciprocal links the knowledge graph is broken.
-   - Timeline gaps: create missing year/month/day entries
+   - **Reciprocity is non-negotiable and the #1 priority** (`lint_fix.py` enforces it mechanically): without reciprocal links the knowledge graph is broken — same for timeline parent/child links.
    - Missing frontmatter: add it
    - Unreadable files (`unreadable-file`): fix the encoding, or remove the file if it is not real KB content
 3. **Style phrases**: resolve every `style-phrase` finding yourself. Apply the first rule that fits — rewrite the sentence (default); `--reason verbatim-quote` when `context: quote` and the line quotes a source; `--reason subject-matter` when the match is this KB's domain vocabulary; disable the pattern in `.kb/style-patterns.json` when it fires 5+ times on legitimate usage. Re-run and repeat, at most 3 passes; record anything still standing with `--reason other` plus a note so the run terminates. An excepted finding leaves `issues` and moves to `style.exception_findings`, so keep going until `total_issues` is 0. See [references/style-linting.md](references/style-linting.md) for the decision procedure and `style_exceptions.py` commands.
@@ -475,6 +487,7 @@ See [references/rules-coevolution.md](references/rules-coevolution.md) for the f
 - [references/paper-workflow.md](references/paper-workflow.md) — Academic paper extraction with mandatory citation graph
 - [references/video-url-workflow.md](references/video-url-workflow.md) — Video/podcast transcript and URL reference stubs
 - [references/collection-workflow.md](references/collection-workflow.md) — Collection processing (magazines, journals, proceedings, anthologies): per-article extraction, article analysis briefs, issue-level synthesis, cross-issue analysis
+- [references/parallel-import.md](references/parallel-import.md) — `kb:batch-add` protocol: isolated workers, ordered merge, resume/GC
 - [references/entry-types.md](references/entry-types.md) — Schema for each entry type (including questions), custom entry types, entity triangulation rules, wikilink patterns
 - [references/citation-tracking.md](references/citation-tracking.md) — Full citation tracking protocol with examples: forward citations, backward citations, entries for works not in sources, unreferenced bibliography
 - [references/long-horizon.md](references/long-horizon.md) — Full long-horizon protocol: everything-on-disk principle, checkpoint discipline, resumption protocol, hierarchical processing, all 7 trajectory drift defenses, context management

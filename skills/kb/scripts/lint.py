@@ -15,7 +15,8 @@ Two scopes.  Structural checks read knowledge/ only:
 
 Style-phrase scanning covers every .md in the KB except the raw source layer
 (sources/files/) and the operation's own bookkeeping (.kb/tasks/,
-.kb/rules-proposals.md, and the style exception store .kb/style-exceptions/).
+.kb/rules-proposals.md, the style exception store .kb/style-exceptions/,
+and parallel-import scratch .kb/batches/ + .kb/batches-archived/).
 
 Does NOT perform semantic analysis — that's the LLM's job after reading
 the lint output.
@@ -51,6 +52,8 @@ _STYLE_EXCLUDED_DIRS = (
     (".kb", "tasks"),
     (".kb", "style-exceptions"),
     (".kb", "style-reviewed"),
+    (".kb", "batches"),
+    (".kb", "batches-archived"),
 )
 _STYLE_EXCLUDED_FILES = (".kb/rules-proposals.md",)
 _FENCE_RE = re.compile(r"^\s{0,3}(`{3,}|~{3,})")

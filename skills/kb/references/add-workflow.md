@@ -171,6 +171,6 @@ This happens in Phase 5 (Cross-Reference & Analyze) and is MANDATORY, not option
 
 **EVERY wikilink MUST be reciprocal.** If entry A links to entry B, then entry B MUST link back to entry A. This is not optional and is not subject to "too many" exceptions.
 
-When `lint.py` reports N missing backlinks, fix ALL N of them. Not "the most important ones." Not "I'll fix them later." All of them. If there are 2200, batch them: fix 50, save, fix 50, save. This is mechanical work — you don't need to read the full entries, just add the wikilink in the appropriate section (usually `## See also` or `## Related`).
+When `lint.py` reports N missing backlinks, run `lint_fix.py backlinks --kb-path DIR --apply` (idempotent; `--dry-run` previews) instead of hand-editing. Not "the most important ones." Not "I'll fix them later." All of them — the script has no "too many" limit. (Hand-adding is the fallback only when the script cannot run.)
 
 **Why non-negotiable**: Obsidian backlinks are the KB's navigation system. A missing backlink means an entry is invisible from the other side. At 2200 missing backlinks, the knowledge graph has 2200 invisible connections — the KB is effectively a bag of files, not a graph.
