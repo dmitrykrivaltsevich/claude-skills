@@ -190,6 +190,123 @@ class TestAnalyzeTopology:
         assert result["reciprocity"] == 0.0
 
 
+def _star_triangle_edges() -> tuple[list[dict], list[str]]:
+    """Fixed 8-node graph: star center 0 (leaves 1-4) attached to triangle 5-6-7.
+
+    Golden betweenness (legacy exact Brandes, round 4):
+    center 0.8571, node5 0.4762, rest 0.0.
+    """
+    nodes = [{"id": str(i)} for i in range(8)]
+    edges = [{"source": "0", "target": str(i)} for i in range(1, 5)]
+    edges.append({"source": "0", "target": "5"})
+    for a, b in [("5", "6"), ("6", "5"), ("6", "7"), ("7", "6"), ("5", "7"), ("7", "5")]:
+        edges.append({"source": a, "target": b})
+    return nodes, edges
+
+
+class TestBetweennessEngine:
+    """The betweenness engine is swappable; values are pinned by golden vectors."""
+
+    def test_golden_values(self, tmp_path: Path) -> None:
+        """Engine must reproduce the exact normalized scores, not just ranking."""
+        nodes, edges = _star_triangle_edges()
+        adj = topology._undirected_adj(nodes, edges)
+        bc = topology._betweenness_centrality(adj, [str(i) for i in range(8)])
+        rounded = {k: round(v, 4) for k, v in bc.items()}
+        assert rounded == {
+            "0": 0.8571, "1": 0.0, "2": 0.0, "3": 0.0,
+            "4": 0.0, "5": 0.4762, "6": 0.0, "7": 0.0,
+        }
+
+    def test_golden_values_via_cli_graph(self, tmp_path: Path) -> None:
+        """Golden vector must survive the full analyze_topology path."""
+        kb = _scaffold(tmp_path)
+        links = {
+            "n0": "[[n1]] [[n2]] [[n3]] [[n4]] [[n5]]",
+            "n1": "[[n0]]", "n2": "[[n0]]", "n3": "[[n0]]", "n4": "[[n0]]",
+            "n5": "[[n0]] [[n6]] [[n7]]",
+            "n6": "[[n5]] [[n7]]", "n7": "[[n5]] [[n6]]",
+        }
+        for name, body in links.items():
+            _write(kb, f"knowledge/entities/{name}.md",
+                   f"---\ntype: entity\n---\n# {name.upper()}\n{body}")
+        result = analyze_topology(str(kb))
+        top = {t["id"]: t["betweenness"] for t in result["top_betweenness"]}
+        assert top.get("n0") == 0.8571
+        assert top.get("n5") == 0.4762
+        assert result["top_betweenness"][0]["id"] == "n0"
+
+    def test_deterministic_across_runs(self, tmp_path: Path) -> None:
+        """Two consecutive runs must be byte-identical JSON."""
+        kb = _scaffold(tmp_path)
+        _write(kb, "knowledge/entities/a.md", "---\ntype: entity\n---\n# A\n[[b]] [[c]]")
+        _write(kb, "knowledge/entities/b.md", "---\ntype: entity\n---\n# B\n[[a]] [[c]]")
+        _write(kb, "knowledge/entities/c.md", "---\ntype: entity\n---\n# C\n[[a]]")
+        first = json.dumps(analyze_topology(str(kb)), sort_keys=True)
+        second = json.dumps(analyze_topology(str(kb)), sort_keys=True)
+        assert first == second
+
+
+class TestGraphInput:
+    """topology.py must accept a precomputed graph.py artifact."""
+
+    def test_graph_input_matches_path_run(self, tmp_path: Path) -> None:
+        from ._loader import load_script_module
+        graph_mod = load_script_module("kb_test_graph_script", "graph.py")
+        kb = _scaffold(tmp_path)
+        _write(kb, "knowledge/entities/a.md", "---\ntype: entity\n---\n# A\n[[b]]")
+        _write(kb, "knowledge/entities/b.md", "---\ntype: entity\n---\n# B\n[[a]]")
+        graph = graph_mod.build_graph(str(kb))
+        assert topology.analyze_topology_from_graph(graph) == analyze_topology(str(kb))
+
+    def test_cli_graph_input_flag(self, tmp_path: Path) -> None:
+        kb = _scaffold(tmp_path)
+        _write(kb, "knowledge/entities/a.md", "---\ntype: entity\n---\n# A\n[[b]]")
+        _write(kb, "knowledge/entities/b.md", "---\ntype: entity\n---\n# B\n[[a]]")
+        graph_path = tmp_path / "graph.json"
+        proc = subprocess.run(
+            [sys.executable, str(Path(__file__).resolve().parent.parent / "scripts" / "graph.py"),
+             "--path", str(kb), "--output", str(graph_path)],
+            capture_output=True, text=True,
+        )
+        assert proc.returncode == 0
+        result = subprocess.run(
+            [sys.executable, str(Path(__file__).resolve().parent.parent / "scripts" / "topology.py"),
+             "--graph-input", str(graph_path)],
+            capture_output=True, text=True,
+        )
+        assert result.returncode == 0
+        data = json.loads(result.stdout)
+        assert data["total_nodes"] == 2
+
+
+class TestSingleReadParse:
+    """build_graph must read each file once (titles from cached text)."""
+
+    def test_each_file_read_once(self, tmp_path: Path) -> None:
+        import pathlib
+        from ._loader import load_script_module
+        graph_mod = load_script_module("kb_test_graph_readcount", "graph.py")
+        kb = _scaffold(tmp_path)
+        for name in ["a", "b", "c"]:
+            _write(kb, f"knowledge/entities/{name}.md",
+                   f"---\ntype: entity\n---\n# {name.upper()}\n[[a]]")
+        original = pathlib.Path.read_text
+        calls: list[str] = []
+
+        def counting(self: pathlib.Path, *args, **kwargs):  # type: ignore[no-untyped-def]
+            calls.append(str(self))
+            return original(self, *args, **kwargs)
+
+        pathlib.Path.read_text = counting  # type: ignore[method-assign]
+        try:
+            graph_mod.build_graph(str(kb))
+        finally:
+            pathlib.Path.read_text = original  # type: ignore[method-assign]
+        kb_reads = [c for c in calls if str(kb) in c]
+        assert len(kb_reads) == 3
+
+
 class TestTopologyCli:
 
     def test_cli_json_output(self, tmp_path: Path) -> None:

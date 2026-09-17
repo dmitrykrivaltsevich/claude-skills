@@ -34,7 +34,7 @@ Scripts compute the metrics. **You interpret what they mean** for the knowledge 
 ### Step 1 — Extract Graph
 
 ```bash
-uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/graph.py --path <KB_PATH>
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/graph.py --path <KB_PATH> --output /tmp/kb-graph.json
 ```
 
 Read the output. Note: `total_nodes`, `total_edges`, `components`, `dangling_targets`.
@@ -42,10 +42,13 @@ Read the output. Note: `total_nodes`, `total_edges`, `components`, `dangling_tar
 ### Step 2 — Analyze Topology
 
 ```bash
-uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/topology.py --path <KB_PATH>
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/topology.py --graph-input /tmp/kb-graph.json --output /tmp/kb-topology.json
 ```
 
-Read the full JSON output. The key sections to interpret:
+`--graph-input` reuses the Step 1 artifact so KB files are parsed once.
+Reopen only the slices you need with `json_query.py` (per-field triage —
+`bridges`, `structural_holes`, `degree_anomalies`, `top_betweenness`,
+per-cluster `members`) instead of loading the whole artifact. The key sections to interpret:
 
 | Field | What it tells you |
 |-------|-------------------|

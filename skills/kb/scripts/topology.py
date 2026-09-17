@@ -1,19 +1,21 @@
 #!/usr/bin/env python3
 # /// script
 # requires-python = ">=3.11"
-# dependencies = []
+# dependencies = ["igraph>=1.0"]
 # ///
 """KB topology — graph-theoretic analysis of knowledge base structure.
 
 Takes the raw graph from graph.py and computes topological metrics:
   - Degree distribution & anomalies (isolated, under-linked authority nodes)
-  - Betweenness centrality (bridge/hub detection)
+  - Betweenness centrality (bridge/hub detection, via igraph's C Brandes)
   - Community detection (label propagation — no external deps)
   - Structural holes (disconnected cluster pairs)
   - Reciprocity (fraction of bidirectional edges)
   - Category distribution
 
-All algorithms use only stdlib — no networkx, no numpy.
+Only betweenness uses igraph (raw unordered scores with our own
+normalization — igraph's built-in normalized scores use a different
+divisor and must NOT be used here).  Everything else is stdlib.
 The LLM interprets what the metrics mean for the knowledge domain.
 
 Output: JSON to stdout.  Errors to stderr.
@@ -22,12 +24,13 @@ Output: JSON to stdout.  Errors to stderr.
 from __future__ import annotations
 
 import argparse
-import collections
 import json
 import os
 import random
 import sys
 from pathlib import Path
+
+import igraph as ig
 
 sys.path.insert(0, os.path.dirname(__file__))
 from artifact_output import emit_json_result
@@ -56,79 +59,39 @@ def _directed_adj(nodes: list[dict], edges: list[dict]) -> dict[str, set[str]]:
     return adj
 
 
-def _bfs_shortest_paths(adj: dict[str, set[str]], source: str) -> dict[str, tuple[int, list[list[str]]]]:
-    """BFS from source.  Returns {node: (distance, [paths])} for all reachable nodes.
-
-    Paths are lists of intermediate nodes (excluding source and target).
-    Only used for betweenness — keeps all shortest paths to get accurate counts.
-    """
-    dist: dict[str, int] = {source: 0}
-    # predecessors: node → list of predecessors on shortest paths
-    preds: dict[str, list[str]] = {source: []}
-    queue = collections.deque([source])
-
-    while queue:
-        current = queue.popleft()
-        for neighbour in adj.get(current, set()):
-            if neighbour not in dist:
-                dist[neighbour] = dist[current] + 1
-                preds[neighbour] = [current]
-                queue.append(neighbour)
-            elif dist[neighbour] == dist[current] + 1:
-                preds[neighbour].append(current)
-
-    return dist, preds
-
-
 def _betweenness_centrality(adj: dict[str, set[str]], node_ids: list[str]) -> dict[str, float]:
-    """Brandes algorithm for betweenness centrality on undirected graph.
+    """Exact Brandes betweenness via igraph's C implementation.
 
-    Returns normalized centrality (divided by (n-1)(n-2)/2 for undirected).
+    igraph returns RAW unordered scores (same accumulation as the legacy
+    pure-Python Brandes); our own divisor reproduces the legacy normalized
+    values to < 1e-9 (float summation order only — see
+    TestBetweennessEngine).  igraph's normalized=True MUST NOT be used:
+    it divides by C(n,2) instead of C(n-1,2).
     """
     centrality: dict[str, float] = {n: 0.0 for n in node_ids}
     n = len(node_ids)
+    if n <= 2:
+        return centrality
 
-    for s in node_ids:
-        # BFS
-        stack: list[str] = []
-        preds: dict[str, list[str]] = {n: [] for n in node_ids}
-        sigma: dict[str, int] = {n: 0 for n in node_ids}
-        sigma[s] = 1
-        dist: dict[str, int] = {n: -1 for n in node_ids}
-        dist[s] = 0
-        queue = collections.deque([s])
+    index = {nid: i for i, nid in enumerate(node_ids)}
+    seen: set[tuple[int, int]] = set()
+    edges: list[tuple[int, int]] = []
+    for s, targets in adj.items():
+        if s not in index:
+            continue
+        for t in targets:
+            if t not in index:
+                continue
+            a, b = index[s], index[t]
+            if (b, a) not in seen:
+                seen.add((a, b))
+                edges.append((a, b))
 
-        while queue:
-            v = queue.popleft()
-            stack.append(v)
-            for w in adj.get(v, set()):
-                if dist[w] < 0:
-                    dist[w] = dist[v] + 1
-                    queue.append(w)
-                if dist[w] == dist[v] + 1:
-                    sigma[w] += sigma[v]
-                    preds[w].append(v)
-
-        # Accumulation
-        delta: dict[str, float] = {n: 0.0 for n in node_ids}
-        while stack:
-            w = stack.pop()
-            for v in preds[w]:
-                if sigma[w] > 0:
-                    delta[v] += (sigma[v] / sigma[w]) * (1 + delta[w])
-            if w != s:
-                centrality[w] += delta[w]
-
-    # Normalize for undirected graph: each pair counted from both ends
-    # so divide by 2, then by (n-1)(n-2) if n > 2
-    if n > 2:
-        norm = (n - 1) * (n - 2)
-        for node in centrality:
-            centrality[node] = centrality[node] / norm
-    elif n <= 2:
-        for node in centrality:
-            centrality[node] = 0.0
-
+    graph = ig.Graph(n=n, edges=edges, directed=False)
+    raw = graph.betweenness(directed=False, normalized=False)
+    norm = (n - 1) * (n - 2) / 2
+    for nid, i in index.items():
+        centrality[nid] = raw[i] / norm
     return centrality
 
 
@@ -222,6 +185,10 @@ def _find_connected_components(adj: dict[str, set[str]], node_ids: list[str]) ->
     lambda kb_path, **_: len(kb_path.strip()) > 0,
     "kb_path must be non-empty",
 )
+@precondition(
+    lambda kb_path, **_: len(kb_path.strip()) > 0,
+    "kb_path must be non-empty",
+)
 def analyze_topology(kb_path: str) -> dict:
     """Analyze the topological structure of a knowledge base graph.
 
@@ -235,6 +202,15 @@ def analyze_topology(kb_path: str) -> dict:
       - Top betweenness centrality nodes
     """
     graph = build_graph(kb_path)
+    return analyze_topology_from_graph(graph)
+
+
+def analyze_topology_from_graph(graph: dict) -> dict:
+    """Analyze topology from a precomputed graph.py result dict.
+
+    Identical output to analyze_topology() for the same graph — use with
+    graph.py --output to parse KB files only once in chained runs.
+    """
     nodes = graph["nodes"]
     edges = graph["edges"]
 
@@ -288,11 +264,13 @@ def analyze_topology(kb_path: str) -> dict:
     # Top betweenness (nodes with centrality > 0, sorted desc, top 10)
     # 10 results is enough for the LLM to identify the most important
     # bridge nodes without overwhelming the output.
+    # Tiebreak by id: node_ids arrive alphabetically (build_graph sorts),
+    # so this preserves legacy order and is immune to float last-ulp noise.
     top_betw = sorted(
         [{"id": nid, "betweenness": round(bc, 4), "type": nodes_by_id[nid]["type"],
           "title": nodes_by_id[nid]["title"]}
          for nid, bc in betweenness.items() if bc > 0],
-        key=lambda x: -x["betweenness"],
+        key=lambda x: (-x["betweenness"], x["id"]),
     )[:10]
 
     # --- Community detection ---
@@ -328,7 +306,8 @@ def analyze_topology(kb_path: str) -> dict:
         for nid, bc in betweenness.items()
         if bc >= threshold
     ]
-    bridges.sort(key=lambda x: -x["betweenness"])
+    # Tiebreak by id — see top_betw above.
+    bridges.sort(key=lambda x: (-x["betweenness"], x["id"]))
 
     # --- Structural holes ---
     # Find connected components; pairs of components = structural holes
@@ -410,7 +389,12 @@ def analyze_topology(kb_path: str) -> dict:
 
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Analyze KB graph topology")
-    parser.add_argument("--path", required=True, help="Path to KB root")
+    parser.add_argument("--path", required=False, default=None,
+                        help="Path to KB root (parses files; ignored if --graph-input is given)")
+    parser.add_argument(
+        "--graph-input", type=Path, default=None,
+        help="Precomputed graph.py --output artifact: skips file parsing, same result",
+    )
     parser.add_argument(
         "--output", "-o", type=Path,
         help="Write full JSON results to this file and emit a compact artifact envelope on stdout",
@@ -418,7 +402,21 @@ def main(argv: list[str] | None = None) -> None:
     args = parser.parse_args(argv)
 
     try:
-        result = analyze_topology(args.path)
+        if args.graph_input is not None:
+            try:
+                graph = json.loads(args.graph_input.read_text(encoding="utf-8"))
+                result = analyze_topology_from_graph(graph)
+            except (OSError, ValueError, KeyError, TypeError) as exc:
+                raise ContractViolationError(
+                    f"--graph-input file {args.graph_input} is not a valid "
+                    f"graph.py artifact: {exc}. Regenerate it with graph.py "
+                    "--output and retry.",
+                    kind="precondition",
+                )
+        elif args.path is not None:
+            result = analyze_topology(args.path)
+        else:
+            parser.error("one of --path or --graph-input is required")
     except ContractViolationError as exc:
         print(json.dumps({"error": str(exc)}), file=sys.stderr)
         sys.exit(1)

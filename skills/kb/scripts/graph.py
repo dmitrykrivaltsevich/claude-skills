@@ -124,14 +124,17 @@ def build_graph(kb_path: str) -> dict:
             "dangling_targets": [],
         }
 
-    # Build directed adjacency: source_stem → set of target_stems
+    # Build directed adjacency: source_stem → set of target_stems.
+    # Each file is read exactly once; the title is extracted from the same text.
     adjacency: dict[str, set[str]] = {stem: set() for stem in file_map}
     dangling: set[str] = set()
+    titles: dict[str, str] = {}
 
     for stem, (fpath, _cat) in file_map.items():
         try:
             text = fpath.read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError):
+            titles[stem] = stem
             continue
 
         targets = _WIKILINK_RE.findall(text)
@@ -144,6 +147,13 @@ def build_graph(kb_path: str) -> dict:
             else:
                 dangling.add(target)
 
+        title = stem
+        for line in text.splitlines():
+            if line.startswith("# "):
+                title = line[2:].strip()
+                break
+        titles[stem] = title
+
     # Compute degrees
     in_degree: dict[str, int] = {stem: 0 for stem in file_map}
     for src, targets in adjacency.items():
@@ -153,21 +163,10 @@ def build_graph(kb_path: str) -> dict:
     # Build nodes list
     nodes: list[dict] = []
     for stem, (fpath, cat) in sorted(file_map.items()):
-        # Extract title
-        title = stem
-        try:
-            text = fpath.read_text(encoding="utf-8")
-            for line in text.splitlines():
-                if line.startswith("# "):
-                    title = line[2:].strip()
-                    break
-        except (OSError, UnicodeDecodeError):
-            pass
-
         nodes.append({
             "id": stem,
             "type": cat,
-            "title": title,
+            "title": titles.get(stem, stem),
             "in_degree": in_degree.get(stem, 0),
             "out_degree": len(adjacency.get(stem, set())),
         })

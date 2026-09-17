@@ -109,7 +109,7 @@ Three layers per KB:
 | "Search the KB for X" | `search.py --path DIR --query "X" [--category CAT] [--kind KIND] [--tag TAG] [--first-only]` | JSON: scored file results with multi-match, term coverage |
 | "Find entries related to these topics" | `related.py --kb-path DIR --keywords "a,b,c"` | JSON: entries scored by keyword overlap |
 | "Show me the KB graph" | `graph.py --path DIR` | JSON: nodes, edges, degrees, components, dangling targets |
-| "Analyze KB structure/gaps" | `topology.py --path DIR` | JSON: clusters, bridges, structural holes, degree anomalies, betweenness |
+| "Analyze KB structure/gaps" | `topology.py --graph-input GRAPH` | JSON: clusters, bridges, structural holes, degree anomalies, betweenness |
 | "Task status / resume work" | `state.py status\|pending --task-id ID` | JSON: phase, item counts, next pending items |
 | "Import this directory / URL list in parallel" | `batch_plan.py plan --kb-path DIR --input IN --batch-id ID` | Manifest + pre-registered sources, sorted/list order kept |
 | "Merge staged batch proposals" | `batch_merge.py merge\|mark-done\|gc --kb-path DIR --batch-id ID` | Ordered replay, self-checked lint gate, scratch GC |
@@ -164,11 +164,11 @@ uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/related.py --kb-path /path/to/kb 
 # Lint the KB:
 uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/lint.py --path /path/to/kb
 
-# Extract KB graph:
-uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/graph.py --path /path/to/kb
+# Extract KB graph (artifact reused below — files are parsed once):
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/graph.py --path /path/to/kb --output /tmp/kb-graph.json
 
 # Analyze KB topology (clusters, bridges, gaps):
-uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/topology.py --path /path/to/kb
+uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/topology.py --graph-input /tmp/kb-graph.json
 
 # Reopen a section from a source analysis or chapter brief:
 uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/page_query.py --file /path/to/kb/knowledge/sources/real-2020-analysis.md --heading "Hidden Gems"
@@ -362,7 +362,7 @@ See [references/iterate-workflow.md](references/iterate-workflow.md) for the ful
 
 ### kb:topology — Graph Structure Analysis
 
-Runs `graph.py` + `topology.py` to compute topological metrics, then the LLM interprets what they mean for the knowledge domain. Finds clusters (well-covered areas), bridges (valuable cross-domain entries), structural holes (blind spots between clusters), and degree anomalies (under-extracted or orphaned entries).
+Runs `graph.py --output` + `topology.py --graph-input` to compute topological metrics, then the LLM interprets what they mean for the knowledge domain. Finds clusters (well-covered areas), bridges (valuable cross-domain entries), structural holes (blind spots between clusters), and degree anomalies (under-extracted or orphaned entries).
 
 **Process**: extract graph → compute topology → interpret each finding → recommend concrete actions (add sources, enrich entries, fix links) → log.
 

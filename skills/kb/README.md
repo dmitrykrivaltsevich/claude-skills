@@ -34,7 +34,7 @@ Operations:
 | `search.py` | Full-text search with scoring, multi-match, category filter, and frontmatter filters for `idea-kind` / tags, plus `--output` |
 | `related.py` | Find entries by keyword overlap (for cross-referencing); supports `--output` |
 | `graph.py` | Extract wikilink graph: nodes, edges, degrees, components; supports `--output` |
-| `topology.py` | Graph topology analysis: clusters, bridges, structural holes, anomalies; supports `--output` |
+| `topology.py` | Graph topology analysis: clusters, bridges, structural holes, anomalies; accepts a `graph.py` artifact via `--graph-input`, supports `--output`; requires `igraph` (see Dependencies) |
 | `state.py` | Multi-session task queue (init, add-items, update, status) with `--output` support on all subcommands |
 | `json_query.py` | Reopen narrow slices from saved JSON artifacts using selectors, filters, fields, and limits |
 | `page_query.py` | Reopen sections, chunks, or exact line ranges from markdown/text files |
@@ -72,7 +72,11 @@ my-kb/
 ## Tests
 
 ```bash
-uv run --no-config --with pytest --with pyyaml pytest skills/kb/tests/ -x --tb=short
+uv run --no-config --with pytest --with pyyaml --with igraph pytest skills/kb/tests/ -x --tb=short
 ```
+
+## Dependencies
+
+All scripts are stdlib-only except `topology.py`, which requires [`igraph`](https://igraph.org/) (`igraph>=1.0`, GPL-2.0-or-later) for exact betweenness centrality in C. It is declared in the script's PEP 723 block and fetched automatically on first `uv run`, then cached — no manual install.
 
 The KB tests cover scaffolding, search, state handling, linting (including style-phrase scanning and accepted exceptions), and documentation guardrails.
