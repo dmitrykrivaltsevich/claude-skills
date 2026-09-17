@@ -109,6 +109,23 @@ class TestWorkerTemplateContent:
         text = pr.render_worker_prompt(str(kb), "b-t", "doc-src")
         assert "started_at" in text and "finished_at" in text
 
+    def test_rule_proposals_disambiguated(self, tmp_path):
+        """Rule proposals are KB-curation conventions, never subject matter.
+
+        Workers spend the whole run writing "Rule of thumb" idea sections,
+        so an unqualified "rule ideas" line gets misfiled as domain
+        heuristics. The template must disambiguate, frame the co-evolution
+        target, and legitimize the empty outcome.
+        """
+        from ._loader import load_script_module as _load
+        kb = self._text(tmp_path)
+        pr = _load("kb_tmpl_pr3", "batch_prompts.py")
+        text = pr.render_worker_prompt(str(kb), "b-t", "doc-src")
+        assert "rules-coevolution.md" in text  # co-evolution frame
+        assert "often zero" in text  # empty is a legitimate outcome
+        assert "NEVER a claim" in text  # subject matter → ideas, never proposals
+        assert "no KB-level conventions observed" in text
+
     def test_routes_books_and_urls(self, tmp_path):
         from ._loader import load_script_module as _load
         kb = self._text(tmp_path)

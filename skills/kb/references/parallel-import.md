@@ -158,7 +158,11 @@ You are a normal `kb:add` agent with three restrictions:
    after the merge — running it per worker wastes tokens on a partial graph).
 3. **Rules proposals only.** Never edit `.kb/rules.md`; append bullets to
    `staging/<source-id>/rules-proposals.md` (one bullet + evidence quote
-   each). The coordinator folds and presents them.
+   each). Proposals are KB-curation conventions (something future sources
+   must also follow — judge against the trigger table in
+   `rules-coevolution.md`), NEVER subject-matter claims from the source;
+   those are idea entries. Often zero is the correct count. The
+   coordinator folds and presents them.
 
 Local link hygiene still applies inside your staged set (no dangling
 wikilinks against base + your own stage). Cross-worker backlinks are left
