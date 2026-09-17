@@ -451,6 +451,13 @@ def _live_snapshot_files(root: Path) -> list[Path]:
     return files
 
 
+def _ops_fingerprint(ops: list[dict]) -> str:
+    """Stable hash of one source's staged ops (detects restage-after-merge)."""
+    return hashlib.sha1(
+        json.dumps(ops, sort_keys=True, ensure_ascii=False).encode("utf-8")
+    ).hexdigest()
+
+
 def _detect_external_changes(kb_path: str, manifest: dict) -> dict:
     """Diff live knowledge files against the plan-time snapshot so the
     result reports what moved under the batch (informational only — merge
@@ -805,19 +812,32 @@ def merge_batch(kb_path: str, batch_id: str, dry_run: bool = False) -> dict:
             kind="precondition",
         )
     per_source_ops: list[tuple[str, list[dict]]] = []
+    all_source_ops: list[tuple[str, list[dict]]] = []
     superseded = 0
     for sid in manifest["order"]:
         ops, dropped = _read_staging_ops(kb_path, batch_id, sid)
-        per_source_ops.append((sid, ops))
+        all_source_ops.append((sid, ops))
         superseded += dropped
-    total_ops = sum(len(ops) for _, ops in per_source_ops)
-    if total_ops == 0 and not dry_run:
+    total_ops = sum(len(ops) for _, ops in all_source_ops)
+    # Per-wave materialization cursor: {source_id: ops-sha} for already
+    # merged staging. Absent on pre-cursor manifests — treated as nothing
+    # merged yet, so one replay converges them onto the cursor.
+    merged: dict[str, str] = dict(manifest.get("merged", {}))
+    if total_ops == 0 and not merged and not dry_run:
         raise ContractViolationError(
             f"batch {batch_id!r} has no staged proposals yet. Workers must "
             "run stage-write first — merging an empty batch would falsely "
             "advance the phase.",
             kind="precondition",
         )
+    # Replay only sources with new or changed staging since their last
+    # merge. Empty-ops sources (future waves not yet staged) are skipped
+    # without being recorded as merged.
+    per_source_ops = [
+        (sid, ops)
+        for sid, ops in all_source_ops
+        if ops and _ops_fingerprint(ops) != merged.get(sid)
+    ]
     external_changes = _detect_external_changes(kb_path, manifest)
     unstaged_files = [] if dry_run else _find_unstaged_files(
         kb_path, batch_id, manifest
@@ -983,8 +1003,10 @@ def merge_batch(kb_path: str, batch_id: str, dry_run: bool = False) -> dict:
 
     # Batch-owned paths are not "external", even though they differ from the
     # plan-time snapshot on replay — without this, every replay would report
-    # its own outputs as external changes.
-    owned = {f"knowledge/{op['path']}" for _, ops in per_source_ops for op in ops}
+    # its own outputs as external changes. Owned covers ALL staged sources
+    # (not just this run's replay set) so earlier waves' merged files are
+    # not misreported as external in later wave merges.
+    owned = {f"knowledge/{op['path']}" for _, ops in all_source_ops for op in ops}
     for bucket in ("changed", "added", "deleted"):
         external_changes[bucket] = [
             rel for rel in external_changes[bucket] if rel not in owned
@@ -1057,7 +1079,17 @@ def merge_batch(kb_path: str, batch_id: str, dry_run: bool = False) -> dict:
                 )
         rebuild_timeline_chain(kb_path, only=touched_timeline or None)
         fold_rules_proposals(kb_path, batch_id)
-        manifest["phase"] = "linting"
+        for sid, ops in per_source_ops:
+            if ops:
+                merged[sid] = _ops_fingerprint(ops)
+        manifest["merged"] = merged
+        # Flip to linting only when every source has merged at least once;
+        # intermediate wave merges keep mapping/merging so later waves can
+        # still stage (stage_write has no phase gate; merge accepts both).
+        # A source that never stages anything blocks the flip — every
+        # source must stage at least its analysis entry.
+        if all(sid in merged for sid in manifest["order"]):
+            manifest["phase"] = "linting"
         manifest["cursor"] = {
             "applied_total": manifest.get("cursor", {}).get("applied_total", 0)
             + applied,

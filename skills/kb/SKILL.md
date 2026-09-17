@@ -285,8 +285,8 @@ Mandatory for academic papers, textbooks, and any source that references other w
 ### kb:batch-add — Parallel Import (Map → Reduce)
 
 1. `batch_plan.py plan` on the WHOLE input (any N — waves group automatically; writes `.kb/batches/<id>/manifest.json`). Never split by hand, never write import scripts.
-2. Spawn ≤10 workers via `batch_prompts.py worker` prompts (staging-only, no `lint`, no `rules.md` edits)
-3. `batch_merge.py merge` (ordered replay — mandatory even at zero overlap: it owns order, index/log/timeline, lint gate, audit) → triangulate pass → `lint_fix.py` → `lint` → `mark-done` → verify → `gc`
+2. Per wave in manifest order: spawn ≤10 workers via `batch_prompts.py worker` prompts (staging-only, no `lint`, no `rules.md` edits; workers check base KB before creating) → wait → `batch_merge.py merge` (materializes the wave)
+3. After the last wave: triangulate pass → `lint_fix.py` → `lint` → `mark-done` → verify → `gc` (merge is mandatory even at zero overlap — it owns order, index/log/timeline, lint gate, audit)
 Self-check: if you cannot point to `.kb/batches/<id>/manifest.json`, you are not doing batch-add — stop and re-read [references/parallel-import.md](references/parallel-import.md).
 
 ### kb:lint — Health Check, Repair & Consolidation

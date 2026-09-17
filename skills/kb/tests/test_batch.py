@@ -322,9 +322,17 @@ class TestMerge:
         self._staged_batch(kb_path, input_dir)
         first = batch_merge.merge_batch(str(kb_path), "batch-001")
         assert first["applied"] == 2
+        before = {
+            p.relative_to(kb_path).as_posix(): p.read_bytes()
+            for p in sorted((kb_path / "knowledge").rglob("*.md"))
+        }
         second = batch_merge.merge_batch(str(kb_path), "batch-001")
         assert second["applied"] == 0  # idempotent replay is a no-op
-        assert second["skipped_dedup"] == 2
+        after = {
+            p.relative_to(kb_path).as_posix(): p.read_bytes()
+            for p in sorted((kb_path / "knowledge").rglob("*.md"))
+        }
+        assert after == before  # replay changes zero bytes
 
     def test_merge_unions_same_file_from_two_sources(
         self, kb_path: Path, input_dir: Path
@@ -470,6 +478,106 @@ class TestMerge:
         )
         assert "Staged fact." in merged
         assert "Live fact." in merged
+
+
+class TestIncrementalMerge:
+    """Per-wave materialization: merge records a cursor; later merges
+    process only new/changed staging and union with live content."""
+
+    def _body(self, sid: str, fact: str) -> str:
+        return (
+            "---\ntype: entity\ncreated: 2026-01-01\nupdated: 2026-01-01\n"
+            f"source-ids: [{sid}]\ntags: []\n---\n\n# Ada\n\n{fact}\n"
+        )
+
+    def _stage(
+        self, kb_path: Path, batch_id: str, sid: str, rel: str, body: str
+    ) -> None:
+        cf = kb_path / f"inc-{sid}-{Path(rel).stem}.md"
+        cf.write_text(body, encoding="utf-8")
+        batch_plan.stage_write(str(kb_path), batch_id, sid, rel, str(cf))
+
+    def _manifest(self, kb_path: Path, batch_id: str = "batch-001") -> dict:
+        return json.loads(
+            (
+                kb_path / ".kb" / "batches" / batch_id / "manifest.json"
+            ).read_text(encoding="utf-8")
+        )
+
+    def test_merge_records_cursor_and_holds_phase(
+        self, kb_path: Path, input_dir: Path
+    ):
+        planned = _plan(kb_path, input_dir)
+        sids = planned["source_ids"]
+        self._stage(
+            kb_path, "batch-001", sids[0], "entities/ada.md",
+            self._body(sids[0], "Wave-one fact."),
+        )
+        first = batch_merge.merge_batch(str(kb_path), "batch-001")
+        assert first["applied"] == 1
+        manifest = self._manifest(kb_path)
+        assert sids[0] in manifest["merged"]
+        assert sids[1] not in manifest["merged"]
+        assert manifest["phase"] != "linting"  # waves remain
+        status = batch_plan.batch_status(str(kb_path), "batch-001")
+        assert status["merged_sources"] == [sids[0]]
+        live = (
+            kb_path / "knowledge" / "entities" / "ada.md"
+        ).read_text(encoding="utf-8")
+        assert "Wave-one fact." in live
+
+    def test_second_merge_extends_without_clobber(
+        self, kb_path: Path, input_dir: Path
+    ):
+        planned = _plan(kb_path, input_dir)
+        sids = planned["source_ids"]
+        self._stage(
+            kb_path, "batch-001", sids[0], "entities/ada.md",
+            self._body(sids[0], "Wave-one fact."),
+        )
+        batch_merge.merge_batch(str(kb_path), "batch-001")
+        # Wave-two worker reads live and stages the extended version.
+        live = (
+            kb_path / "knowledge" / "entities" / "ada.md"
+        ).read_text(encoding="utf-8")
+        extended = live.replace(
+            f"source-ids: [{sids[0]}]",
+            f"source-ids: [{sids[0]}, {sids[1]}]",
+        ).replace("Wave-one fact.", "Wave-one fact.\n\nWave-two fact.")
+        self._stage(
+            kb_path, "batch-001", sids[1], "entities/ada.md", extended
+        )
+        second = batch_merge.merge_batch(str(kb_path), "batch-001")
+        assert second["applied"] == 1  # only the new source replayed
+        live = (
+            kb_path / "knowledge" / "entities" / "ada.md"
+        ).read_text(encoding="utf-8")
+        assert "Wave-one fact." in live  # not clobbered
+        assert "Wave-two fact." in live
+        manifest = self._manifest(kb_path)
+        assert set(manifest["merged"]) == set(sids)
+        assert manifest["phase"] == "linting"  # all waves merged
+        third = batch_merge.merge_batch(str(kb_path), "batch-001")
+        assert third["applied"] == 0  # replay is a no-op, not an error
+
+    def test_restaged_source_remerges(self, kb_path: Path, input_dir: Path):
+        planned = _plan(kb_path, input_dir)
+        sids = planned["source_ids"]
+        self._stage(
+            kb_path, "batch-001", sids[0], "entities/ada.md",
+            self._body(sids[0], "Version one."),
+        )
+        batch_merge.merge_batch(str(kb_path), "batch-001")
+        self._stage(
+            kb_path, "batch-001", sids[0], "entities/ada.md",
+            self._body(sids[0], "Version two."),
+        )
+        result = batch_merge.merge_batch(str(kb_path), "batch-001")
+        assert result["applied"] == 1  # changed ops are not cursor-skipped
+        live = (
+            kb_path / "knowledge" / "entities" / "ada.md"
+        ).read_text(encoding="utf-8")
+        assert "Version two." in live
 
 
 class TestTimelineChain:

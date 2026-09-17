@@ -126,6 +126,21 @@ class TestWorkerTemplateContent:
         assert "NEVER a claim" in text  # subject matter → ideas, never proposals
         assert "no KB-level conventions observed" in text
 
+    def test_worker_checks_base_before_creating(self, tmp_path):
+        """Later waves build on merged earlier waves: check base first.
+
+        Recreating an existing concept wastes the merge and tokens; the
+        template must demand search-before-stage, link-instead-of-recreate,
+        and read-before-extend.
+        """
+        from ._loader import load_script_module as _load
+        kb = self._text(tmp_path)
+        pr = _load("kb_tmpl_pr4", "batch_prompts.py")
+        text = pr.render_worker_prompt(str(kb), "b-t", "doc-src")
+        assert "check-before-create" in text
+        assert "link to it instead" in text
+        assert "read it first" in text
+
     def test_routes_books_and_urls(self, tmp_path):
         from ._loader import load_script_module as _load
         kb = self._text(tmp_path)

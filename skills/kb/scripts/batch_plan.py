@@ -858,6 +858,7 @@ def batch_status(
         "batch_id": batch_id,
         "phase": manifest.get("phase", ""),
         "total_sources": len(manifest["order"]),
+        "merged_sources": sorted(manifest.get("merged", {})),
         "staged_ops": per_source,
         "escalated": escalated,
         "snapshot_unreadable": manifest.get("snapshot_unreadable", []),

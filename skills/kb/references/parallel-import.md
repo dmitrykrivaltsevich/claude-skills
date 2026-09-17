@@ -1,8 +1,10 @@
 # Parallel Batch Import (kb:batch-add)
 
-Import a directory of files or a list of URLs with up to 10 isolated workers
-extracting in parallel, then merge deterministically so the on-disk result
-is indistinguishable from sequential `kb:add` in input order.
+Import a directory of files or a list of URLs with waves of up to 10
+isolated workers extracting in parallel, materializing each wave into the
+KB before dispatching the next, so the on-disk result matches sequential
+`kb:add` in manifest order (parallel within a wave, ordered across
+waves).
 
 ## Contents
 
@@ -24,12 +26,13 @@ is indistinguishable from sequential `kb:add` in input order.
 Phase 0 (coordinator, sequential):
   batch_plan.py plan  →  mint ids → pre-register all sources →
   snapshot base → .kb/batches/<id>/manifest.json
-Phase 1 (≤10 workers, parallel, staging-only):
+Per wave, in manifest order (staging-only workers, then single writer):
   normal kb:add extraction per source → batch_plan.py stage-write
   (never touch knowledge/, sources/, index.md, log.md, .kb/*)
-Phase 2 (reconciler, single writer):
-  batch_merge.py merge  →  ordered replay, mechanical fast-path,
-  per-file escalation on overlap (union keeps every fact)
+  → batch_merge.py merge (materializes the wave: ordered replay,
+  mechanical fast-path, per-file escalation on overlap with union
+  keeping every fact; cursor skips merged sources on replay; phase
+  flips to linting only after the last wave)
 Phase 2b (triangulation agent, single writer — NEW, closes the 0-cross-link gap):
   batch_prompts.py triangulate  →  cross-source links, folds, meta entries,
   union-artifact cleanup (additive/restructure only, never re-merge after)
@@ -107,10 +110,8 @@ whatever the file count:
 
 - [ ] Run `open.py` on the KB first (one active KB at a time).
 - [ ] Plan: `uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/batch_plan.py plan --kb-path DIR --input <dir|list.txt> --batch-id <id>` — directory scans use sorted byte order; list files keep caller order (blank lines and `#` comments skipped). Re-running `plan` with the same id resumes; a fresh id requires disjoint inputs.
-- [ ] Spawn `min(N sources, 10)` workers, one source per worker (a worker may take several sources sequentially, never concurrently with another worker on the same source). Never run two merges concurrently (single-writer assumption).
-- [ ] Wait for all workers (poll `state.py pending --task-id batch-<id>` / `batch_plan.py status --kb-path DIR --batch-id <id>`).
-- [ ] Merge: `uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/batch_merge.py merge --kb-path DIR --batch-id <id>` — use `--dry-run` first when the batch is large (writes nothing).
-- [ ] Triangulate (closes the parallel gap — isolated workers cannot link each other): render `batch_prompts.py triangulate` and run it as ONE agent pass (cross-source links, same-concept folds, comparison/meta entries, union-artifact cleanup). Additive/restructure only.
+- [ ] Per wave in manifest order: spawn one worker per source (≤10; a worker may take several sources sequentially, never concurrently with another worker on the same source). Wait for all (poll `state.py pending --task-id batch-<id>` / `batch_plan.py status --kb-path DIR --batch-id <id>`), then merge: `uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/batch_merge.py merge --kb-path DIR --batch-id <id>` (use `--dry-run` first when the wave is large — writes nothing). Each merge materializes only new/changed staging (cursor-skipped rest is a no-op); later waves see earlier waves in the live KB and link instead of recreating. Never run two merges concurrently (single-writer assumption).
+- [ ] Triangulate AFTER the last wave only (closes the residual parallel gap — isolated workers cannot link each other): render `batch_prompts.py triangulate` and run it as ONE agent pass (cross-source links, same-concept folds, comparison/meta entries, union-artifact cleanup). Additive/restructure only.
 - [ ] Mechanical lint repairs via script (never by hand-edit loop): `uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/lint_fix.py backlinks --kb-path DIR --apply`, then `lint_fix.py timeline --kb-path DIR --apply`. Both default to `--dry-run` preview; both are idempotent reruns.
 - [ ] Feedback loop for the rest: `uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/lint.py --path DIR` → fix every remaining issue yourself (style phrases need judgment; reference stubs under `sources/references/` are style-scanned, so fix or except those findings too) → re-run lint → repeat until `total_issues == 0`. Render the agent prompt with `batch_prompts.py lint-fix` instead of retyping it.
 - [ ] `uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/batch_merge.py mark-done --kb-path DIR --batch-id <id>` (self-verifies the lint gate — it runs `lint_kb` itself and refuses a dirty KB; requires phase `merging`/`linting`).
@@ -222,8 +223,8 @@ is mandatory even when inputs look perfectly disjoint:
    outside `.kb/`).
 2. Phase `planning` → re-run `plan` (adopts partial registrations).
 3. Unstaged sources → re-dispatch those workers only.
-4. Phase `merging`/`linting` → re-run `merge` (replay is a no-op for
-   applied ops), then continue the lint loop.
+4. Phase `merging`/`linting` → re-run `merge` (cursor replays only
+   unmerged work; applied ops are a no-op), then continue the lint loop.
 5. Phase `done` with staging present → just run `gc`.
 
 Never reconstruct state from chat history — the manifest is the truth.
@@ -234,9 +235,12 @@ Never run two merges concurrently (single-writer assumption).
 `max-workers` (default 10, hard cap 10) bounds *concurrency*, never total
 sources. `plan` partitions manifest order into `waves` (disjoint, complete,
 order-preserving — read them from the plan result or the manifest). The
-coordinator dispatches one wave at a time: spawn ≤10 workers, wait for all
-to finish, then the next wave. No claim protocol is needed — wave membership
-is the exclusive assignment.
+coordinator works one wave at a time: spawn workers, wait for all to
+finish, merge the wave, then the next wave. No claim protocol is needed —
+wave membership is the exclusive assignment. Each merge materializes that
+wave into the live KB, so later waves build on earlier ones instead of
+re-deriving them (workers check the base KB before creating); only the
+final lint/triangulate run at the very end.
 
 - **Handoff hygiene.** As source count grows, per-worker handoffs flood context. Per wave, keep
   only `{source_id, started_at, finished_at, counts}` per worker (one line
@@ -250,9 +254,10 @@ is the exclusive assignment.
   Recover explicitly: `state.py update-item --status pending` the stuck
   item, then re-dispatch it in the next wave. Never re-dispatch without
   resetting — two writers on one source breaks the staging contract.
-- **Merge scales linearly** (one pass over staged ops, whatever the count).
-  Expect more same-file overlaps as sources grow: the queue absorbs
-  them, and triangulation runs per cluster below.
+- **Merge scales linearly** (one pass over each wave's new staged ops —
+  the cursor skips merged sources, so per-wave cost stays flat as waves
+  accumulate). Expect more same-file overlaps as sources grow: the queue
+  absorbs them, and triangulation runs per cluster below.
 - **Triangulate per cluster, not per batch.** One triangulation pass cannot
   hold an arbitrarily large source set. Run it once per topic cluster
   (related-keyword sweeps define the clusters; one `triangulate` invocation
