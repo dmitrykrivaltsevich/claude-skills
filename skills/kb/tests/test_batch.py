@@ -148,6 +148,47 @@ class TestPlanBatch:
                 state_dir=kb_path / ".kb" / "tasks",
             )
 
+    def test_bare_url_input_points_to_list_file(
+        self, kb_path: Path, tmp_path: Path
+    ):
+        """A bare URL as --input is the natural mistake: the error must
+        teach the list-file recipe instead of failing generically."""
+        with pytest.raises(ContractViolationError, match="one per line"):
+            batch_plan.plan_batch(
+                str(kb_path),
+                "https://example.com/article",
+                "batch-bare-url",
+                state_dir=kb_path / ".kb" / "tasks",
+            )
+
+    def test_mixed_list_file_kinds_and_order(
+        self, kb_path: Path, tmp_path: Path
+    ):
+        """File + URL lines keep caller order; URLs become references."""
+        doc = tmp_path / "paper.md"
+        doc.write_text("# Paper\n", encoding="utf-8")
+        list_file = tmp_path / "mixed.txt"
+        list_file.write_text(
+            f"{doc}\n\n# a comment\nhttps://example.com/article\n",
+            encoding="utf-8",
+        )
+        result = batch_plan.plan_batch(
+            str(kb_path),
+            str(list_file),
+            "batch-mixed",
+            state_dir=kb_path / ".kb" / "tasks",
+        )
+        manifest = json.loads(
+            (
+                kb_path / ".kb" / "batches" / "batch-mixed" / "manifest.json"
+            ).read_text(encoding="utf-8")
+        )
+        assert [(s["kind"], s["location"]) for s in manifest["sources"]] == [
+            ("file", str(doc.resolve())),
+            ("reference", "https://example.com/article"),
+        ]
+        assert result["total_sources"] == 2
+
     def test_url_list_order_preserved(self, kb_path: Path, tmp_path: Path):
         list_file = tmp_path / "urls.txt"
         list_file.write_text(

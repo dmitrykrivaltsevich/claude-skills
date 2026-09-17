@@ -111,7 +111,7 @@ Three layers per KB:
 | "Show me the KB graph" | `graph.py --path DIR` | JSON: nodes, edges, degrees, components, dangling targets |
 | "Analyze KB structure/gaps" | `topology.py --graph-input GRAPH` | JSON: clusters, bridges, structural holes, degree anomalies, betweenness |
 | "Task status / resume work" | `state.py status\|pending --task-id ID` | JSON: phase, item counts, next pending items |
-| "Import this directory / URL list in parallel" | `batch_plan.py plan --kb-path DIR --input IN --batch-id ID` | Manifest + pre-registered sources, sorted/list order kept |
+| "Import this directory / URL list in parallel" | `batch_plan.py plan --kb-path DIR --input DIR\|LIST.txt --batch-id ID` (chat URLs → one-per-line .txt first; recipe in parallel-import.md) | Manifest + pre-registered sources, sorted/list order kept |
 | "Merge staged batch proposals" | `batch_merge.py merge\|mark-done\|gc --kb-path DIR --batch-id ID` | Ordered replay, self-checked lint gate, scratch GC |
 | "Render batch prompts / audit a merge" | `batch_prompts.py worker\|lint-fix\|triangulate`; `batch_verify.py --kb-path DIR --batch-id ID` | Canned delegation prompts; log-order/completeness/chain audit |
 | "Fix backlinks / timeline gaps mechanically" | `lint_fix.py backlinks\|timeline --kb-path DIR --apply` | Idempotent reciprocal links + date stubs; dry-run default |

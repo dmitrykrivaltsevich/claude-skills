@@ -7,15 +7,16 @@ is indistinguishable from sequential `kb:add` in input order.
 ## Contents
 
 1. [Protocol At A Glance](#protocol-at-a-glance)
-2. [The Four Durability Facts](#the-four-durability-facts)
-3. [Coordinator Checklist](#coordinator-checklist)
-4. [Delegation Prompts (Don't Retype)](#delegation-prompts-dont-retype)
-5. [Worker Contract](#worker-contract)
-6. [Merge Policy](#merge-policy)
-7. [Lint, Verify, Rules Triage, GC](#lint-verify-rules-triage-gc)
-8. [Resume After Interruption](#resume-after-interruption)
-9. [Large Batches (Waves)](#large-batches-waves)
-10. [Anti-Patterns](#anti-patterns)
+2. [URL-List Input](#url-list-input)
+3. [The Four Durability Facts](#the-four-durability-facts)
+4. [Coordinator Checklist](#coordinator-checklist)
+5. [Delegation Prompts (Don't Retype)](#delegation-prompts-dont-retype)
+6. [Worker Contract](#worker-contract)
+7. [Merge Policy](#merge-policy)
+8. [Lint, Verify, Rules Triage, GC](#lint-verify-rules-triage-gc)
+9. [Resume After Interruption](#resume-after-interruption)
+10. [Large Batches (Waves)](#large-batches-waves)
+11. [Anti-Patterns](#anti-patterns)
 
 ## Protocol At A Glance
 
@@ -50,6 +51,22 @@ to be understood (serial argument chains, book volumes) — that is
 sequential work by nature. Books inside a batch are fine: each book goes
 to ONE worker, which processes it chapter-by-chapter per the worker
 prompt — never split one source across workers.
+
+## URL-List Input
+
+When the input is URLs pasted in chat (not files on disk), the
+coordinator builds the list file — `plan` never takes bare URLs:
+
+1. Write the URLs verbatim, one per line, to `/tmp/<batch-id>-inputs.txt`
+   (blank lines and `#` comments are skipped).
+2. Pass that path as `--input` (exactly one path: a directory OR a list
+   file — see the guardrail below if you pass a URL by mistake).
+3. `http(s)://` lines auto-become `kind=reference` (registered as stubs;
+   workers fetch them per the normal reference workflow).
+4. List-file line order is kept verbatim — it is the manifest order,
+   hence the merge order. Order the URLs as you want them merged.
+5. Minted source-ids (URL-slugified, collision-suffixed) come back in
+   `plan`'s output — dispatch workers by those ids, never re-slugify.
 
 ## The Four Durability Facts
 
@@ -213,3 +230,7 @@ is the exclusive assignment.
   use a fresh id.
 - **Hand-merging conflicts by rewriting both sides.** Let the union keep
   both facts; refine wording in the recorded queue entry only.
+- **Passing bare URLs as `--input`, or reading `batch_*.py` source to
+  learn the input format.** Build the list file per URL-List Input above
+  (the script's error tells you the same if you forget). This doc is the
+  contract — internals may change.

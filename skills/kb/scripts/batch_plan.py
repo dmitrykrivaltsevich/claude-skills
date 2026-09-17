@@ -287,6 +287,13 @@ def _collect_inputs(input_spec: str) -> list[dict]:
     """Collect batch inputs preserving caller order (list file) or sorted
     byte order (directory scan, deterministic across runs)."""
     spec = Path(input_spec)
+    if input_spec.startswith("http://") or input_spec.startswith("https://"):
+        raise ContractViolationError(
+            f"got a bare URL as --input: {input_spec}. Write the URLs, one "
+            "per line, to a .txt list file (e.g. /tmp/<batch-id>-inputs.txt) "
+            "and pass that path as --input instead.",
+            kind="precondition",
+        )
     if not spec.exists():
         raise ContractViolationError(
             f"input not found: {input_spec}. Provide a directory of source "
