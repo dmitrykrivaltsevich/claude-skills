@@ -166,6 +166,23 @@ for the final lint.
 
 ## Merge Policy
 
+Merge is NOT conflict resolution — it is the single-writer apply, and it
+is mandatory even when inputs look perfectly disjoint:
+
+- **Disjoint paths ≠ disjoint knowledge.** Workers share one graph
+  namespace (stems): two different sources routinely extract the same
+  entities, topics, and citations (in a 5-paper test batch the overlap
+  was a real shared entity file). Overlap is the norm — rows 3–5 below
+  exist because of it, not for edge cases.
+- **"No overlap" is unknowable before merge runs.** Output disjointness
+  cannot be verified without the reconciler that detects it; skipping
+  merge on that assumption is circular.
+- **Even with zero overlap, only merge produces:** manifest-order replay
+  (log/index/timeline order — completion order is nondeterministic),
+  coordinator-owned rebuild of `index.md`/`log.md`/timeline chain
+  (workers are forbidden from touching them), the lint gate, the
+  verify audit, and rules folding. Skip merge and none of that exists.
+
 | Situation | Reconciler action |
 |---|---|
 | Path untouched by others | Fast-forward apply |
@@ -263,3 +280,7 @@ is the exclusive assignment.
   manifest, staging, ordered replay, resume, audit. Tell-tale sign you
   left it: no `.kb/batches/<id>/` state exists. If you cannot point to
   the manifest, you are not doing batch-add — stop and re-read this doc.
+- **Skipping merge because "batches are disjoint, nothing to
+  reconcile".** Disjoint input paths still share one graph namespace,
+  and merge is the single-writer apply (order, index/log/timeline,
+  lint gate, audit) — not just conflict resolution. See Merge Policy.
