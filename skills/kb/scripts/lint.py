@@ -44,11 +44,16 @@ _WIKILINK_RE = re.compile(r"\[\[([^\]|]+)(?:\|[^\]]+)?\]\]")
 
 _HEADING_RE = re.compile(r"^ {0,3}#{1,6}(?:\s|$)")
 _LIST_ITEM_RE = re.compile(r"^\s{0,3}(?:[-*+]|\d{1,9}[.)])\s")
-# Directories the style scan never enters: the raw source layer, and the state
-# kb:lint writes itself — the run tasks and the exception store, whose README
-# explains the store in prose (flagging your own bookkeeping is a loop).
+# Directories the style scan never enters: the raw source layer, harness-owned
+# config dirs (.agents/.claude/.github hold the vendored skill + aliases —
+# third-party docs, flagging them as KB defects would be a loop), and the
+# state kb:lint writes itself — the run tasks and the exception store, whose
+# README explains the store in prose (flagging your own bookkeeping is a loop).
 _STYLE_EXCLUDED_DIRS = (
     ("sources", "files"),
+    (".agents",),
+    (".claude",),
+    (".github",),
     (".kb", "tasks"),
     (".kb", "style-exceptions"),
     (".kb", "style-reviewed"),

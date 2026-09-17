@@ -25,6 +25,7 @@ import yaml
 
 sys.path.insert(0, os.path.dirname(__file__))
 from contracts import ContractViolationError, precondition
+import vendor_skill as _vendor_mod
 
 # ---------------------------------------------------------------------------
 # KB directory tree — all folders that get created.
@@ -262,8 +263,15 @@ One line per operation. Details in source analyses and task state.
     lambda kb_path, name, **_: len(name.strip()) > 0,
     "name must be non-empty",
 )
-def scaffold_kb(kb_path: str, name: str) -> dict:
+def scaffold_kb(
+    kb_path: str, name: str, vendor_skill: bool = True, aliases: bool = True
+) -> dict:
     """Create a new KB directory structure with config, rules, index, and log.
+
+    With vendor_skill (default), also vendors the kb skill into the KB
+    (.agents/skills/kb + harness aliases + Copilot agent file) so the KB
+    works in any harness with zero install. Pass vendor_skill=False to opt
+    out, aliases=False to skip alias symlinks but keep the canonical copy.
 
     Raises ContractViolationError if the KB path already contains a .kb/ directory.
     """
@@ -302,11 +310,16 @@ def scaffold_kb(kb_path: str, name: str) -> dict:
     # log.md
     (root / "log.md").write_text(_log_md(name), encoding="utf-8")
 
-    return {
+    result: dict = {
         "kb_path": str(root),
         "name": name,
         "created": now,
     }
+
+    if vendor_skill:
+        result["skill"] = _vendor_mod.vendor(str(root), aliases=aliases)
+
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -317,9 +330,17 @@ def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Scaffold a new knowledge base.")
     parser.add_argument("--path", required=True, help="Directory for the new KB")
     parser.add_argument("--name", required=True, help="Human-readable KB name")
+    parser.add_argument(
+        "--no-skill", action="store_true", help="Skip vendoring the kb skill"
+    )
+    parser.add_argument(
+        "--no-aliases", action="store_true", help="Skip harness alias symlinks"
+    )
 
     args = parser.parse_args(argv)
-    result = scaffold_kb(args.path, args.name)
+    result = scaffold_kb(
+        args.path, args.name, vendor_skill=not args.no_skill, aliases=not args.no_aliases
+    )
     print(json.dumps(result, ensure_ascii=False, indent=2))
 
 

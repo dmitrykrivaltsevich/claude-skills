@@ -24,7 +24,8 @@ Operations:
 
 | Script | Purpose |
 |---|---|
-| `init.py` | Scaffold KB folder structure, config, rules, index |
+| `init.py` | Scaffold KB folder structure, config, rules, index; vendors the skill (`--no-skill` / `--no-aliases` opt out) |
+| `vendor_skill.py` | Vendor/check/refresh the portable skill copy (`vendor`, `check`, `refresh`, `unlink-aliases`, `add-alias`); see `references/portable-skill.md` |
 | `open.py` | Load KB context as JSON; supports `--output` artifact mode for large KBs |
 | `add_source.py` | Copy/reference a source file, assign ID, update config |
 | `lint.py` | Check broken wikilinks, orphans, missing backlinks, timeline gaps (year/month/day), unreadable files, style phrases; `--no-style` skips style scanning, `--patterns FILE` overrides the pattern set; supports `--output` |
@@ -67,6 +68,9 @@ my-kb/
     questions/         # Open questions, gaps, tensions
   index.md             # Table of contents
   log.md               # Operation log
+  .agents/skills/kb/   # Vendored skill copy (portable across harnesses)
+  .claude/skills/kb    # Alias symlink → .agents/skills/kb (Claude Code)
+  .github/agents/kb.agent.md  # Copilot custom-agent pointer
 ```
 
 ## Tests

@@ -178,9 +178,9 @@ uv run --no-config ${CLAUDE_SKILL_DIR}/scripts/page_query.py --file /path/to/kb/
 
 ### kb:init — Scaffold a New KB
 
-1. Run `init.py` to create the folder structure
-2. Script auto-generates: config, rules, index, log, all knowledge directories
-3. Read the output — the KB is now "open" (you have the context)
+1. Run `init.py` to create the folder structure (`--no-skill` opts out of skill vendoring, `--no-aliases` skips harness aliases)
+2. Script auto-generates: config, rules, index, log, all knowledge directories — plus the vendored skill (`.agents/skills/kb` + `.claude` alias + Copilot agent; see `references/portable-skill.md`)
+3. Read the output — the KB is now "open" (you have the context); if `skill_vendor.stale` is true, refresh from the installed skill before heavy work
 
 ### kb:open — Load KB Context
 
