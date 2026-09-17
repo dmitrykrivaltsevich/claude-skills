@@ -43,6 +43,35 @@ Phase 4 (coordinator): present rules-combined.md → apply → gc
 Workers never write the live KB and never do conflict math. All concurrency
 lives in the scripts; the final KB equals a replay in manifest order.
 
+### State machine
+
+Manifest `phase` + `merged` cursor is the truth — never chat history.
+Read `A --event [guard] / action--> B`. Refusals keep the state —
+fix the cause, retry. Never re-run merge after triangulate started
+(semantic edits break union containment).
+
+planning --plan [inputs valid] / mint ids, pre-register, snapshot--> mapping
+mapping --stage-write--> mapping
+mapping --merge [waves remain] / materialize wave--> merging
+merging --stage-write--> merging
+merging --merge [waves remain] / materialize wave--> merging
+merging --merge [merged covers manifest order]--> linting
+linting --triangulate / lint_fix / lint--> linting
+linting --merge--> linting (replay no-op)
+linting --mark-done [lint clean]--> done
+linting --mark-done [lint dirty]--> linting
+done --verify / gc [lint report present]--> done (terminal)
+
+Failure states (no leases, no timeouts — poll, reset, re-run):
+mapping|merging --worker stuck [in-progress past wave end]--> stalled
+stalled --item reset to pending, worker re-dispatched--> mapping
+merging --staged file changed after ops record--> diverged
+merging --live moved under staging [union applied automatically, queued for review at triangulate]--> merging
+diverged --restage, re-run merge (replay converges)--> merging
+planning|mapping|merging --crash--> interrupted
+interrupted --re-run recorded phase command (re-run `plan`, re-run `merge`)--> planning|mapping|merging
+merging --symlink in path [operator replaces with real file, retry]--> merging
+
 ## When To Use (And When Not To)
 
 Default: **3+ independent sources → batch-add; 1–2 sources → sequential

@@ -999,3 +999,71 @@ class TestWaves:
             state_dir=kb_path / ".kb" / "tasks",
         )
         assert len(result["waves"]) == 1
+
+
+class TestStateMachineDoc:
+    """parallel-import.md carries the protocol as a transition list bound
+    to code. The machine (not prose) is the contract: working states,
+    failure states with onset+exit, guards, and recovery edges."""
+
+    STATES = ("planning", "mapping", "merging", "linting", "done")
+    FAILURE_STATES = ("stalled", "diverged", "interrupted")
+
+    def _section(self) -> str:
+        doc = (
+            Path(__file__).resolve().parent.parent
+            / "references" / "parallel-import.md"
+        ).read_text(encoding="utf-8")
+        start = doc.index("### State machine")
+        end = doc.index("\n## ", start + 1)
+        return doc[start:end]
+
+    def test_transition_list_format(self):
+        """Every state-led line is a transition (no prose tables)."""
+        section = self._section()
+        all_states = set(self.STATES) | set(self.FAILURE_STATES)
+        seen = False
+        for line in section.splitlines():
+            stripped = line.strip()
+            if not stripped or stripped.startswith("#"):
+                continue
+            head = stripped.split("--")[0].strip()
+            tokens = [t.strip() for t in head.split("|")]
+            if tokens and all(t in all_states for t in tokens):
+                seen = True
+                assert "-->" in stripped, f"not a transition: {stripped!r}"
+        assert seen, "no transitions found"
+
+    def test_all_states_present(self):
+        section = self._section()
+        for phase in self.STATES + self.FAILURE_STATES:
+            assert re.search(rf"\b{phase}\b", section), f"state {phase} missing"
+
+    def test_code_mergeable_phases_subset_of_doc(self):
+        section = self._section()
+        for phase in batch_merge._MERGEABLE_PHASES:
+            assert re.search(rf"\b{phase}\b", section), f"code phase {phase} undocumented"
+
+    def test_failure_states_have_onset_and_exit(self):
+        section = self._section()
+        for state in self.FAILURE_STATES:
+            assert re.search(rf"-->\s*{state}\b", section), f"no onset for {state}"
+            assert re.search(rf"^{state} --", section, re.M), f"no exit for {state}"
+
+    def test_gates_named(self):
+        lowered = self._section().lower()
+        assert "lint clean" in lowered  # mark-done gate
+        assert "lint report" in lowered  # gc gate
+        assert "never re-run merge after triangulate" in lowered
+
+    def test_failure_recovery_markers(self):
+        lowered = self._section().lower()
+        for marker in (
+            "re-dispatched",  # stuck worker reset
+            "restage",  # staged content changed
+            "re-run merge",  # crash mid-merge
+            "re-run `plan`",  # crash mid-plan
+            "union",  # live moved under staging
+            "symlink",  # merge-path refusal
+        ):
+            assert marker in lowered, f"recovery {marker} missing"
