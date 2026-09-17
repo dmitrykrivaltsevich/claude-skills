@@ -7,7 +7,7 @@ is indistinguishable from sequential `kb:add` in input order.
 ## Contents
 
 1. [Protocol At A Glance](#protocol-at-a-glance)
-2. [URL-List Input](#url-list-input)
+2. [Batch Inputs](#batch-inputs)
 3. [The Four Durability Facts](#the-four-durability-facts)
 4. [Coordinator Checklist](#coordinator-checklist)
 5. [Delegation Prompts (Don't Retype)](#delegation-prompts-dont-retype)
@@ -52,10 +52,15 @@ sequential work by nature. Books inside a batch are fine: each book goes
 to ONE worker, which processes it chapter-by-chapter per the worker
 prompt — never split one source across workers.
 
-## URL-List Input
+## Batch Inputs
 
-When the input is URLs pasted in chat (not files on disk), the
-coordinator builds the list file — `plan` never takes bare URLs:
+`plan --input` takes exactly one path: a directory OR a `.txt` list
+file. Pick one recipe — never both, never bare URLs, never import
+scripts of your own.
+
+### URL lists (chat URLs, not files on disk)
+
+The coordinator builds the list file — `plan` never takes bare URLs:
 
 1. Write the URLs verbatim, one per line, to `/tmp/<batch-id>-inputs.txt`
    (blank lines and `#` comments are skipped).
@@ -67,6 +72,25 @@ coordinator builds the list file — `plan` never takes bare URLs:
    hence the merge order. Order the URLs as you want them merged.
 5. Minted source-ids (URL-slugified, collision-suffixed) come back in
    `plan`'s output — dispatch workers by those ids, never re-slugify.
+
+### Directories (a folder of files on disk)
+
+Pass the folder itself as `--input` — one batch for the whole folder,
+whatever the file count:
+
+1. Every file under the folder becomes one source (`kind=file`),
+   scanned recursively.
+2. Dot-files/directories and the `.kb sources .git node_modules
+   __pycache__ .venv` top-level trees are skipped (never re-ingest
+   bookkeeping or raw sources).
+3. Sorted byte path order is kept verbatim — it is the manifest order,
+   hence the merge order.
+4. Any N goes in ONE batch: `plan` partitions sources into waves of
+   ≤10 and you dispatch wave by wave (see Large Batches below). Never
+   split a folder into several batches by hand, never hand-chunk
+   "batches" of your own — without `.kb/batches/<id>/` state
+   (manifest, staging) there is no resume, no ordered merge, and no
+   audit.
 
 ## The Four Durability Facts
 
@@ -231,6 +255,11 @@ is the exclusive assignment.
 - **Hand-merging conflicts by rewriting both sides.** Let the union keep
   both facts; refine wording in the recorded queue entry only.
 - **Passing bare URLs as `--input`, or reading `batch_*.py` source to
-  learn the input format.** Build the list file per URL-List Input above
+  learn the input format.** Build the list file per Batch Inputs above
   (the script's error tells you the same if you forget). This doc is the
   contract — internals may change.
+- **Hand-rolled ingestion: custom import scripts, manual per-file loops,
+  or self-chunked "batches".** The batch scripts ARE the pipeline —
+  manifest, staging, ordered replay, resume, audit. Tell-tale sign you
+  left it: no `.kb/batches/<id>/` state exists. If you cannot point to
+  the manifest, you are not doing batch-add — stop and re-read this doc.

@@ -47,7 +47,7 @@ Which operation? (pick a number or describe what you need)
 **Routing rules:**
 - User says "create/new/init KB" → **init**
 - User says "open/load KB" or starts a session → **open**
-- User says "add/ingest/import" + file/URL/source → **add**
+- User says "add/ingest/import" + single file/URL/source → **add**
 - User says "search/find/query/what is/tell me about" → **query**
 - User says "check/lint/health/fix links/consolidate/merge/prune/deduplicate" → **lint**
 - User says "status/dashboard/stats/how many" → **status**
@@ -55,7 +55,7 @@ Which operation? (pick a number or describe what you need)
 - User says "revisit/refresh/update old/stale entries" → **revisit**
 - User says "iterate/dig deeper/think harder/cycles" or asks a deep analytical question → **iterate** *(usually auto-triggered during add/query/explore; manual invocation also works)*
 - User says "topology/graph/structure/gaps/clusters/what's missing" → **topology** *(usually auto-triggered after add/lint/explore; manual invocation also works)*
-- User says "import all/batch/many (3+) sources" + directory/URL list → **batch-add** (see [references/parallel-import.md](references/parallel-import.md); 1–2 sources → sequential **add**)
+- User says "import all/batch/many (3+) sources" + directory/folder/URL list → **batch-add** (see [references/parallel-import.md](references/parallel-import.md); 1–2 sources → sequential **add**; any file count — waves cover any N; never write your own import scripts or hand-chunk batches)
 - User provides a file path or URL without other context → **add** (assume they want to ingest it)
 
 ## Contents
@@ -284,11 +284,10 @@ Mandatory for academic papers, textbooks, and any source that references other w
 
 ### kb:batch-add — Parallel Import (Map → Reduce)
 
-1. `batch_plan.py plan` (pre-registers all sources, writes `.kb/batches/<id>/manifest.json`)
+1. `batch_plan.py plan` on the WHOLE input (any N — waves group automatically; writes `.kb/batches/<id>/manifest.json`). Never split by hand, never write import scripts.
 2. Spawn ≤10 workers via `batch_prompts.py worker` prompts (staging-only, no `lint`, no `rules.md` edits)
 3. `batch_merge.py merge` (ordered replay) → triangulate pass → `lint_fix.py` → `lint` → `mark-done` → verify → `gc`
-
-Full worker contract, merge policy, resume/GC protocol: [references/parallel-import.md](references/parallel-import.md).
+Self-check: if you cannot point to `.kb/batches/<id>/manifest.json`, you are not doing batch-add — stop and re-read [references/parallel-import.md](references/parallel-import.md).
 
 ### kb:lint — Health Check, Repair & Consolidation
 
