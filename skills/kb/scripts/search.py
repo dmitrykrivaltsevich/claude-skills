@@ -40,12 +40,20 @@ from contracts import ContractViolationError, precondition
 # to understand the surrounding content without reading the full file.
 _CONTEXT_LINES = 2  # 2 lines before and after the matching line
 
-# Valid knowledge categories that --category can filter by.
+# Valid knowledge categories that --category can filter by. Built-ins are
+# listed for help text; any existing knowledge/<dir>/ (custom entry types
+# from rules.md) works too, and a well-formed but absent name simply
+# matches nothing — search is read-only, so a typo costs an empty result,
+# not KB corruption, and needs no strict gate.
 _VALID_CATEGORIES = frozenset({
     "entities", "topics", "ideas", "locations", "timeline",
     "sources", "citations", "controversies", "meta", "assets",
     "questions",
 })
+
+# Shape for a --category value — kebab-case knowledge/ dirname. Checked in
+# search_kb (argparse choices cannot know live custom dirs).
+_CATEGORY_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 
 _VALID_IDEA_KINDS = frozenset({"conceptual", "practical"})
 
@@ -162,6 +170,11 @@ def _score_file(hit_count: int, total_lines: int, term_hits: int, total_terms: i
 @precondition(
     lambda kb_path, query, **_: len(query.strip()) > 0,
     "query must be non-empty",
+)
+@precondition(
+    lambda category, **_: category is None or bool(_CATEGORY_RE.match(category)),
+    "category must be a kebab-case knowledge/ dirname (e.g. experiments); "
+    "custom entry-type dirs work as soon as they exist",
 )
 def search_kb(
     kb_path: str,
@@ -300,8 +313,9 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument(
         "--category",
         default=None,
-        choices=sorted(_VALID_CATEGORIES),
-        help="Restrict search to a knowledge category",
+        help="Restrict search to a knowledge category (built-ins: "
+        + ", ".join(sorted(_VALID_CATEGORIES))
+        + "; any existing knowledge/<dir>/ also works)",
     )
     parser.add_argument(
         "--first-only",
@@ -325,15 +339,19 @@ def main(argv: list[str] | None = None) -> None:
     )
 
     args = parser.parse_args(argv)
-    result = search_kb(
-        args.path,
-        args.query,
-        limit=args.limit,
-        category=args.category,
-        first_only=args.first_only,
-        kind=args.kind,
-        tag=args.tag,
-    )
+    try:
+        result = search_kb(
+            args.path,
+            args.query,
+            limit=args.limit,
+            category=args.category,
+            first_only=args.first_only,
+            kind=args.kind,
+            tag=args.tag,
+        )
+    except ContractViolationError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        sys.exit(1)
     emit_json_result(result, output_path=args.output, artifact_kind="kb-search-results")
 
 

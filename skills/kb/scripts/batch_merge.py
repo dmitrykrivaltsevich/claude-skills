@@ -43,7 +43,7 @@ import yaml
 sys.path.insert(0, os.path.dirname(__file__))
 from artifact_output import emit_json_result
 from batch_plan import (
-    _ALLOWED_STAGING_TOPS,
+    _allowed_staging_tops,
     _MAX_PROPOSAL_BYTES,
     _atomic_write_bytes,
     _atomic_write_text,
@@ -304,18 +304,23 @@ def _union_merge_md(
     )
 
 
-def _check_rel(rel: str, source_id: str) -> None:
+def _check_rel(
+    kb_path: str, rel: str, source_id: str, extra_tops: list[str] | tuple[str, ...] = ()
+) -> None:
     """Validate a staged rel path (ops records may be hand-written, so the
     stage_write precondition cannot be the only gate). Mirrors the staging
     contract: knowledge-mirror only, .md outside assets/, assets namespaced
-    per source."""
+    per source. The admitted set is built-ins ∪ live tree ∪ the batch
+    manifest's declared tops (tolerates pre-feature manifests without the
+    key)."""
+    allowed = _allowed_staging_tops(kb_path, extra_tops)
     parts = Path(rel).parts
     if (
         not rel
         or not parts
         or rel.startswith("/")
         or ".." in parts
-        or parts[0] not in _ALLOWED_STAGING_TOPS
+        or parts[0] not in allowed
     ):
         raise ContractViolationError(
             f"staged path {rel!r} escapes the knowledge mirror. Restage via "
@@ -865,7 +870,7 @@ def merge_batch(kb_path: str, batch_id: str, dry_run: bool = False) -> dict:
     for source_id, ops in per_source_ops:
         for op in ops:
             rel: str = op["path"]
-            _check_rel(rel, source_id)
+            _check_rel(kb_path, rel, source_id, manifest.get("allowed_tops", []))
             staged_bytes = _read_staged(staging_root, source_id, rel)
             live_path = _resolve_live(kb_path, rel)
             base_sha1: str = op.get("base_sha1", "")

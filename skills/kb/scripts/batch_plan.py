@@ -69,8 +69,12 @@ _MAX_PROPOSAL_BYTES = 20_480  # 20 KiB: hundreds of bullets fit, dumps do not.
 # naming the conflicted files; the full queue lives in merge-queue.json.
 _QUEUE_STATUS_CAP = 50  # one screen of conflicts; more means refine-first.
 
-# Top-level entries a worker may stage, mirroring knowledge/ subtrees.
-# index.md / log.md / .kb/* are coordinator-owned and therefore forbidden.
+# Top-level entries a worker may stage: the built-in knowledge/ subtrees
+# plus anything the KB itself adds. Custom entry types declared in
+# .kb/rules.md materialize as real directories (see
+# references/entry-types.md "Custom Entry Types"), so the live tree is the
+# source of truth — no registry to drift. index.md / log.md / .kb/* live
+# outside knowledge/ and are therefore forbidden by construction.
 _ALLOWED_STAGING_TOPS = frozenset(
     {
         "entities",
@@ -86,6 +90,11 @@ _ALLOWED_STAGING_TOPS = frozenset(
         "assets",
     }
 )
+
+# Shape for a live-discovered or manifest-declared top dir — kebab-case,
+# matching batch_id/source-id conventions. Rejects hidden dirs, dotted
+# names and anything with path separators in one test.
+_TOP_NAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 
 # Source-id shape shared with add_source.py (kebab-case, has a hyphen).
 _SOURCE_ID_RE = re.compile(r"^[a-z][a-z0-9]+(?:-[a-z0-9]+)+$")
@@ -414,13 +423,66 @@ def _snapshot_base(kb_path: str) -> tuple[dict[str, str], list[str]]:
     return base, unreadable
 
 
-def _is_allowed_rel(rel_path: str) -> bool:
-    """Staged paths must mirror a knowledge/ subtree; coordinator-owned
-    files (index.md, log.md, .kb/*) are rejected here, not at merge time."""
+def _live_staging_tops(kb_path: str) -> frozenset[str]:
+    """Top dirs actually present under knowledge/ with valid names.
+
+    Symlinked dirs are excluded (fail closed — merge would refuse to write
+    through them anyway); unreadable trees yield empty, never an error.
+    """
+    try:
+        entries = list(Path(kb_path, "knowledge").iterdir())
+    except OSError:
+        return frozenset()
+    return frozenset(
+        entry.name
+        for entry in entries
+        if entry.is_dir()
+        and not entry.is_symlink()
+        and _TOP_NAME_RE.match(entry.name)
+    )
+
+
+def _allowed_staging_tops(
+    kb_path: str, extra: tuple[str, ...] | list[str] | frozenset[str] = ()
+) -> frozenset[str]:
+    """Full staging gate: built-ins ∪ live tree ∪ manifest-declared tops.
+
+    Live-FS covers non-empty KBs (the dir exists because the custom type
+    flow created it); manifest extras cover empty KBs where the dir cannot
+    exist yet and workers are forbidden from creating it.
+    """
+    return _ALLOWED_STAGING_TOPS | _live_staging_tops(kb_path) | frozenset(extra)
+
+
+def _normalize_allow_dirs(
+    allow_dirs: list[str] | str | None,
+) -> list[str]:
+    """Normalize plan's allow_dirs to a sorted unique list, rejecting
+    malformed names explicitly (a typo here must fail at plan time, not
+    silently admit nothing for the whole batch)."""
+    if allow_dirs is None:
+        return []
+    if isinstance(allow_dirs, str):
+        allow_dirs = [piece.strip() for piece in allow_dirs.split(",")]
+    cleaned = sorted({entry for entry in allow_dirs if entry})
+    for entry in cleaned:
+        if not _TOP_NAME_RE.match(entry):
+            raise ContractViolationError(
+                f"allow_dirs entry {entry!r} is not a valid directory name "
+                "(kebab-case, e.g. experiments). Fix the spelling and re-run "
+                "plan.",
+                kind="precondition",
+            )
+    return cleaned
+
+
+def _is_shaped_rel(rel_path: str) -> bool:
+    """Path-shape half of the staging gate (no filesystem or manifest
+    reads, so it is safe in a precondition): knowledge-relative syntax,
+    no dotfiles, markdown outside assets/. Top-dir admission is checked
+    in the function body where the error can name the offending top."""
     parts = Path(rel_path).parts
     if not parts:
-        return False
-    if parts[0] not in _ALLOWED_STAGING_TOPS:
         return False
     if rel_path.endswith("/"):
         return False
@@ -436,6 +498,16 @@ def _is_allowed_rel(rel_path: str) -> bool:
     if parts[0] != "assets" and not name.endswith(".md"):
         return False
     return True
+
+
+def _is_allowed_rel(rel_path: str, allowed_tops: frozenset[str]) -> bool:
+    """Full staging gate: shape plus top-dir admission. Kept as a pure
+    predicate for tests; stage_write enforces the same rule with a
+    dynamic error that names the offending top."""
+    parts = Path(rel_path).parts
+    if not parts or parts[0] not in allowed_tops:
+        return False
+    return _is_shaped_rel(rel_path)
 
 
 def _assets_owner_ok(rel_path: str, source_id: str) -> bool:
@@ -554,8 +626,14 @@ def plan_batch(
     batch_id: str,
     max_workers: int = _MAX_WORKERS_DEFAULT,
     state_dir: Path | str | None = None,
+    allow_dirs: list[str] | str | None = None,
 ) -> dict:
     """Mint ids, pre-register every source, snapshot base, write manifest.
+
+    allow_dirs declares custom knowledge/ tops for empty KBs where the
+    dirs cannot exist yet (e.g. ["experiments"]); on non-empty KBs the
+    live tree already admits them and the flag is a harmless no-op.
+    First plan wins: crash-retries reuse the stored list.
 
     Idempotent: re-running with the same batch_id and identical inputs
     returns resumed:true and registers nothing twice. Re-running with
@@ -565,6 +643,7 @@ def plan_batch(
     partial run's ids instead of minting suffixed duplicates.
     """
     entries = _collect_inputs(input_spec)
+    allowed_tops = _normalize_allow_dirs(allow_dirs)
     fingerprint = hashlib.sha1(
         json.dumps(
             [(e["kind"], e["location"]) for e in entries],
@@ -595,6 +674,7 @@ def plan_batch(
                 "source_ids": manifest["order"],
                 "total_sources": len(manifest["order"]),
                 "waves": waves,
+                "allowed_tops": sorted(manifest.get("allowed_tops", [])),
                 "resumed": True,
             }
         # Crash during registration — fall through and finish it below,
@@ -633,6 +713,7 @@ def plan_batch(
                 "base": {},
                 "snapshot_unreadable": [],
                 "phase": "planning",
+                "allowed_tops": allowed_tops,
                 "cursor": {"applied_total": 0},
                 "max_workers": max_workers,
                 "waves": _partition_waves(order, max_workers),
@@ -680,6 +761,7 @@ def plan_batch(
         "base": base,
         "snapshot_unreadable": unreadable,
         "phase": "mapping",
+        "allowed_tops": allowed_tops,
         "cursor": {"applied_total": 0},
         "max_workers": max_workers,
         "waves": waves,
@@ -693,6 +775,7 @@ def plan_batch(
         "source_ids": order,
         "total_sources": len(order),
         "waves": waves,
+        "allowed_tops": allowed_tops,
         "resumed": False,
     }
 
@@ -713,7 +796,7 @@ def plan_batch(
     lambda rel_path, **_: len(rel_path.strip()) > 0
     and ".." not in Path(rel_path).parts
     and not Path(rel_path).is_absolute()
-    and _is_allowed_rel(rel_path),
+    and _is_shaped_rel(rel_path),
     "rel_path must mirror a knowledge/ subtree (e.g. entities/ada.md); "
     "index.md, log.md and .kb/* are forbidden — the reconciler owns them",
 )
@@ -745,6 +828,25 @@ def stage_write(
             f"(order: {manifest['order']}). Check the source-id spelling.",
             kind="precondition",
         )
+    admitted = _allowed_staging_tops(
+        kb_path, tuple(manifest.get("allowed_tops", []))
+    )
+    if not _is_allowed_rel(rel_path, admitted):
+        parts = Path(rel_path).parts
+        if len(parts) == 1:
+            detail = (
+                f"{rel_path!r} is coordinator-owned (index.md, log.md and "
+                ".kb/* are forbidden — the reconciler owns them)."
+            )
+        else:
+            detail = (
+                f"top directory {parts[0]!r} in {rel_path!r} is not admitted "
+                f"for staging (admitted: {sorted(admitted)}). A custom "
+                f"entry-type dir needs an existing knowledge/{parts[0]}/ "
+                "directory, or declare it once via plan "
+                f"--allow-dirs {parts[0]}."
+            )
+        raise ContractViolationError(detail, kind="precondition")
     content_path = Path(content_file)
     if not content_path.exists():
         raise ContractViolationError(
@@ -911,6 +1013,13 @@ def main(argv: list[str] | None = None) -> None:
     p_plan.add_argument("--batch-id", required=True)
     p_plan.add_argument("--max-workers", type=int, default=_MAX_WORKERS_DEFAULT)
     p_plan.add_argument("--state-dir", type=Path, default=None)
+    p_plan.add_argument(
+        "--allow-dirs",
+        default=None,
+        help="Comma-separated custom knowledge/ tops (e.g. experiments,"
+        "rollouts) for KBs where the dirs do not exist yet; stored on the "
+        "manifest for the whole batch",
+    )
     p_plan.add_argument("--output", "-o", type=Path, default=None)
 
     p_stage = sub.add_parser("stage-write")
@@ -937,6 +1046,7 @@ def main(argv: list[str] | None = None) -> None:
                 args.batch_id,
                 max_workers=args.max_workers,
                 state_dir=args.state_dir,
+                allow_dirs=args.allow_dirs,
             )
         elif args.command == "stage-write":
             result = stage_write(

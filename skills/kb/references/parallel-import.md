@@ -183,6 +183,11 @@ You are a normal `kb:add` agent with three restrictions:
    `entities/ada.md`, `timeline/years/2024.md`,
    `knowledge/sources/<id>-analysis.md` via `--path sources/<id>-analysis.md`).
    Assets go under `assets/<source-id>/` (namespaced per source).
+   Admitted tops are the built-ins plus any existing `knowledge/<custom>/`
+   dir (custom entry types from rules.md); on an empty KB where the dir
+   cannot exist yet, the coordinator declares it once with
+   `batch_plan.py plan --allow-dirs experiments,rollouts` (stored on the
+   manifest for the whole batch).
    Forbidden: the raw `sources/` layer, `index.md`, `log.md`, `.kb/*`,
    other workers' staging, and `lint` (one final lint runs
    after the merge — running it per worker wastes tokens on a partial graph).

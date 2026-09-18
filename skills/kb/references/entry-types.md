@@ -575,3 +575,5 @@ The 10 built-in types above cover most knowledge domains. However, as a KB grows
 - `theorems/` — for formal mathematical results with proofs and implications
 
 **The rules.md file is the authoritative type registry for each KB.** When the LLM encounters a concept that doesn't fit the built-in types, it SHOULD propose a custom type to the user rather than forcing the entry into an ill-fitting category.
+
+Batch import and search follow the live tree automatically: `stage-write` admits any existing `knowledge/<custom>/` dir, and on an empty KB the coordinator declares it once via `batch_plan.py plan --allow-dirs <dirs>` (see the Worker Contract in `parallel-import.md`).

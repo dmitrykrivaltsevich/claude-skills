@@ -35,7 +35,7 @@ from contracts import ContractViolationError, precondition
 # skill tree and is unreachable from installed layouts (plugin managers copy
 # skills elsewhere). Pinned equal to marketplace.json metadata.version by
 # TestVersionPin: bump both together, the suite enforces it.
-SKILL_VERSION = "1.9.0"
+SKILL_VERSION = "1.10.0"
 
 # Runtime payload: everything a harness needs to run the skill (entrypoint +
 # helpers + docs). tests/ (~2.5MB of fixtures) and README.md stay out — a KB
